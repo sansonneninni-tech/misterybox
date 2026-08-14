@@ -14,9 +14,9 @@ import { TYPE_COLORS } from '../gfx/palette';
 import { creatureSprite } from '../gfx/creatures';
 import { silhouette } from '../gfx/pixel';
 import { getCharacter } from '../gfx/chars';
-import { drawText, drawTextCentered, drawTextRight, textWidth } from '../gfx/font';
+import { drawText, drawTextRight, textWidth } from '../gfx/font';
 import { PAL } from '../gfx/palette';
-import { ballSprite, drawBar, drawMenuItem, drawTag, drawWindow, hpColor, menuCursor, WIN_BLUE, WIN_STYLE } from '../gfx/ui';
+import { ballSprite, drawBar, drawMenuItem, drawTag, drawWindow, hpColor, WIN_BLUE, WIN_STYLE } from '../gfx/ui';
 import { Creature } from '../state/creature';
 import { state } from '../state/gameState';
 import {
@@ -1017,23 +1017,4 @@ function approach(current: number, target: number, speed: number): number {
   if (current < target) return Math.min(target, current + speed);
   if (current > target) return Math.max(target, current - speed);
   return target;
-}
-
-/** Riquadro riassuntivo usato anche altrove. */
-export function drawCreatureRow(
-  g: CanvasRenderingContext2D,
-  c: Creature,
-  x: number,
-  y: number,
-  selected: boolean,
-): void {
-  if (selected) g.drawImage(menuCursor(), x - 8, y + 4);
-  drawText(g, c.name, x, y, { color: PAL.uiText, shadow: PAL.uiTextShadow });
-  drawText(g, `Lv${c.level}`, x + 78, y, { color: PAL.uiText, shadow: PAL.uiTextShadow });
-  drawBar(g, x, y + 12, 60, c.hpRatio, hpColor(c.hpRatio), { height: 3 });
-  drawTextCentered(g, `${c.hp}/${c.maxHp}`, x + 92, y + 10, { color: PAL.uiText, shadow: PAL.uiTextShadow });
-}
-
-export function measureName(c: Creature): number {
-  return textWidth(c.name);
 }

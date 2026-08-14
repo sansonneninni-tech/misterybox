@@ -26,13 +26,6 @@ export const WIN_BLUE: WindowStyle = {
   shadow: '#aab6cc',
 };
 
-export const WIN_DARK: WindowStyle = {
-  bg: '#26304a',
-  border: '#8fa8d8',
-  borderLite: '#c8d8f4',
-  shadow: '#141a2c',
-};
-
 /** Cornice in stile console portatile: doppio bordo e angoli smussati. */
 export function drawWindow(
   g: CanvasRenderingContext2D,

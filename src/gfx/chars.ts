@@ -228,7 +228,7 @@ export const CHAR_PALETTES: Record<string, CharPalette> = {
     skin: PAL.skin, skinDark: PAL.skinDark,
     shirt: '#d94a3d', shirtDark: '#9c2b26',
     pants: '#2f3a52', shoe: '#1e2230',
-    hat: '#e8544a', hatHi: '#ffffff',
+    hat: '#e8544a', hatHi: '#ffffff', hatBrim: '#a02a26',
   },
   heroine: {
     hair: '#8a4a26', hairHi: '#b8703a',
@@ -247,12 +247,14 @@ export const CHAR_PALETTES: Record<string, CharPalette> = {
     skin: PAL.skin, skinDark: PAL.skinDark,
     shirt: '#f8f8f8', shirtDark: '#d8d8e4',
     pants: '#e8e8f0', shoe: '#c04a5a',
+    hat: '#ffffff', hatHi: '#f0f0f8', hatBrim: '#e05a6a',
   },
   clerk: {
     hair: '#2a2a34', hairHi: '#4a4a58',
     skin: PAL.skin, skinDark: PAL.skinDark,
     shirt: '#3fb06a', shirtDark: '#237a46',
     pants: '#2e3440', shoe: '#1a1c24',
+    hat: '#2f7a4f', hatHi: '#48a86a', hatBrim: '#1c4f34',
   },
   villager1: {
     hair: '#5a3f2c', hairHi: '#7d5a3c',
@@ -277,6 +279,13 @@ export const CHAR_PALETTES: Record<string, CharPalette> = {
     skin: '#d8a476', skinDark: '#a87c50',
     shirt: '#3fa8b0', shirtDark: '#237a82',
     pants: '#8a6236', shoe: '#33291e',
+    hat: '#e8e0c8', hatHi: '#fff8e0', hatBrim: '#3a5a7a',
+  },
+  professorAssistant: {
+    hair: '#6a4a8a', hairHi: '#8f6ab0',
+    skin: '#d8a476', skinDark: '#a87c50',
+    shirt: '#e8e8f0', shirtDark: '#c0c0d0',
+    pants: '#3a4258', shoe: '#22242e',
   },
   rival: {
     hair: '#e07a2a', hairHi: '#ffa860',
@@ -289,13 +298,14 @@ export const CHAR_PALETTES: Record<string, CharPalette> = {
     skin: '#d8a476', skinDark: '#a87c50',
     shirt: '#c06a2a', shirtDark: '#8a4718',
     pants: '#3a5a3a', shoe: '#33291e',
-    hat: '#8a5a2a', hatHi: '#c08a4a',
+    hat: '#8a5a2a', hatHi: '#c08a4a', hatBrim: '#5a3a18',
   },
   scout: {
     hair: '#2a3a5a', hairHi: '#465c86',
     skin: PAL.skin, skinDark: PAL.skinDark,
     shirt: '#5a9a4a', shirtDark: '#357030',
     pants: '#4a4436', shoe: '#2a2820',
+    hat: '#c8a83f', hatHi: '#e8cc60', hatBrim: '#8a6f18',
   },
 };
 

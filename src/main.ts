@@ -4,6 +4,7 @@ import { audio } from './engine/audio';
 import { Game } from './engine/game';
 import { buildTouchControls } from './engine/input';
 import { buildTileset } from './gfx/tiles';
+import { setGlobalSeed } from './engine/rng';
 import { TitleScene } from './scenes/title';
 import { getState, GameState } from './state/gameState';
 import type { Scene } from './engine/scene';
@@ -39,6 +40,12 @@ function showFatal(message: string): void {
 function boot(): void {
   const canvas = document.getElementById('screen') as HTMLCanvasElement | null;
   if (!canvas) throw new Error('Canvas non trovato');
+
+  // Semina riproducibile per i test: index.html?seed=123
+  const seedParam = new URLSearchParams(window.location.search).get('seed');
+  if (seedParam !== null && Number.isFinite(Number(seedParam))) {
+    setGlobalSeed(Number(seedParam) >>> 0);
+  }
 
   buildTileset();
 

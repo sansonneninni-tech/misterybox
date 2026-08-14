@@ -1,6 +1,6 @@
 /** Finestra di dialogo con effetto macchina da scrivere e menu di scelta. */
 
-import { SCREEN_H, SCREEN_W } from '../engine/const';
+import { SCREEN_W } from '../engine/const';
 import type { Input } from '../engine/input';
 import type { Renderer } from '../engine/renderer';
 import { drawText, textWidth, wrapText } from '../gfx/font';
@@ -159,18 +159,5 @@ export class Textbox {
     } else if (this.waiting && Math.floor(this.arrowTimer / 18) % 2 === 0) {
       g.drawImage(dialogArrow(), BOX_X + BOX_W - 14, y + BOX_H - 12);
     }
-  }
-}
-
-/** Riquadro informativo generico centrato (usato per messaggi brevi). */
-export function drawInfoBox(r: Renderer, lines: string[]): void {
-  const g = r.ctx;
-  const w = Math.max(...lines.map((l) => textWidth(l))) + 24;
-  const h = lines.length * 12 + 16;
-  const x = Math.round((SCREEN_W - w) / 2);
-  const y = Math.round((SCREEN_H - h) / 2);
-  drawWindow(g, x, y, w, h);
-  for (let i = 0; i < lines.length; i++) {
-    drawText(g, lines[i], x + 12, y + 8 + i * 12, { color: PAL.uiText, shadow: PAL.uiTextShadow });
   }
 }

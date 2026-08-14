@@ -459,9 +459,3 @@ export function expForLevel(level: number): number {
   if (level <= 1) return 0;
   return Math.floor((level * level * level * 4) / 5);
 }
-
-export function levelFromExp(exp: number): number {
-  let lv = 1;
-  while (lv < 100 && exp >= expForLevel(lv + 1)) lv++;
-  return lv;
-}

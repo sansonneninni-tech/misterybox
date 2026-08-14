@@ -48,8 +48,3 @@ export function effectivenessText(mult: number): string | null {
   if (mult > 0 && mult < 1) return 'Non è molto efficace…';
   return null;
 }
-
-/** Abbreviazione a 3 lettere per le interfacce strette. */
-export function typeShort(t: ElemType): string {
-  return t.slice(0, 3).toUpperCase();
-}

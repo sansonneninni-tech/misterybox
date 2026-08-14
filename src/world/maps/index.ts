@@ -50,8 +50,3 @@ export function getMap(id: string): RuntimeMap {
 export function allMapIds(): string[] {
   return Object.keys(FACTORIES);
 }
-
-/** Ricostruisce tutte le mappe (usato dai test di validita'). */
-export function buildAllMaps(): RuntimeMap[] {
-  return allMapIds().map(getMap);
-}

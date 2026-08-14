@@ -90,8 +90,6 @@ export const PAL = {
   xpBlue: '#4aa8e8',
 } as const;
 
-export type PalKey = keyof typeof PAL;
-
 /** Colori per tipo elementale (usati in UI e barre). */
 export const TYPE_COLORS: Record<string, string> = {
   normale: '#a8a090',

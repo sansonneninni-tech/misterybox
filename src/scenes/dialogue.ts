@@ -44,12 +44,3 @@ export class DialogueScene extends Scene {
     this.box.render(r);
   }
 }
-
-/** Utility: coda di dialoghi consecutivi. */
-export function say(
-  game: { push: (s: Scene) => void },
-  lines: string[],
-  opts: { speaker?: string | null; choices?: Choice[] | null; onDone?: (c: string | null) => void } = {},
-): void {
-  game.push(new DialogueScene({ lines, ...opts }));
-}

@@ -11,7 +11,7 @@ import { charShadow, Dir, getCharacter } from '../gfx/chars';
 import { drawText, drawTextCentered, textWidth } from '../gfx/font';
 import { PAL } from '../gfx/palette';
 import { tileImage } from '../gfx/tiles';
-import { drawWindow, itemIcon, WIN_STYLE } from '../gfx/ui';
+import { drawWindow, WIN_STYLE } from '../gfx/ui';
 import { Creature } from '../state/creature';
 import { state } from '../state/gameState';
 import { DIR_VEC, Entity, OPPOSITE } from '../entities/entity';
@@ -20,6 +20,7 @@ import {
   COLL_LEDGE_DOWN, COLL_LEDGE_LEFT, COLL_LEDGE_RIGHT, COLL_SOLID, RuntimeMap, splitTile,
 } from '../world/map';
 import { getMap, SHOP_STOCK } from '../world/maps';
+import { BoxScene } from './box';
 import { DialogueScene } from './dialogue';
 import { BattleScene, BattleOutcome } from './battle';
 import { MenuScene } from './menu';
@@ -329,6 +330,13 @@ export class WorldScene extends Scene {
       this.runScript(this.npcScript(npc));
       return;
     }
+    // Terminale di deposito.
+    const obj = this.map.objectTile(x, y);
+    if (obj && splitTile(obj).name === 'pc') {
+      audio.sfx('select');
+      this.runScript(this.boxScript());
+      return;
+    }
     const sign = this.map.signAt(x, y);
     if (sign) {
       audio.sfx('select');
@@ -350,6 +358,16 @@ export class WorldScene extends Scene {
 
   private *dialogueScript(lines: string[], speaker?: string | null): Script {
     yield* this.waitDialogue(lines, speaker);
+  }
+
+  private *boxScript(): Script {
+    yield* this.waitDialogue(['Terminale di deposito attivato.']);
+    let closed = false;
+    const scene = new BoxScene();
+    this.game.push(scene);
+    while (this.game.current === scene) yield;
+    closed = true;
+    if (closed) yield;
   }
 
   private *waitDialogue(lines: string[], speaker?: string | null, choices?: { label: string; value: string }[] | null): Generator<void, string | null, void> {
@@ -387,6 +405,9 @@ export class WorldScene extends Scene {
         return;
       case 'professor':
         yield* this.professorScript(npc);
+        return;
+      case 'capitana':
+        yield* this.capitanaScript(npc);
         return;
       default:
         break;
@@ -470,6 +491,54 @@ export class WorldScene extends Scene {
       `Finora hai visto ${p.seen} creature e ne hai catturate ${p.caught}.`,
       p.caught >= 8 ? 'Straordinario! Sei un vero ricercatore.' : 'Continua così: la regione è grande.',
     ], name);
+  }
+
+  /** Epilogo: quando le prove sono superate la Capitana chiude il viaggio. */
+  private *capitanaScript(npc: Npc): Script {
+    const name = npc.def.name ?? 'Capitana Vera';
+    const spilla = state.hasFlag('spilla_bosco');
+    const rivale = state.hasFlag('trainer_rivale_2');
+
+    if (state.hasFlag('finale')) {
+      const p = state.dexProgress();
+      yield* this.waitDialogue([
+        'La nave è sempre qui, quando vorrai partire davvero.',
+        `Nel frattempo hai registrato ${p.caught} creature su ${p.total}.`,
+        'Verdania è più grande di quanto sembri: continua a esplorare.',
+      ], name);
+      return;
+    }
+    if (!spilla || !rivale) {
+      yield* this.waitDialogue([
+        'Sto preparando la nave per la traversata.',
+        !spilla
+          ? 'Non salpo con chi non ha ancora superato il Bosco Ombroso.'
+          : 'Dicono che al molo ci sia un ragazzo che ti cerca. Sistemate le cose, prima.',
+      ], name);
+      return;
+    }
+
+    state.setFlag('finale');
+    const p = state.dexProgress();
+    yield* this.waitDialogue([
+      `Così tu saresti ${state.playerName}.`,
+      'La Guardiana del Bosco mi ha parlato di te. E anche quel ragazzo, Dario.',
+      'Dicono che tu abbia attraversato mezza regione senza mai lasciare indietro nessuno.',
+    ], name);
+    yield* this.waitDialogue([
+      `Verdex: ${p.caught} creature catturate, ${p.seen} avvistate.`,
+      'Non è un numero. È una mappa di tutti i posti in cui sei stato.',
+    ], name);
+    audio.sfx('levelup');
+    yield* this.waitDialogue([
+      'Il tuo viaggio in Verdania finisce qui, sul molo, con il vento giusto.',
+      'Quello vero comincia adesso: sali quando sei pronto.',
+      '— FINE —',
+    ], name);
+    yield* this.waitDialogue([
+      'Puoi continuare a esplorare: la regione resta aperta.',
+      'Completare il Verdex è la prossima sfida.',
+    ]);
   }
 
   private *starterChoiceScript(name: string): Script {
@@ -721,14 +790,4 @@ export class WorldScene extends Scene {
     drawTextCentered(g, this.bannerText, 6 + w / 2, 12, { color: PAL.uiText, shadow: PAL.uiTextShadow });
     g.restore();
   }
-}
-
-/** Disegna un'icona oggetto: usata anche dal menu del mondo. */
-export function drawItemIcon(g: CanvasRenderingContext2D, kind: string, x: number, y: number): void {
-  g.drawImage(itemIcon(kind), x, y);
-}
-
-/** Crea la scena del mondo dalla posizione salvata nello stato. */
-export function createWorld(): WorldScene {
-  return new WorldScene(state.mapId, state.x, state.y, state.dir);
 }

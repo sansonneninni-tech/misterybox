@@ -51,6 +51,10 @@ Progressione tipica:
 2. Percorso 1 → primi allenatori e prime catture
 3. Bosco Ombroso → rifugio, Guardiana Selva, Spilla del Bosco
 4. Percorso 2 → Grotta Salina (facoltativa) → Porto Maree
+5. Porto Maree → ultimo scontro con il rivale → epilogo sul molo
+
+Dopo l'epilogo la regione resta esplorabile: completare il Verdex è la sfida
+successiva.
 
 ## Sistemi implementati
 
@@ -119,7 +123,10 @@ node tools/shots.mjs   # uno screenshot per mappa in screenshots/mappe/
   incontro casuale, combattimento, salvataggio e ricaricamento.
 - `tools/test-systems.mjs` — allenatore che avvista il giocatore, cattura,
   negozio, Centro Cura, dislivelli, oggetti a terra, sconfitta con risveglio
-  al centro, evoluzione.
+  al centro, evoluzione, terminale di deposito, epilogo.
+
+Aggiungendo `?seed=123` all'indirizzo il generatore casuale diventa
+deterministico: utile per riprodurre una sequenza di incontri.
 
 Entrambe le suite girano in Chromium tramite Playwright, catturano screenshot
 in `screenshots/` e falliscono se compare un errore in console o nel motore.

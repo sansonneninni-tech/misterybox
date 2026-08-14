@@ -7,7 +7,6 @@
 import { createCanvas, ctx2d } from '../engine/renderer';
 
 export const GLYPH_H = 8;
-export const LINE_H = 12;
 
 const G: Record<string, string> = {
   ' ': '..',

@@ -3,7 +3,6 @@
  * tile validi. Usati dai test automatici per evitare mappe "rotte".
  */
 
-import { isSolid } from '../gfx/tiles';
 import { COLL_SOLID, splitTile } from './map';
 import { allMapIds, getMap } from './maps';
 
@@ -91,7 +90,7 @@ export function validateMaps(): string[] {
         const ov = map.overTile(x, y);
         if (!ov) continue;
         const name = splitTile(ov).name;
-        if (!isSolid(name) && !name.startsWith('tree')) {
+        if (!name.startsWith('tree') && !name.startsWith('roof') && name !== 'chimney') {
           problems.push(`${id}: tile sopra il giocatore non solido "${name}" in (${x},${y})`);
         }
       }

@@ -248,6 +248,10 @@ export function portoMaree(): MapDef {
     id: 'rivale_porto', x: 15, y: 19, sprite: 'rival', dir: 'up', behavior: 'still',
     name: 'Dario', trainer: 'rivale_2', sight: 4,
   });
+  b.addNpc({
+    id: 'capitana_porto', x: 25, y: 15, sprite: 'heroine', dir: 'left', behavior: 'still',
+    name: 'Capitana Vera', role: 'capitana',
+  });
 
   return b.build({
     id: 'porto_maree', name: 'Porto Maree', outdoor: true, music: 'town',

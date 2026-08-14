@@ -124,10 +124,6 @@ export function cameraGiocatore(): MapDef {
   // La camera non ha porta verso l'esterno: si esce dalle scale.
   b.setObject(ROOMS[id].door, h - 1, 'innerWall#4');
 
-  b.signs.push({
-    x: 6, y: 2,
-    text: ['Il tuo terminale personale.', 'Da qui puoi controllare i progressi… e sognare l’avventura.'],
-  });
   b.signs.push({ x: 1, y: 2, text: ['Il tuo letto. Perfettamente rifatto, per una volta.'] });
 
   return b.build({ id, name: 'Camera', outdoor: false, music: 'town' });
@@ -144,8 +140,8 @@ export function laboratorio(): MapDef {
   for (let x = 9; x <= 12; x++) put(b, x, 7, 'table');
   put(b, 1, 9, 'plant');
   put(b, w - 2, 9, 'plant');
-  put(b, 1, 5, 'pc');
-  put(b, w - 2, 5, 'pc');
+  put(b, 1, 5, 'tv');
+  put(b, w - 2, 5, 'tv');
 
   // Bancone con le tre creature iniziali.
   b.fillGround(5, 3, 5, 3, 'carpetB');
@@ -220,11 +216,6 @@ export function centroCura(id: string): MapDef {
       'È già successo… tre volte. Oggi.',
     ],
   });
-  b.signs.push({
-    x: w - 3, y: 6,
-    text: ['Terminale di deposito.', 'Le creature oltre la sesta finiscono qui.'],
-  });
-
   return b.build({ id, name: 'Centro Cura', outdoor: false, music: 'center' });
 }
 

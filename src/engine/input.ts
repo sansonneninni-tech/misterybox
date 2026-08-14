@@ -2,8 +2,6 @@
 
 export type Btn = 'up' | 'down' | 'left' | 'right' | 'a' | 'b' | 'start' | 'select';
 
-export const ALL_BUTTONS: Btn[] = ['up', 'down', 'left', 'right', 'a', 'b', 'start', 'select'];
-
 const KEYMAP: Record<string, Btn> = {
   ArrowUp: 'up',
   ArrowDown: 'down',

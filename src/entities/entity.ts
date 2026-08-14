@@ -1,6 +1,6 @@
 /** Entita' che si muove sulla griglia con interpolazione fluida. */
 
-import { TILE, WALK_FRAMES } from '../engine/const';
+import { RUN_FRAMES, TILE, WALK_FRAMES } from '../engine/const';
 import type { Dir } from '../gfx/chars';
 
 export type BlockedFn = (x: number, y: number, self: Entity) => boolean;
@@ -87,7 +87,7 @@ export class Entity {
     this.moving = true;
     this.jumping = jump;
     this.jumpT = 0;
-    this.moveDur = jump ? 22 : opts.run ? 9 : WALK_FRAMES;
+    this.moveDur = jump ? 22 : opts.run ? RUN_FRAMES : WALK_FRAMES;
     this.moveTimer = this.moveDur;
     this.ox = (this.fromX - this.tx) * TILE;
     this.oy = (this.fromY - this.ty) * TILE;

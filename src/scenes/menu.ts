@@ -101,7 +101,7 @@ export class MenuScene extends Scene {
   private drawCard(r: Renderer): void {
     const g = r.ctx;
     const w = 176;
-    const h = 96;
+    const h = 108;
     const x = Math.round((SCREEN_W - w) / 2);
     const y = Math.round((SCREEN_H - h) / 2);
     drawWindow(g, x, y, w, h, WIN_STYLE);
@@ -113,6 +113,7 @@ export class MenuScene extends Scene {
       ['Verdex', `${state.caught.size}/${state.dexProgress().total}`],
       ['Squadra', `${state.party.length}/6`],
       ['Spille', state.hasFlag('spilla_bosco') ? '1' : '0'],
+      ['Avventura', state.hasFlag('finale') ? 'completata' : 'in corso'],
     ];
     for (let i = 0; i < rows.length; i++) {
       const ry = y + 26 + i * 12;

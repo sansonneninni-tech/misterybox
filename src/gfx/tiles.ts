@@ -13,8 +13,6 @@ import { hash2 } from '../engine/rng';
 import { PAL } from './palette';
 import { stamp } from './pixel';
 
-export type TileLayer = 'ground' | 'object' | 'over';
-
 export interface TileDef {
   /** Disegna il tile 16x16 nell'origine del contesto. */
   draw: (g: CanvasRenderingContext2D, variant: number, frame: number) => void;
@@ -296,41 +294,6 @@ function drawPathMask(g: CanvasRenderingContext2D, mask: number): void {
       const x = Math.floor(t * TILE);
       if (mask & 1 && hash2(x, 5, 3) < 0.5) px(g, x, 3, PAL.grassDark);
       if (mask & 4 && hash2(x, 6, 3) < 0.5) px(g, x, TILE - 4, PAL.grassDark);
-    }
-  }
-}
-
-/** Bordo del sentiero verso l'erba (variant = lato). */
-function drawPathEdge(g: CanvasRenderingContext2D, variant: number): void {
-  drawDirt(g, 0);
-  const jag = (i: number) => (hash2(i, variant, 7) < 0.5 ? 1 : 2);
-  if (variant === 0) {
-    for (let x = 0; x < TILE; x++) {
-      const d = jag(x);
-      g.fillStyle = PAL.grassMid;
-      g.fillRect(x, 0, 1, d);
-      px(g, x, d, PAL.grassDark);
-    }
-  } else if (variant === 1) {
-    for (let x = 0; x < TILE; x++) {
-      const d = jag(x);
-      g.fillStyle = PAL.grassMid;
-      g.fillRect(x, TILE - d, 1, d);
-      px(g, x, TILE - d - 1, PAL.grassDark);
-    }
-  } else if (variant === 2) {
-    for (let y = 0; y < TILE; y++) {
-      const d = jag(y);
-      g.fillStyle = PAL.grassMid;
-      g.fillRect(0, y, d, 1);
-      px(g, d, y, PAL.grassDark);
-    }
-  } else {
-    for (let y = 0; y < TILE; y++) {
-      const d = jag(y);
-      g.fillStyle = PAL.grassMid;
-      g.fillRect(TILE - d, y, d, 1);
-      px(g, TILE - d - 1, y, PAL.grassDark);
     }
   }
 }
@@ -1332,10 +1295,6 @@ export const TILES: Record<string, TileDef> = {
   dirt: { draw: (g, v) => drawDirt(g, v), variants: 2 },
   sand: { draw: (g, v) => drawSand(g, v), variants: 2, tag: 'sand' },
   path: { draw: (g, v) => drawPathMask(g, v), variants: 16 },
-  pathN: { draw: (g) => drawPathEdge(g, 0) },
-  pathS: { draw: (g) => drawPathEdge(g, 1) },
-  pathW: { draw: (g) => drawPathEdge(g, 2) },
-  pathE: { draw: (g) => drawPathEdge(g, 3) },
   water: { draw: (g, v, f) => drawWater(g, v, f), frames: 4, frameRate: 12, solid: true, tag: 'water' },
   waterN: { draw: (g, _v, f) => drawWaterEdge(g, 0, f), frames: 4, frameRate: 12, solid: true, tag: 'water' },
   waterS: { draw: (g, _v, f) => drawWaterEdge(g, 1, f), frames: 4, frameRate: 12, solid: true, tag: 'water' },
@@ -1344,7 +1303,6 @@ export const TILES: Record<string, TileDef> = {
 
   // --- ostacoli ---
   cliff: { draw: (g) => drawCliff(g, 0), solid: true },
-  cliffTop: { draw: (g) => drawCliff(g, 1), solid: true },
   rock: { draw: (g, v) => drawRock(g, v), variants: 2, solid: true },
   bush: { draw: (g) => drawBush(g), solid: true },
   ledge: { draw: (g) => drawLedge(g), tag: 'ledge-down' },
@@ -1413,7 +1371,6 @@ export const TILES: Record<string, TileDef> = {
     },
     solid: true, over: true,
   },
-  voidBlack: { draw: (g) => fill(g, '#0a0a12'), solid: true },
 
   // --- grotta ---
   caveFloor: { draw: (g, v) => drawCaveFloor(g, v), variants: 4 },
@@ -1438,8 +1395,6 @@ export const TILES: Record<string, TileDef> = {
     tag: 'door',
   },
 };
-
-export type TileName = keyof typeof TILES;
 
 // ---------------------------------------------------------------------------
 // Cache
@@ -1506,9 +1461,4 @@ export function isSolid(name: string | undefined): boolean {
 export function tagOf(name: string | undefined): TileDef['tag'] | undefined {
   if (!name) return undefined;
   return TILES[name]?.tag;
-}
-
-export function isOver(name: string | undefined): boolean {
-  if (!name) return false;
-  return TILES[name]?.over === true;
 }

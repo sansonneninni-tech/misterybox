@@ -69,7 +69,7 @@ export interface NpcDef {
   /** Battaglia da allenatore. */
   trainer?: string;
   /** Funzione speciale gestita dalla scena (guaritore, negoziante...). */
-  role?: 'nurse' | 'clerk' | 'healer' | 'professor' | 'rival';
+  role?: 'nurse' | 'clerk' | 'healer' | 'professor' | 'rival' | 'capitana';
   /** Raggio di vista per gli allenatori. */
   sight?: number;
 }
@@ -173,39 +173,6 @@ export class MapBuilder {
     return this;
   }
 
-  rectOutline(x0: number, y0: number, w: number, h: number, tile: string): this {
-    for (let x = x0; x < x0 + w; x++) {
-      this.setObject(x, y0, tile);
-      this.setObject(x, y0 + h - 1, tile);
-    }
-    for (let y = y0; y < y0 + h; y++) {
-      this.setObject(x0, y, tile);
-      this.setObject(x0 + w - 1, y, tile);
-    }
-    return this;
-  }
-
-  /**
-   * Scrive il terreno da una mappa ASCII.
-   * I caratteri non presenti nella legenda vengono ignorati.
-   */
-  paint(rows: string[], legend: Record<string, string | null>, ox = 0, oy = 0, layer: 'ground' | 'object' = 'ground'): this {
-    for (let y = 0; y < rows.length; y++) {
-      const row = rows[y];
-      for (let x = 0; x < row.length; x++) {
-        const ch = row[x];
-        const tile = legend[ch];
-        if (tile === undefined) continue;
-        if (layer === 'ground') {
-          if (tile) this.setGround(ox + x, oy + y, tile);
-        } else {
-          this.setObject(ox + x, oy + y, tile);
-        }
-      }
-    }
-    return this;
-  }
-
   /** Albero 2x2 con ancoraggio in alto a sinistra. */
   tree(x: number, y: number): this {
     this.setOver(x, y, 'treeTL');
@@ -223,23 +190,6 @@ export class MapBuilder {
   forest(x0: number, y0: number, w: number, h: number): this {
     for (let y = y0; y + 1 < y0 + h; y += 2) {
       for (let x = x0; x + 1 < x0 + w; x += 2) this.tree(x, y);
-    }
-    return this;
-  }
-
-  /** Bordo di alberi lungo i confini della mappa. */
-  border(thickness = 2): this {
-    for (let x = 0; x < this.width; x += 2) {
-      for (let t = 0; t < thickness; t += 2) {
-        this.tree(x, t);
-        this.tree(x, this.height - 2 - t);
-      }
-    }
-    for (let y = 0; y < this.height; y += 2) {
-      for (let t = 0; t < thickness; t += 2) {
-        this.tree(t, y);
-        this.tree(this.width - 2 - t, y);
-      }
     }
     return this;
   }
@@ -300,16 +250,6 @@ export class MapBuilder {
       }
     }
     return { doorX, doorY: wallY + wallH - 1 };
-  }
-
-  /** Percorso di terra con bordi raccordati verso l'erba. */
-  path(x0: number, y0: number, w: number, h: number): this {
-    for (let y = y0; y < y0 + h; y++) {
-      for (let x = x0; x < x0 + w; x++) {
-        this.setGround(x, y, 'dirt');
-      }
-    }
-    return this;
   }
 
   /** Specchio d'acqua rettangolare con rive. */

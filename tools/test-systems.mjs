@@ -367,8 +367,64 @@ async function main() {
     else bad(`nessuna evoluzione: specie ${after.sp}, livello ${after.lvl}, PS ${after.hp}`);
   }
 
-  // --- 9. Diagnostica -----------------------------------------------------
-  log('9) Diagnostica');
+  // --- 9. Deposito creature ------------------------------------------------
+  log('9) Terminale di deposito');
+  await startGame('centro_borgo', 7, 5);
+  await page.evaluate(async () => {
+    const s = window.__verdania.state;
+    const m = await import('/src/state/creature.ts');
+    s.box.push(new m.Creature('piumetto', 9));
+    const w = window.__verdania.world;
+    w.player.tx = 12; w.player.ty = 7; w.player.dir = 'up';
+    w.player.ox = 0; w.player.oy = 0;
+  });
+  await frames(10);
+  await tap('a', 3, 24);
+  for (let i = 0; i < 3 && (await scene()) === 'DialogueScene'; i++) await tap('a', 3, 16);
+  await frames(20);
+  sc = await scene();
+  if (sc === 'BoxScene') ok('terminale di deposito aperto'); else bad(`terminale non aperto (${sc})`);
+  await shot('42-deposito');
+  const partyBefore = await page.evaluate(() => window.__verdania.state.party.length);
+  await tap('a', 3, 20);   // preleva dall'archivio
+  await frames(20);
+  const partyAfter = await page.evaluate(() => window.__verdania.state.party.length);
+  if (partyAfter === partyBefore + 1) ok(`creatura prelevata (${partyBefore} -> ${partyAfter})`);
+  else bad(`prelievo non riuscito (${partyBefore} -> ${partyAfter})`);
+  await tap('right', 3, 12);
+  await tap('a', 3, 20);   // rideposita
+  await frames(20);
+  const partyEnd = await page.evaluate(() => window.__verdania.state.party.length);
+  if (partyEnd === partyBefore) ok(`creatura depositata (${partyAfter} -> ${partyEnd})`);
+  else bad(`deposito non riuscito (${partyAfter} -> ${partyEnd})`);
+  await tap('b', 3, 16);
+
+  // --- 10. Finale dell'avventura ------------------------------------------
+  log('10) Epilogo');
+  await startGame('porto_maree', 24, 15);
+  await page.evaluate(() => {
+    const s = window.__verdania.state;
+    s.setFlag('spilla_bosco');
+    s.setFlag('trainer_rivale_2');
+    s.setFlag('trainer_marinaio_gino');
+    const w = window.__verdania.world;
+    w.player.tx = 24; w.player.ty = 15; w.player.dir = 'right';
+    w.player.ox = 0; w.player.oy = 0;
+  });
+  await frames(20);
+  await tap('a', 3, 24);
+  for (let i = 0; i < 24 && (await scene()) !== 'WorldScene'; i++) {
+    if (i === 6) await shot('43-finale');
+    await tap('a', 3, 16);
+  }
+  const ended = await page.evaluate(() => window.__verdania.state.hasFlag('finale'));
+  if (ended) ok('epilogo raggiunto e registrato'); else bad('epilogo non raggiunto');
+  const stillPlayable = await scene();
+  if (stillPlayable === 'WorldScene') ok('il gioco resta esplorabile dopo il finale');
+  else bad(`scena dopo il finale: ${stillPlayable}`);
+
+  // --- 11. Diagnostica -----------------------------------------------------
+  log('11) Diagnostica');
   const engineErrors = await page.evaluate(() => window.__verdania.game.errors);
   if (engineErrors.length === 0) ok('nessun errore nel motore');
   else bad(`errori motore:\n${engineErrors.slice(0, 3).join('\n---\n')}`);
