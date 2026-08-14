@@ -1,18 +1,12 @@
 # Dipendenze
 node_modules/
-venv/
-.venv/
 
 # Build
 dist/
-build/
-*.egg-info/
 
 # Cache
-__pycache__/
-*.py[cod]
-.cache/
-.pytest_cache/
+.vite/
+*.log
 
 # Ambiente
 .env
@@ -23,6 +17,3 @@ __pycache__/
 .idea/
 .vscode/
 *.swp
-
-# Log
-*.log
