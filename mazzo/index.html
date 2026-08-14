@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#17130f" />
+    <meta name="description" content="MAZZO - mini RPG narrativo: un pomeriggio d'estate, un turno da fare e una busta da ritirare." />
+    <title>MAZZO</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2317130f'/%3E%3Crect x='4' y='3' width='8' height='5' fill='%23c68a5b'/%3E%3Crect x='4' y='7' width='8' height='2' fill='%232f2620'/%3E%3Crect x='3' y='9' width='10' height='5' fill='%2359632f'/%3E%3C/svg%3E" />
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0; height: 100%; width: 100%;
+        background: #0b0906; overflow: hidden;
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        color: #cdbfa6;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: none; overscroll-behavior: none;
+      }
+      #app {
+        position: fixed; inset: 0; display: flex;
+        align-items: center; justify-content: center;
+        background: radial-gradient(circle at 50% 38%, #241d15 0%, #120e0a 62%, #0b0906 100%);
+      }
+      canvas#screen {
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        display: block;
+        box-shadow: 0 0 0 2px #2a2118, 0 0 0 6px #14100b, 0 18px 60px rgba(0,0,0,.75);
+        border-radius: 2px;
+        background: #000;
+      }
+      @media (orientation: portrait) { html.touch #app { padding-bottom: 190px; } }
+      #fatal {
+        position: fixed; inset: 0; z-index: 50; display: none; padding: 24px;
+        background: #1a0d10; color: #ffb4b4; font-size: 12px; overflow: auto;
+        white-space: pre-wrap; line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"><canvas id="screen"></canvas></div>
+    <pre id="fatal"></pre>
+    <script>
+      // Spazio per i comandi a schermo, calcolato prima che il motore scelga la scala.
+      (function () {
+        function reserve() {
+          var touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+          var portrait = window.innerHeight > window.innerWidth;
+          document.documentElement.dataset.uiReserved = touch && portrait ? '190' : '0';
+        }
+        reserve();
+        window.addEventListener('resize', reserve);
+        window.addEventListener('orientationchange', reserve);
+        window.addEventListener('error', function (e) {
+          var box = document.getElementById('fatal');
+          if (!box) return;
+          box.style.display = 'block';
+          box.textContent = 'Errore: ' + (e.message || e);
+        });
+      })();
+    </script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

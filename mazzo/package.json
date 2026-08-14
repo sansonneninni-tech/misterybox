@@ -1,0 +1,22 @@
+{
+  "name": "mazzo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MAZZO - mini RPG narrativo: una giornata qualsiasi, e una busta da ritirare",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "node tools/test-maps.mjs && node tools/test.mjs",
+    "test:dist": "npm run build:page && node tools/test.mjs --dist",
+    "build:page": "npm run build && node tools/build-artifact.mjs",
+    "shots": "node tools/shots.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6"
+  }
+}

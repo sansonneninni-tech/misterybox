@@ -41,6 +41,18 @@ jobs:
       - name: Compone anche la pagina in file unico
         run: node tools/build-artifact.mjs
 
+      # Secondo gioco della raccolta: viene pubblicato sotto /mazzo/.
+      - name: Installa le dipendenze di MAZZO
+        run: npm ci
+        working-directory: mazzo
+
+      - name: Compila MAZZO
+        run: npm run build:page
+        working-directory: mazzo
+
+      - name: Aggiunge MAZZO alla cartella da pubblicare
+        run: cp -r mazzo/dist dist/mazzo
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
