@@ -44,7 +44,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'foglietta', name: 'Foglietta', types: ['erba'],
     base: S(45, 49, 49, 65, 65, 45), catchRate: 45, baseExp: 64,
     height: 0.4, weight: 6.2, category: 'Seme',
-    dex: 'Tiene sempre una foglia sul capo: la usa per captare la direzione del vento e trovare il sole.',
+    dex: 'Tiene una foglia sul capo e la usa per captare il vento e trovare il sole.',
     learnset: [
       { level: 1, move: 'colpo' }, { level: 1, move: 'ringhio' },
       { level: 6, move: 'foglialama' }, { level: 11, move: 'spore' },
@@ -62,7 +62,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'fronzaro', name: 'Fronzaro', types: ['erba'],
     base: S(60, 62, 63, 80, 80, 60), catchRate: 45, baseExp: 141,
     height: 0.9, weight: 22.5, category: 'Fronda',
-    dex: 'Le fronde sulla schiena si aprono quando è sereno e si chiudono prima di un temporale.',
+    dex: 'Le fronde sulla schiena si aprono col sereno e si chiudono prima del temporale.',
     learnset: [
       { level: 1, move: 'colpo' }, { level: 1, move: 'foglialama' },
       { level: 18, move: 'radicivore' }, { level: 24, move: 'concentrazione' },
@@ -79,7 +79,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'silvarco', name: 'Silvarco', types: ['erba', 'roccia'],
     base: S(80, 82, 93, 100, 100, 80), catchRate: 45, baseExp: 236,
     height: 1.7, weight: 88.0, category: 'Bosco',
-    dex: 'Sulla groppa cresce un piccolo bosco. Si dice che gli alberi che ospita non muoiano mai.',
+    dex: 'Sulla groppa cresce un piccolo bosco. Quegli alberi, dicono, non muoiono mai.',
     learnset: [
       { level: 1, move: 'frustaverde' }, { level: 1, move: 'foglialama' },
       { level: 34, move: 'sassata' }, { level: 40, move: 'frana' },
@@ -97,7 +97,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'braciolo', name: 'Braciolo', types: ['fuoco'],
     base: S(39, 52, 43, 60, 50, 65), catchRate: 45, baseExp: 62,
     height: 0.5, weight: 8.1, category: 'Tizzone',
-    dex: 'La fiamma sulla coda si affievolisce quando è triste e divampa quando è entusiasta.',
+    dex: 'La fiamma sulla coda cala quando è triste e divampa quando è entusiasta.',
     learnset: [
       { level: 1, move: 'graffio' }, { level: 1, move: 'ringhio' },
       { level: 7, move: 'brace' }, { level: 12, move: 'fiammata' },
@@ -115,7 +115,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'fiammuro', name: 'Fiammuro', types: ['fuoco'],
     base: S(58, 64, 58, 80, 65, 80), catchRate: 45, baseExp: 142,
     height: 1.1, weight: 19.0, category: 'Tizzone',
-    dex: 'Il collare di fiamme si allarga quando affronta un avversario più grande di lui.',
+    dex: 'Il collare di fiamme si allarga davanti a un avversario più grande di lui.',
     learnset: [
       { level: 1, move: 'graffio' }, { level: 1, move: 'fiammata' },
       { level: 20, move: 'attaccorapido' }, { level: 26, move: 'concentrazione' },
@@ -132,7 +132,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'pirodonte', name: 'Pirodonte', types: ['fuoco', 'roccia'],
     base: S(78, 94, 76, 105, 82, 96), catchRate: 45, baseExp: 240,
     height: 1.8, weight: 92.5, category: 'Vulcano',
-    dex: 'Le placche sulla schiena si arroventano fino a diventare bianche. Vive nei crateri spenti.',
+    dex: 'Le placche dorsali si arroventano fino al bianco. Vive nei crateri spenti.',
     learnset: [
       { level: 1, move: 'vampata' }, { level: 1, move: 'brace' },
       { level: 36, move: 'frana' }, { level: 44, move: 'carica' },
@@ -150,7 +150,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'gocciolo', name: 'Gocciolo', types: ['acqua'],
     base: S(44, 48, 65, 50, 64, 43), catchRate: 45, baseExp: 63,
     height: 0.5, weight: 9.0, category: 'Rugiada',
-    dex: 'Il guscio umido è sempre coperto di rugiada. Ne beve un sorso quando ha sete.',
+    dex: 'Il guscio è sempre coperto di rugiada: ne beve un sorso quando ha sete.',
     learnset: [
       { level: 1, move: 'colpo' }, { level: 1, move: 'sguardo' },
       { level: 7, move: 'bolla' }, { level: 13, move: 'corazza' },
@@ -168,7 +168,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'ondino', name: 'Ondino', types: ['acqua'],
     base: S(59, 63, 80, 65, 80, 58), catchRate: 45, baseExp: 142,
     height: 1.0, weight: 22.5, category: 'Onda',
-    dex: 'Sfrutta le correnti per spostarsi senza fatica. Le pinne fungono da timone.',
+    dex: 'Sfrutta le correnti per spostarsi senza fatica: le pinne fanno da timone.',
     learnset: [
       { level: 1, move: 'bolla' }, { level: 1, move: 'corazza' },
       { level: 21, move: 'idrogetto' }, { level: 27, move: 'gelosoffio' },
@@ -185,7 +185,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'marendra', name: 'Marendra', types: ['acqua', 'ghiaccio'],
     base: S(79, 83, 100, 85, 105, 78), catchRate: 45, baseExp: 239,
     height: 1.6, weight: 85.5, category: 'Marea',
-    dex: 'Il suo respiro gela la superficie del mare. Gli antichi navigatori la ritenevano un buon presagio.',
+    dex: 'Il suo respiro gela il mare. I navigatori la ritenevano un buon presagio.',
     learnset: [
       { level: 1, move: 'idrogetto' }, { level: 1, move: 'corazza' },
       { level: 36, move: 'bufera' }, { level: 42, move: 'maremoto' },
@@ -203,7 +203,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'rodentino', name: 'Rodentino', types: ['normale'],
     base: S(40, 45, 35, 25, 30, 62), catchRate: 200, baseExp: 51,
     height: 0.3, weight: 3.5, category: 'Roditore',
-    dex: 'Sgranocchia di tutto per limare gli incisivi, che non smettono mai di crescere.',
+    dex: 'Sgranocchia di tutto per limare gli incisivi, che crescono senza sosta.',
     learnset: [
       { level: 1, move: 'colpo' }, { level: 4, move: 'ringhio' },
       { level: 8, move: 'zannata' }, { level: 12, move: 'attaccorapido' },
@@ -220,7 +220,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'rodentone', name: 'Rodentone', types: ['normale'],
     base: S(60, 81, 60, 50, 55, 97), catchRate: 90, baseExp: 145,
     height: 0.8, weight: 24.0, category: 'Roditore',
-    dex: 'Corre più veloce di una bicicletta. Difende il territorio con morsi fulminei.',
+    dex: 'Corre più di una bicicletta. Difende il territorio con morsi fulminei.',
     learnset: [
       { level: 1, move: 'zannata' }, { level: 1, move: 'attaccorapido' },
       { level: 22, move: 'doppiozampa' }, { level: 28, move: 'carica' },
@@ -236,7 +236,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'piumetto', name: 'Piumetto', types: ['normale', 'vento'],
     base: S(40, 45, 40, 35, 35, 56), catchRate: 200, baseExp: 50,
     height: 0.3, weight: 1.8, category: 'Passero',
-    dex: 'Batte le ali così in fretta da sollevare piccoli mulinelli di polvere.',
+    dex: 'Batte le ali così in fretta da sollevare mulinelli di polvere.',
     learnset: [
       { level: 1, move: 'colpo' }, { level: 5, move: 'turbine' },
       { level: 9, move: 'ringhio' }, { level: 14, move: 'attaccorapido' },
@@ -253,7 +253,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'ventalco', name: 'Ventalco', types: ['normale', 'vento'],
     base: S(63, 70, 55, 55, 55, 91), catchRate: 90, baseExp: 148,
     height: 1.1, weight: 19.5, category: 'Falco',
-    dex: 'Plana per ore sfruttando le correnti calde. La vista gli permette di contare le foglie da lassù.',
+    dex: 'Plana per ore sulle correnti calde. Da lassù conta le foglie a una a una.',
     learnset: [
       { level: 1, move: 'turbine' }, { level: 1, move: 'attaccorapido' },
       { level: 22, move: 'agilita' }, { level: 28, move: 'raffica' },
@@ -269,7 +269,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'vespunto', name: 'Vespunto', types: ['veleno', 'vento'],
     base: S(45, 60, 40, 45, 40, 75), catchRate: 150, baseExp: 72,
     height: 0.4, weight: 3.0, category: 'Aculeo',
-    dex: 'Pattuglia i sentieri fioriti. Il pungiglione rilascia una tossina che formicola per ore.',
+    dex: 'Pattuglia i sentieri fioriti. Il pungiglione lascia un formicolio lunghissimo.',
     learnset: [
       { level: 1, move: 'pungiglione' }, { level: 1, move: 'turbine' },
       { level: 10, move: 'velenopolvere' }, { level: 15, move: 'agilita' },
@@ -285,7 +285,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'sassolino', name: 'Sassolino', types: ['roccia'],
     base: S(50, 70, 90, 25, 35, 25), catchRate: 180, baseExp: 60,
     height: 0.4, weight: 20.0, category: 'Ciottolo',
-    dex: 'Dorme sui sentieri di montagna. Chi lo scambia per un sasso riceve una spinta indignata.',
+    dex: 'Dorme sui sentieri. Chi lo scambia per un sasso riceve una spinta indignata.',
     learnset: [
       { level: 1, move: 'colpo' }, { level: 1, move: 'sguardo' },
       { level: 8, move: 'sassata' }, { level: 14, move: 'corazza' },
@@ -302,7 +302,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'rocciante', name: 'Rocciante', types: ['roccia', 'metallo'],
     base: S(70, 95, 125, 40, 55, 35), catchRate: 75, baseExp: 152,
     height: 1.2, weight: 105.0, category: 'Macigno',
-    dex: 'Il corpo contiene vene di metallo grezzo. Con un pugno apre una crepa nella parete.',
+    dex: 'Ha vene di metallo grezzo nel corpo. Con un pugno apre una crepa nel muro.',
     learnset: [
       { level: 1, move: 'sassata' }, { level: 1, move: 'corazza' },
       { level: 28, move: 'lamametallo' }, { level: 34, move: 'frana' },
@@ -318,7 +318,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'scintillo', name: 'Scintillo', types: ['elettro'],
     base: S(45, 45, 40, 70, 55, 82), catchRate: 150, baseExp: 74,
     height: 0.4, weight: 5.5, category: 'Scintilla',
-    dex: 'Accumula elettricità statica correndo nell’erba alta. Toccarlo fa rizzare i capelli.',
+    dex: 'Accumula statica correndo nell’erba alta: toccarlo fa rizzare i capelli.',
     learnset: [
       { level: 1, move: 'scintilla' }, { level: 1, move: 'ringhio' },
       { level: 9, move: 'paralisi' }, { level: 15, move: 'attaccorapido' },
@@ -335,7 +335,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'fulmirco', name: 'Fulmirco', types: ['elettro', 'luce'],
     base: S(65, 65, 60, 105, 80, 105), catchRate: 60, baseExp: 168,
     height: 1.0, weight: 24.5, category: 'Saetta',
-    dex: 'Quando corre lascia una scia luminosa che resta visibile per qualche istante.',
+    dex: 'Correndo lascia una scia luminosa che resta visibile per qualche istante.',
     learnset: [
       { level: 1, move: 'scintilla' }, { level: 1, move: 'agilita' },
       { level: 30, move: 'fulmine' }, { level: 36, move: 'bagliore' },
@@ -351,7 +351,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'ombretta', name: 'Ombretta', types: ['spettro'],
     base: S(45, 35, 30, 85, 70, 80), catchRate: 120, baseExp: 82,
     height: 0.6, weight: 0.4, category: 'Ombra',
-    dex: 'Vive negli angoli bui delle case. Non fa dispetti cattivi: le piace solo spostare gli oggetti.',
+    dex: 'Vive negli angoli bui. Non è cattiva: le piace solo spostare gli oggetti.',
     learnset: [
       { level: 1, move: 'ombracolpo' }, { level: 1, move: 'sguardo' },
       { level: 12, move: 'spore' }, { level: 18, move: 'agilita' },
@@ -367,7 +367,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'gelidino', name: 'Gelidino', types: ['ghiaccio'],
     base: S(50, 50, 60, 75, 70, 55), catchRate: 120, baseExp: 85,
     height: 0.5, weight: 12.0, category: 'Brina',
-    dex: 'Soffia brina sui vetri delle finestre per disegnarci sopra forme sempre diverse.',
+    dex: 'Soffia brina sui vetri per disegnarci sopra forme sempre diverse.',
     learnset: [
       { level: 1, move: 'gelosoffio' }, { level: 1, move: 'sguardo' },
       { level: 13, move: 'corazza' }, { level: 20, move: 'bolla' },
@@ -383,7 +383,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'squametto', name: 'Squametto', types: ['acqua'],
     base: S(40, 55, 45, 40, 40, 70), catchRate: 190, baseExp: 55,
     height: 0.4, weight: 4.5, category: 'Pesciolino',
-    dex: 'Risale la corrente saltando fra i sassi. Le squame cambiano colore con la temperatura.',
+    dex: 'Risale la corrente fra i sassi. Le squame cambiano colore col freddo.',
     learnset: [
       { level: 1, move: 'colpo' }, { level: 6, move: 'bolla' },
       { level: 12, move: 'attaccorapido' }, { level: 18, move: 'idrogetto' },
@@ -400,7 +400,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'tridentis', name: 'Tridentis', types: ['acqua', 'metallo'],
     base: S(65, 92, 70, 60, 65, 92), catchRate: 70, baseExp: 158,
     height: 1.4, weight: 42.0, category: 'Lancia',
-    dex: 'Il rostro d’acciaio perfora le rocce sommerse. Nuota in verticale come una lancia.',
+    dex: 'Il rostro d’acciaio perfora le rocce. Nuota dritto come una lancia.',
     learnset: [
       { level: 1, move: 'idrogetto' }, { level: 1, move: 'attaccorapido' },
       { level: 28, move: 'lamametallo' }, { level: 34, move: 'maremoto' },
@@ -416,7 +416,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'ferrolo', name: 'Ferrolo', types: ['metallo'],
     base: S(55, 70, 100, 45, 60, 40), catchRate: 100, baseExp: 96,
     height: 0.6, weight: 55.0, category: 'Bullone',
-    dex: 'Si nutre di minerali. Le officine lo ospitano volentieri: tiene lontana la ruggine.',
+    dex: 'Si nutre di minerali. Le officine lo ospitano: tiene lontana la ruggine.',
     learnset: [
       { level: 1, move: 'colpo' }, { level: 1, move: 'corazza' },
       { level: 14, move: 'lamametallo' }, { level: 20, move: 'sassata' },
@@ -432,7 +432,7 @@ export const SPECIES: Record<string, Species> = {
     id: 'luxaria', name: 'Luxaria', types: ['luce', 'vento'],
     base: S(90, 85, 85, 125, 110, 100), catchRate: 8, baseExp: 290,
     height: 2.1, weight: 48.0, category: 'Aurora',
-    dex: 'Compare solo dove la nebbia si dirada all’alba. Chi la incontra, dicono, non la dimentica più.',
+    dex: 'Compare dove la nebbia si apre all’alba. Chi la incontra non la scorda.',
     learnset: [
       { level: 1, move: 'bagliore' }, { level: 1, move: 'raffica' },
       { level: 1, move: 'agilita' }, { level: 45, move: 'aurora' },

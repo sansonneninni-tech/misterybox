@@ -9,7 +9,7 @@ import { TitleScene } from './scenes/title';
 import { getState, GameState } from './state/gameState';
 import type { Scene } from './engine/scene';
 import type { WorldScene } from './scenes/world';
-import { mapStats, validateMaps } from './world/validate';
+import { mapStats, validateData, validateMaps } from './world/validate';
 
 declare global {
   interface Window {
@@ -21,6 +21,7 @@ declare global {
       press: (btn: string, frames?: number) => void;
       errors: string[];
       validate: () => string[];
+      validateData: () => string[];
       mapStats: () => Array<{ id: string; w: number; h: number; npcs: number; warps: number; items: number }>;
     };
   }
@@ -74,6 +75,7 @@ function boot(): void {
     get world() { return game.find(isWorld) ?? null; },
     errors: game.errors,
     validate: validateMaps,
+    validateData,
     mapStats,
     press: (btn: string, frames = 2) => {
       const b = btn as Parameters<typeof game.input.press>[0];

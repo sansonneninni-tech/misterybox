@@ -3,8 +3,13 @@
  * tile validi. Usati dai test automatici per evitare mappe "rotte".
  */
 
+import { ITEMS } from '../data/items';
+import { MOVES } from '../data/moves';
+import { SPECIES } from '../data/species';
+import { TRAINERS } from '../data/trainers';
+import { wrapText } from '../gfx/font';
 import { COLL_SOLID, splitTile } from './map';
-import { allMapIds, getMap } from './maps';
+import { allMapIds, getMap, SHOP_STOCK } from './maps';
 
 export function validateMaps(): string[] {
   const problems: string[] = [];
@@ -94,6 +99,66 @@ export function validateMaps(): string[] {
           problems.push(`${id}: tile sopra il giocatore non solido "${name}" in (${x},${y})`);
         }
       }
+    }
+  }
+
+  return problems;
+}
+
+/**
+ * Controlli sui dati di gioco: riferimenti incrociati e testi che devono
+ * entrare nelle finestre dell'interfaccia.
+ */
+export function validateData(): string[] {
+  const problems: string[] = [];
+
+  for (const [id, sp] of Object.entries(SPECIES)) {
+    if (wrapText(sp.dex, 94).length > 5) {
+      problems.push(`specie ${id}: descrizione troppo lunga per il Verdex`);
+    }
+    if (sp.name.length > 12) problems.push(`specie ${id}: nome troppo lungo per l'interfaccia`);
+    for (const l of sp.learnset) {
+      if (!MOVES[l.move]) problems.push(`specie ${id}: mossa sconosciuta "${l.move}"`);
+    }
+    if (sp.evolvesTo && !SPECIES[sp.evolvesTo.id]) {
+      problems.push(`specie ${id}: evoluzione verso specie inesistente "${sp.evolvesTo.id}"`);
+    }
+    // Ogni creatura deve avere almeno una mossa che infligge danno al livello 5.
+    const early = sp.learnset.filter((l) => l.level <= 5 && MOVES[l.move]?.power > 0);
+    if (early.length === 0 && !sp.learnset.some((l) => l.level <= 1)) {
+      problems.push(`specie ${id}: nessuna mossa iniziale`);
+    }
+  }
+
+  for (const [id, t] of Object.entries(TRAINERS)) {
+    if (t.team.length === 0) problems.push(`allenatore ${id}: squadra vuota`);
+    for (const e of t.team) {
+      if (!SPECIES[e.species]) problems.push(`allenatore ${id}: specie sconosciuta "${e.species}"`);
+      for (const m of e.moves ?? []) {
+        if (!MOVES[m]) problems.push(`allenatore ${id}: mossa sconosciuta "${m}"`);
+      }
+    }
+  }
+
+  for (const [shop, list] of Object.entries(SHOP_STOCK)) {
+    for (const item of list) {
+      if (!ITEMS[item]) problems.push(`negozio ${shop}: oggetto sconosciuto "${item}"`);
+    }
+  }
+
+  for (const id of allMapIds()) {
+    const map = getMap(id);
+    for (const it of map.def.items) {
+      if (!ITEMS[it.item]) problems.push(`${id}: oggetto a terra sconosciuto "${it.item}"`);
+    }
+    for (const npc of map.def.npcs) {
+      if (npc.trainer && !TRAINERS[npc.trainer]) {
+        problems.push(`${id}: NPC "${npc.id}" riferisce un allenatore inesistente`);
+      }
+    }
+    for (const t of map.def.encounters?.grass ?? []) {
+      if (!SPECIES[t.species]) problems.push(`${id}: incontro con specie sconosciuta "${t.species}"`);
+      if (t.min > t.max) problems.push(`${id}: intervallo di livello invertito per "${t.species}"`);
     }
   }
 

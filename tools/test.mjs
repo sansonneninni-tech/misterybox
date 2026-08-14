@@ -125,6 +125,9 @@ async function main() {
   const problems = await page.evaluate(() => window.__verdania.validate());
   if (problems.length === 0) ok('tutte le mappe sono coerenti');
   else bad(`${problems.length} problemi nelle mappe:\n    ${problems.slice(0, 12).join('\n    ')}`);
+  const dataProblems = await page.evaluate(() => window.__verdania.validateData());
+  if (dataProblems.length === 0) ok('dati di gioco coerenti (specie, mosse, oggetti, allenatori)');
+  else bad(`${dataProblems.length} problemi nei dati:\n    ${dataProblems.slice(0, 12).join('\n    ')}`);
   const stats = await page.evaluate(() => window.__verdania.mapStats());
   const totalTiles = stats.reduce((n, m) => n + m.w * m.h, 0);
   log(`   ${stats.length} mappe, ${totalTiles} tile totali, ` +

@@ -83,9 +83,9 @@ export class DexScene extends Scene {
     for (const t of sp.types) {
       tx += drawTag(g, t.toUpperCase().slice(0, 6), tx, 82, TYPE_COLORS[t] ?? '#888') + 3;
     }
-    const lines = wrapText(sp.dex, SCREEN_W - 148);
-    for (let i = 0; i < Math.min(4, lines.length); i++) {
-      drawText(g, lines[i], 136, 98 + i * 12, { color: PAL.uiText, shadow: PAL.uiTextShadow });
+    const lines = wrapText(sp.dex, SCREEN_W - 146);
+    for (let i = 0; i < Math.min(5, lines.length); i++) {
+      drawText(g, lines[i], 135, 96 + i * 11, { color: PAL.uiText, shadow: PAL.uiTextShadow });
     }
   }
 }
