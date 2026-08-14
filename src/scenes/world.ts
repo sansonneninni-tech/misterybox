@@ -178,6 +178,13 @@ export class WorldScene extends Scene {
           }
         }
 
+        // Passaggi condizionati da un progresso.
+        const gate = this.map.gateAt(nx, ny);
+        if (gate && !state.hasFlag(gate.flag)) {
+          this.runScript(this.dialogueScript(gate.text));
+          return;
+        }
+
         // Blocco narrativo: non si esce dal borgo senza compagni.
         if (!state.starter && this.map.def.id === 'borgo_verzura' && ny <= 0) {
           this.runScript(this.dialogueScript([
@@ -216,10 +223,12 @@ export class WorldScene extends Scene {
       return;
     }
 
-    // Erba alta: effetto e possibile incontro
+    // Erba alta (o grotta): effetto e possibile incontro
     if (this.map.tagAt(tx, ty) === 'tallgrass') {
       this.grassFx.push({ x: tx, y: ty, t: 16 });
       audio.sfx('grass');
+      this.tryEncounter();
+    } else if (this.map.def.encounters?.everywhere) {
       this.tryEncounter();
     }
     if (state.repelSteps > 0) state.repelSteps--;

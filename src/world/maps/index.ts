@@ -5,6 +5,7 @@ import {
   cameraGiocatore, casaGiocatore, casaPescatore, casaTerza, casaVicina,
   centroCura, laboratorio, negozio, rifugioBosco,
 } from './interiors';
+import { grottaSalina } from './cave';
 import { boscoOmbroso, percorso1, percorso2 } from './routes';
 import { borgoVerzura, portoMaree } from './towns';
 
@@ -27,6 +28,7 @@ const FACTORIES: Record<string, () => MapDef> = {
   bosco_ombroso: boscoOmbroso,
   rifugio_bosco: rifugioBosco,
   percorso_2: percorso2,
+  grotta_salina: grottaSalina,
   porto_maree: portoMaree,
   centro_porto: () => centroCura('centro_porto'),
   negozio_porto: () => negozio('negozio_porto', SHOP_STOCK.negozio_porto),

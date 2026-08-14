@@ -99,6 +99,18 @@ export const TRAINERS: Record<string, Trainer> = {
     defeat: ['Non ci credo… ancora una sconfitta!'],
     after: ['Vado a cercare creature più rare sulla costa.'],
   },
+  minatore_ugo: {
+    id: 'minatore_ugo', name: 'Ugo', title: 'Minatore', sprite: 'hiker',
+    team: [
+      { species: 'sassolino', level: 15 },
+      { species: 'ferrolo', level: 16 },
+      { species: 'rocciante', level: 18 },
+    ],
+    payout: 48,
+    intro: ['Nessuno scende quaggiù per caso.', 'Se vuoi passare, devi meritartelo!'],
+    defeat: ['Hai la testa dura quanto le mie rocce. Passa pure.'],
+    after: ['In fondo alla grotta c’è un laghetto salato. Vale la discesa.'],
+  },
   marinaio_gino: {
     id: 'marinaio_gino', name: 'Gino', title: 'Marinaio', sprite: 'fisher',
     team: [

@@ -12,6 +12,7 @@ import { getTrainer } from '../data/trainers';
 import { effectivenessText } from '../data/types';
 import { TYPE_COLORS } from '../gfx/palette';
 import { creatureSprite } from '../gfx/creatures';
+import { silhouette } from '../gfx/pixel';
 import { getCharacter } from '../gfx/chars';
 import { drawText, drawTextCentered, drawTextRight, textWidth } from '../gfx/font';
 import { PAL } from '../gfx/palette';
@@ -78,6 +79,9 @@ export class BattleScene extends Scene {
   private ballAnim: { x: number; y: number; t: number; shakes: number; phase: string } | null = null;
   private shakeT = 0;
   private screenFlash = 0;
+  private choiceList: Array<{ label: string; value: string }> | null = null;
+  private choiceIndex = 0;
+  private evo: { from: string; to: string; showNew: boolean; glow: number } | null = null;
 
   constructor(cfg: BattleConfig, onEnd: (o: BattleOutcome) => void) {
     super();
@@ -614,27 +618,18 @@ export class BattleScene extends Scene {
         yield* this.msg([`${mon.name} sale al livello ${mon.level - res.levels + i + 1}!`]);
       }
       for (const mv of res.newMoves) {
-        const move = getMove(mv);
-        if (mon.moves.length < 4) {
-          mon.learnMove(mv);
-          yield* this.msg([`${mon.name} impara ${move.name}!`]);
-        } else {
-          yield* this.msg([
-            `${mon.name} vuole imparare ${move.name}.`,
-            `Ma conosce già 4 mosse: ${move.name} non è stata imparata.`,
-          ]);
-        }
+        yield* this.learnMoveFlow(mon, mv);
       }
       const evo = mon.pendingEvolution();
       if (evo && res.levels > 0) {
         const oldName = mon.name;
         yield* this.msg([`Che succede? ${oldName} sta cambiando!`]);
-        this.screenFlash = 30;
-        yield* this.wait(30);
+        yield* this.evolutionAnim(mon.species, evo);
         mon.evolveTo(evo);
         state.caught.add(evo);
         state.seen.add(evo);
         audio.sfx('levelup');
+        this.screenFlash = 24;
         yield* this.msg([`${oldName} si è evoluto in ${getSpecies(evo).name}!`]);
       }
     }
@@ -655,6 +650,89 @@ export class BattleScene extends Scene {
       yield* this.msg([`${this.trainerTitle} ${this.trainerName} è stato sconfitto!`]);
     }
     this.outcome = { result: 'win' };
+  }
+
+  /** Apprendimento di una mossa, con scelta di quale dimenticare. */
+  private *learnMoveFlow(mon: Creature, moveId: string): Flow {
+    const move = getMove(moveId);
+    if (mon.moves.length < 4) {
+      mon.learnMove(moveId);
+      audio.sfx('levelup');
+      yield* this.msg([`${mon.name} impara ${move.name}!`]);
+      return;
+    }
+    yield* this.msg([
+      `${mon.name} vuole imparare ${move.name},`,
+      'ma conosce già quattro mosse.',
+      `Vuoi dimenticarne una per ${move.name}?`,
+    ]);
+    const yes = yield* this.choice([
+      { label: 'Sì', value: 'si' },
+      { label: 'No', value: 'no' },
+    ]);
+    if (yes !== 'si') {
+      yield* this.msg([`${mon.name} non ha imparato ${move.name}.`]);
+      return;
+    }
+    const options = mon.moves.map((m, i) => ({ label: getMove(m.id).name, value: String(i) }));
+    options.push({ label: 'Annulla', value: 'annulla' });
+    yield* this.msg(['Quale mossa vuoi dimenticare?']);
+    const pick = yield* this.choice(options);
+    if (pick === null || pick === 'annulla') {
+      yield* this.msg([`${mon.name} non ha imparato ${move.name}.`]);
+      return;
+    }
+    const idx = Number(pick);
+    const forgotten = getMove(mon.moves[idx].id).name;
+    mon.learnMove(moveId, idx);
+    audio.sfx('levelup');
+    yield* this.msg([
+      `${mon.name} dimentica ${forgotten}…`,
+      `…e impara ${move.name}!`,
+    ]);
+  }
+
+  /** Menu di scelta mostrato sopra la finestra dei messaggi. */
+  private *choice(options: Array<{ label: string; value: string }>): Generator<void, string | null, void> {
+    this.mode = 'message';
+    this.choiceList = options;
+    this.choiceIndex = 0;
+    const input = this.game.input;
+    while (true) {
+      yield;
+      if (input.repeat('up')) { this.choiceIndex = (this.choiceIndex - 1 + options.length) % options.length; audio.sfx('select'); }
+      if (input.repeat('down')) { this.choiceIndex = (this.choiceIndex + 1) % options.length; audio.sfx('select'); }
+      if (input.pressed('a')) {
+        audio.sfx('select');
+        const v = options[this.choiceIndex].value;
+        this.choiceList = null;
+        return v;
+      }
+      if (input.pressed('b')) {
+        audio.sfx('cancel');
+        this.choiceList = null;
+        return null;
+      }
+    }
+  }
+
+  /** Alternanza fra le due sagome, sempre piu' rapida, come nei giochi 2D. */
+  private *evolutionAnim(fromId: string, toId: string): Flow {
+    this.evo = { from: fromId, to: toId, showNew: false, glow: 0 };
+    let period = 22;
+    for (let round = 0; round < 9; round++) {
+      for (let i = 0; i < period; i++) {
+        this.evo.glow = Math.min(1, round / 8);
+        yield;
+      }
+      this.evo.showNew = !this.evo.showNew;
+      audio.sfx('select');
+      period = Math.max(4, period - 2);
+    }
+    this.evo.showNew = true;
+    this.screenFlash = 30;
+    yield* this.wait(26);
+    this.evo = null;
   }
 
   private *animateExp(): Flow {
@@ -713,7 +791,7 @@ export class BattleScene extends Scene {
       const fx = FOE_X + this.foeOffset + introSlide * 90;
       const fy = FOE_Y + this.foeFaint * 30;
       g.save();
-      g.globalAlpha = 1 - this.foeFaint * 0.9;
+      g.globalAlpha = Math.max(0, 1 - this.foeFaint);
       if (this.foeFlash > 0 && this.foeFlash % 4 < 2) g.globalAlpha *= 0.35;
       if (this.ballAnim && (this.ballAnim.phase === 'suck' || this.ballAnim.phase === 'shake' || this.ballAnim.phase === 'caught')) {
         g.globalAlpha = 0;
@@ -724,15 +802,22 @@ export class BattleScene extends Scene {
 
     // Creatura del giocatore
     if (this.player) {
-      const sp = getSpecies(this.player.creature.species);
+      const evoSp = this.evo ? getSpecies(this.evo.showNew ? this.evo.to : this.evo.from) : null;
+      const sp = evoSp ?? getSpecies(this.player.creature.species);
       const img = creatureSprite(sp.id, sp.look, true);
       const introSlide = Math.max(0, 1 - this.introT / 30);
       const px = PLY_X + this.plyOffset - introSlide * 90;
       const py = PLY_Y + this.plyFaint * 30;
       g.save();
-      g.globalAlpha = 1 - this.plyFaint * 0.9;
+      g.globalAlpha = Math.max(0, 1 - this.plyFaint);
       if (this.plyFlash > 0 && this.plyFlash % 4 < 2) g.globalAlpha *= 0.35;
       g.drawImage(img, Math.round(px), Math.round(py));
+      if (this.evo) {
+        // Alone luminoso crescente: copia bianca della sagoma sopra lo sprite.
+        g.globalAlpha = 0.25 + this.evo.glow * 0.65;
+        g.drawImage(whiteCopy(sp.id, img), Math.round(px), Math.round(py));
+        g.globalAlpha = 1;
+      }
       g.restore();
       // Allenatore che lancia all'inizio dello scontro.
       if (this.introT < 26) {
@@ -757,6 +842,8 @@ export class BattleScene extends Scene {
     if (this.mode === 'action') this.drawActionMenu(r);
     else if (this.mode === 'moves') this.drawMoveMenu(r);
     else this.box.render(r);
+
+    if (this.choiceList) this.drawChoiceList(r);
 
     if (this.screenFlash > 0) {
       r.veil('#ffffff', Math.min(0.6, this.screenFlash / 20));
@@ -873,6 +960,19 @@ export class BattleScene extends Scene {
     }
   }
 
+  private drawChoiceList(r: Renderer): void {
+    const g = r.ctx;
+    const items = this.choiceList!;
+    const w = Math.max(58, Math.max(...items.map((c) => textWidth(c.label))) + 26);
+    const h = items.length * 14 + 10;
+    const x = SCREEN_W - w - 8;
+    const y = 112 - h - 4;
+    drawWindow(g, x, y, w, h, WIN_STYLE);
+    for (let i = 0; i < items.length; i++) {
+      drawMenuItem(g, items[i].label, x + 14, y + 6 + i * 14, i === this.choiceIndex);
+    }
+  }
+
   private drawBall(r: Renderer): void {
     const g = r.ctx;
     const b = this.ballAnim!;
@@ -900,6 +1000,17 @@ export class BattleScene extends Scene {
     }
     g.drawImage(ballSprite(frame), Math.round(x), Math.round(y));
   }
+}
+
+const whiteCache = new Map<string, HTMLCanvasElement>();
+
+/** Sagoma bianca dello sprite, usata per l'effetto di evoluzione. */
+function whiteCopy(id: string, src: HTMLCanvasElement): HTMLCanvasElement {
+  const hit = whiteCache.get(id);
+  if (hit) return hit;
+  const c = silhouette(src, '#ffffff');
+  whiteCache.set(id, c);
+  return c;
 }
 
 function approach(current: number, target: number, speed: number): number {

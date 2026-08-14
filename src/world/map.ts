@@ -31,6 +31,14 @@ export interface Warp {
   requireFacing?: 'up' | 'down' | 'left' | 'right';
 }
 
+export interface GateDef {
+  x: number;
+  y: number;
+  /** Il passaggio si apre quando questo progresso e' stato ottenuto. */
+  flag: string;
+  text: string[];
+}
+
 export interface SignDef {
   x: number;
   y: number;
@@ -76,6 +84,8 @@ export interface EncounterEntry {
 export interface EncounterTable {
   grass?: EncounterEntry[];
   rate?: number;
+  /** Nelle grotte gli incontri avvengono a ogni passo, non solo nell'erba. */
+  everywhere?: boolean;
 }
 
 export interface MapDef {
@@ -93,6 +103,7 @@ export interface MapDef {
   signs: SignDef[];
   items: ItemSpawn[];
   npcs: NpcDef[];
+  gates: GateDef[];
   encounters?: EncounterTable;
   /** Colore di sfondo fuori dai bordi. */
   edgeColor?: string;
@@ -113,6 +124,7 @@ export class MapBuilder {
   signs: SignDef[] = [];
   items: ItemSpawn[] = [];
   npcs: NpcDef[] = [];
+  gates: GateDef[] = [];
 
   constructor(width: number, height: number, fillTile = 'grass') {
     this.width = width;
@@ -245,15 +257,16 @@ export class MapBuilder {
       roof?: 'roofR' | 'roofB' | 'roofG';
       doorOffset?: number;
       windows?: number[];
-      sign?: boolean;
+      chimney?: boolean;
     } = {},
   ): { doorX: number; doorY: number } {
     const roof = opts.roof ?? 'roofR';
-    const roofH = Math.max(2, h - 2);
+    // Tetto basso (2 file) e muro alto: l'edificio mostra piu' dettagli
+    // e meno superficie piatta, come nelle citta' dei giochi 2D dell'epoca.
+    const roofH = Math.min(2, Math.max(1, h - 2));
     const wallY = y + roofH;
     const wallH = h - roofH;
 
-    // Tetto: prima riga = colmo, ultima = gronda.
     for (let ry = 0; ry < roofH; ry++) {
       for (let rx = 0; rx < w; rx++) {
         let variant = 0;
@@ -265,8 +278,11 @@ export class MapBuilder {
         this.setColl(x + rx, y + ry, COLL_SOLID);
       }
     }
+    if (opts.chimney !== false && w >= 5) {
+      // Il comignolo sta sul colmo e sporge verso l'alto.
+      this.setOver(x + w - 2, y, 'chimney');
+    }
 
-    // Muri.
     const doorX = x + (opts.doorOffset ?? Math.floor(w / 2));
     const windows = opts.windows ?? (w >= 5 ? [1, w - 2] : []);
     for (let wy = 0; wy < wallH; wy++) {
@@ -274,6 +290,7 @@ export class MapBuilder {
         const gx = x + wx;
         const gy = wallY + wy;
         let tile = 'wall#0';
+        if (wy === wallH - 1) tile = 'wall#4';
         if (wx === 0) tile = 'wall#2';
         else if (wx === w - 1) tile = 'wall#3';
         if (wy === 0 && windows.includes(wx)) tile = 'window';
@@ -333,6 +350,12 @@ export class MapBuilder {
     return this;
   }
 
+  /** Passaggio bloccato finche' il progresso indicato non e' stato ottenuto. */
+  addGate(x: number, y: number, flag: string, text: string[]): this {
+    this.gates.push({ x, y, flag, text });
+    return this;
+  }
+
   /**
    * Raccorda i sentieri di terra con l'erba circostante scegliendo
    * automaticamente la variante di bordo (maschera nord/est/sud/ovest).
@@ -384,6 +407,7 @@ export class MapBuilder {
       signs: this.signs,
       items: this.items,
       npcs: this.npcs,
+      gates: this.gates,
       encounters: meta.encounters,
       edgeColor: meta.edgeColor,
     };
@@ -472,6 +496,10 @@ export class RuntimeMap {
 
   signAt(x: number, y: number): SignDef | undefined {
     return this.def.signs.find((s) => s.x === x && s.y === y);
+  }
+
+  gateAt(x: number, y: number): GateDef | undefined {
+    return this.def.gates.find((g) => g.x === x && g.y === y);
   }
 
   isValidTileName(entry: string): boolean {

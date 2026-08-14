@@ -17,3 +17,6 @@ dist/
 .idea/
 .vscode/
 *.swp
+
+# Screenshot generati dai test
+screenshots/

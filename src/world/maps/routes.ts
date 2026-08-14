@@ -91,6 +91,13 @@ export function percorso1(): MapDef {
   b.tree(16, 26);
   b.tree(8, 36);
 
+  for (const [x, y, tile] of [
+    [11, 39, 'stump'], [15, 24, 'stump'], [9, 12, 'crate'], [21, 33, 'stump'],
+  ] as Array<[number, number, string]>) {
+    b.setObject(x, y, tile);
+    b.setColl(x, y, COLL_SOLID);
+  }
+
   scatter(b, 3, 3, W - 6, H - 6, 0.07, 'flowers');
 
   b.addSign(11, 41, ['PERCORSO 1', 'Borgo Verzura a sud · Bosco Ombroso a nord']);
@@ -216,6 +223,15 @@ export function boscoOmbroso(): MapDef {
   b.setObject(W - 2, 12, null);
   b.setObject(W - 2, 13, null);
 
+  // Il passaggio a est si apre solo dopo aver superato la Guardiana.
+  for (const gy of [12, 13]) {
+    b.addGate(28, gy, 'spilla_bosco', [
+      'Selva, la Guardiana del Bosco, sbarra il sentiero.',
+      '"Il passaggio verso la costa è mio da custodire."',
+      '"Affrontami, e vedremo se sei pronto."',
+    ]);
+  }
+
   // Rifugio del guardaboschi.
   const rif = b.building(5, 6, 6, 5, { roof: 'roofG', doorOffset: 2 });
   b.addWarp({ x: rif.doorX, y: rif.doorY, to: 'rifugio_bosco', ...entryTarget('rifugio_bosco'), kind: 'door', requireFacing: 'up' });
@@ -229,6 +245,13 @@ export function boscoOmbroso(): MapDef {
   }
   for (const [x, y] of [[15, 16], [23, 6], [6, 26], [19, 8]] as Array<[number, number]>) {
     b.setObject(x, y, 'bush');
+    b.setColl(x, y, COLL_SOLID);
+  }
+
+  for (const [x, y, tile] of [
+    [11, 12, 'stump'], [17, 6, 'stump'], [12, 19, 'crate'], [24, 20, 'stump'],
+  ] as Array<[number, number, string]>) {
+    b.setObject(x, y, tile);
     b.setColl(x, y, COLL_SOLID);
   }
 
@@ -348,6 +371,13 @@ export function percorso2(): MapDef {
   ledgeRow(b, 32, 11, 6);
 
   scatter(b, 2, 3, W - 4, H - 6, 0.07, 'flowers');
+
+  // Ingresso della Grotta Salina.
+  b.setObject(34, 4, 'caveEntrance');
+  b.setColl(34, 4, 0);
+  b.setGround(34, 4, 'dirt');
+  b.addWarp({ x: 34, y: 4, to: 'grotta_salina', tx: 14, ty: 20, dir: 'up', kind: 'door', requireFacing: 'up' });
+  b.addSign(33, 5, ['GROTTA SALINA', 'Le gallerie sono buie: portati una scorta di pozioni.']);
 
   b.addSign(19, 9, ['PERCORSO 2', 'Bosco Ombroso a ovest · Porto Maree a est']);
   b.addSign(30, 15, ['Il ponte è l’unico attraversamento del fiume.']);

@@ -450,17 +450,58 @@ export function creatureSprite(id: string, look: CreatureLook, back: boolean): H
   return s;
 }
 
-/** Icona 16x16 per menu e squadra. */
+/**
+ * Icona 16x16 disegnata a parte: una miniatura leggibile della creatura
+ * (silhouette, colori e occhi) invece di una riduzione dello sprite grande,
+ * che a questa dimensione risulterebbe illeggibile.
+ */
 export function creatureIcon(id: string, look: CreatureLook): HTMLCanvasElement {
   const key = `${id}:icon`;
   const hit = spriteCache.get(key);
   if (hit) return hit;
-  const full = creatureSprite(id, look, false);
+
   const c = createCanvas(16, 16);
   const g = ctx2d(c);
-  g.imageSmoothingEnabled = false;
-  // Ritaglia il riquadro utile e riduce a 16x16.
-  g.drawImage(full, 6, 6, 44, 44, 0, 0, 16, 16);
-  spriteCache.set(key, c);
-  return c;
+  const cx = 8;
+  const cy = 9.5;
+
+  // Appendici dietro il corpo.
+  const ears = look.ears ?? 'none';
+  if (ears === 'pointy' || ears === 'horn') {
+    tri(g, cx - 6, cy - 3, cx - 2, cy - 4, cx - 5, cy - 8, ears === 'horn' ? look.accent : look.main);
+    tri(g, cx + 2, cy - 4, cx + 6, cy - 3, cx + 5, cy - 8, ears === 'horn' ? look.accent : look.main);
+  } else if (ears === 'round') {
+    ellipseFill(g, cx - 5, cy - 4, 2.6, 2.6, look.main);
+    ellipseFill(g, cx + 5, cy - 4, 2.6, 2.6, look.main);
+  } else if (ears === 'fin') {
+    tri(g, cx - 4, cy - 2, cx - 8, cy - 5, cx - 4, cy + 1, look.accent);
+    tri(g, cx + 4, cy - 2, cx + 8, cy - 5, cx + 4, cy + 1, look.accent);
+  } else if (ears === 'antenna') {
+    g.fillStyle = look.dark;
+    g.fillRect(cx - 4, cy - 8, 1, 3);
+    g.fillRect(cx + 3, cy - 8, 1, 3);
+    ellipseFill(g, cx - 4, cy - 9, 1.5, 1.5, look.accent);
+    ellipseFill(g, cx + 4, cy - 9, 1.5, 1.5, look.accent);
+  }
+  if (look.back === 'wings') {
+    tri(g, cx - 3, cy - 2, cx - 8, cy - 4, cx - 7, cy + 3, look.accent);
+    tri(g, cx + 3, cy - 2, cx + 8, cy - 4, cx + 7, cy + 3, look.accent);
+  }
+
+  // Corpo.
+  blob(g, cx, cy, 5.6, 5.4, look.main, look.dark, look.light);
+  if (look.belly) ellipseFill(g, cx, cy + 1.6, 3, 2.6, look.belly);
+
+  // Occhi.
+  const eye = look.eye ?? '#1c1a26';
+  g.fillStyle = eye;
+  g.fillRect(cx - 3, cy - 2, 2, 2);
+  g.fillRect(cx + 1, cy - 2, 2, 2);
+  g.fillStyle = '#ffffff';
+  g.fillRect(cx - 3, cy - 2, 1, 1);
+  g.fillRect(cx + 1, cy - 2, 1, 1);
+
+  const out = outlineIt(c);
+  spriteCache.set(key, out);
+  return out;
 }

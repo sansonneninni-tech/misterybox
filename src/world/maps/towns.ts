@@ -84,6 +84,15 @@ export function borgoVerzura(): MapDef {
   b.tree(21, 25);
   b.tree(27, 25);
 
+  // Arredo urbano.
+  for (const [x, y, tile] of [
+    [13, 15, 'lamp'], [21, 15, 'lamp'], [13, 12, 'lamp'], [21, 12, 'lamp'],
+    [11, 26, 'well'], [22, 12, 'crate'], [23, 12, 'crate'], [6, 22, 'stump'],
+  ] as Array<[number, number, string]>) {
+    b.setObject(x, y, tile);
+    b.setColl(x, y, COLL_SOLID);
+  }
+
   decorate(b, 3, 3, W - 6, H - 6, 0.07);
 
   // Cartelli.
@@ -206,6 +215,13 @@ export function portoMaree(): MapDef {
   b.tree(12, 21);
   b.tree(4, 12);
   b.tree(19, 12);
+  for (const [x, y, tile] of [
+    [10, 9, 'lamp'], [16, 12, 'lamp'], [20, 13, 'crate'], [21, 13, 'crate'],
+    [20, 14, 'crate'], [13, 20, 'stump'],
+  ] as Array<[number, number, string]>) {
+    b.setObject(x, y, tile);
+    b.setColl(x, y, COLL_SOLID);
+  }
   decorate(b, 2, 2, 20, H - 4, 0.06);
 
   b.addSign(11, 12, ['PORTO MAREE', 'Il vento porta sempre qualcuno.']);

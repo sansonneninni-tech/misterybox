@@ -65,6 +65,32 @@ async function main() {
     }
   };
   const scene = () => page.evaluate(() => window.__verdania.game.current?.constructor.name ?? 'none');
+
+  /**
+   * Un turno di lotta "come lo giocherebbe una persona": nel menu mosse
+   * sceglie una mossa che infligge danno, altrove avanza i messaggi.
+   */
+  const battleTurn = async () => {
+    const m = await page.evaluate(() => window.__verdania.game.current?.mode ?? null);
+    if (m === 'moves') {
+      const target = await page.evaluate(async () => {
+        const mv = await import('/src/data/moves.ts');
+        const cur = window.__verdania.game.current;
+        const moves = cur.player.creature.moves;
+        const i = moves.findIndex((sl) => mv.getMove(sl.id).power > 0 && sl.pp > 0);
+        return { target: i < 0 ? 0 : i, current: cur.moveIndex };
+      });
+      let steps = 0;
+      while (steps++ < 6) {
+        const cur = await page.evaluate(() => window.__verdania.game.current.moveIndex);
+        if (cur === target.target) break;
+        await tap(cur % 2 === 0 && cur + 1 === target.target ? 'right' : 'down', 3, 8);
+      }
+      await tap('a', 3, 14);
+      return;
+    }
+    await tap('a', 3, m === 'action' ? 12 : 8);
+  };
   const shot = (n) => page.screenshot({ path: join(SHOTS, `${n}.png`) });
   const mode = () => page.evaluate(() => window.__verdania.game.current?.mode ?? null);
 
@@ -119,7 +145,7 @@ async function main() {
   let guard = 0;
   let beaten = false;
   while (!beaten && guard++ < 300) {
-    await tap('a', 3, 10);
+    await battleTurn();
     beaten = await page.evaluate(() => window.__verdania.state.hasFlag('trainer_ragazzo_marco'));
   }
   if (beaten) ok('allenatore sconfitto e ricompensa incassata'); else bad('lotta contro allenatore non conclusa');
@@ -163,11 +189,7 @@ async function main() {
       if (caught > 0) break;
     }
     let g2 = 0;
-    while ((await scene()) === 'BattleScene' && g2++ < 120) {
-      const m = await mode();
-      if (m === 'action' || m === 'moves') await tap('a', 3, 12);
-      else await tap('a', 3, 8);
-    }
+    while ((await scene()) === 'BattleScene' && g2++ < 120) await battleTurn();
     caught = await page.evaluate(() => window.__verdania.state.caught.size);
     if (caught >= 1) ok(`Verdex aggiornato: ${caught} specie catturate`);
     else bad('nessuna cattura registrata');
@@ -294,11 +316,7 @@ async function main() {
     bad('nessun incontro per il test di sconfitta');
   } else {
     let g3 = 0;
-    while ((await scene()) === 'BattleScene' && g3++ < 260) {
-      const m = await mode();
-      if (m === 'action' || m === 'moves') await tap('a', 3, 12);
-      else await tap('a', 3, 8);
-    }
+    while ((await scene()) === 'BattleScene' && g3++ < 260) await battleTurn();
     for (let i = 0; i < 14; i++) await tap('a', 3, 14);
     await frames(120);
     const st = await page.evaluate(() => ({
@@ -313,8 +331,44 @@ async function main() {
     await shot('39-dopo-sconfitta');
   }
 
-  // --- 8. Diagnostica -----------------------------------------------------
-  log('8) Diagnostica');
+  // --- 8. Evoluzione ------------------------------------------------------
+  log('8) Evoluzione al salire di livello');
+  await startGame('percorso_1', 6, 36);
+  await page.evaluate(async () => {
+    const s = window.__verdania.state;
+    const m = await import('/src/state/creature.ts');
+    s.party.length = 0;
+    // Un Rodentino a un soffio dal livello 20: si evolve in Rodentone.
+    const c = new m.Creature('rodentino', 19);
+    c.exp = Math.floor((20 ** 3 * 4) / 5) - 1;
+    s.party.push(c);
+  });
+  await frames(20);
+  battle = false;
+  for (let i = 0; i < 50 && !battle; i++) {
+    await step(i % 2 === 0 ? 'down' : 'up');
+    battle = (await scene()) === 'BattleScene';
+  }
+  if (!battle) {
+    bad('nessun incontro per il test di evoluzione');
+  } else {
+    let g4 = 0;
+    while ((await scene()) === 'BattleScene' && g4++ < 400) {
+      await battleTurn();
+      if (g4 === 30) await shot('41-evoluzione');
+    }
+    for (let i = 0; i < 16; i++) await tap('a', 3, 12);
+    const after = await page.evaluate(() => ({
+      sp: window.__verdania.state.party[0]?.species ?? null,
+      lvl: window.__verdania.state.party[0]?.level ?? 0,
+      hp: window.__verdania.state.party[0]?.hp ?? 0,
+    }));
+    if (after.sp === 'rodentone') ok(`evoluzione avvenuta: rodentino -> ${after.sp} (Lv${after.lvl})`);
+    else bad(`nessuna evoluzione: specie ${after.sp}, livello ${after.lvl}, PS ${after.hp}`);
+  }
+
+  // --- 9. Diagnostica -----------------------------------------------------
+  log('9) Diagnostica');
   const engineErrors = await page.evaluate(() => window.__verdania.game.errors);
   if (engineErrors.length === 0) ok('nessun errore nel motore');
   else bad(`errori motore:\n${engineErrors.slice(0, 3).join('\n---\n')}`);

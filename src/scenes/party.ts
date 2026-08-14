@@ -204,58 +204,58 @@ export class PartyScene extends Scene {
     }
 
     const party = state.party;
+    const CARD_X = 10;
+    const CARD_W = 226;
+    const CARD_H = 21;
     for (let i = 0; i < party.length; i++) {
       const c = party[i];
-      const col = i === 0 ? 0 : 1;
-      const x = col === 0 ? 6 : 92;
-      const y = col === 0 ? 8 : 8 + (i - 1) * 28;
-      const w = col === 0 ? 82 : 142;
-      const h = col === 0 ? 46 : 26;
+      const y = 3 + i * 22;
       const selected = i === this.index;
-      drawWindow(g, x, y, w, h, selected ? WIN_STYLE : WIN_BLUE);
+      drawWindow(g, CARD_X, y, CARD_W, CARD_H, selected ? WIN_STYLE : WIN_BLUE);
+      if (selected) g.drawImage(menuCursor(), 2, y + 7);
+
       const sp = getSpecies(c.species);
-      g.drawImage(creatureIcon(sp.id, sp.look), x + 4, y + (col === 0 ? 12 : 5));
-      const tx = x + 22;
-      drawText(g, c.name, tx, y + 4, { color: PAL.uiText, shadow: PAL.uiTextShadow });
-      drawTextRight(g, `Lv${c.level}`, x + w - 6, y + 4, { color: PAL.uiText, shadow: PAL.uiTextShadow });
+      g.drawImage(creatureIcon(sp.id, sp.look), CARD_X + 3, y + 2);
+      drawText(g, c.name, CARD_X + 22, y + 2, { color: PAL.uiText, shadow: PAL.uiTextShadow });
+      drawText(g, `Lv${c.level}`, CARD_X + 22, y + 11, { color: PAL.uiText, shadow: PAL.uiTextShadow });
+
+      const st = statusShort(c);
+      if (st) drawTag(g, st, CARD_X + 58, y + 10, st === 'KO' ? '#7a7a88' : '#8a4fa8');
+
       const ratio = c.hpRatio;
-      drawBar(g, tx, y + (col === 0 ? 26 : 16), Math.min(54, w - 34), ratio, hpColor(ratio), { height: 3 });
-      drawTextRight(g, `${c.hp}/${c.maxHp}`, x + w - 6, y + (col === 0 ? 22 : 14), {
+      drawText(g, 'PS', CARD_X + 100, y + 3, { color: '#c8a020', shadow: null });
+      drawBar(g, CARD_X + 116, y + 6, 66, ratio, hpColor(ratio), { height: 4 });
+      drawTextRight(g, `${c.hp}/${c.maxHp}`, CARD_X + CARD_W - 8, y + 10, {
         color: PAL.uiText, shadow: PAL.uiTextShadow,
       });
-      const st = statusShort(c);
-      if (st) drawTag(g, st, tx, y + (col === 0 ? 34 : 14), st === 'KO' ? '#7a7a88' : '#8a4fa8');
-      if (this.swapFrom === i) drawTag(g, '↕', x + w - 18, y + 2, '#e0a020');
-      if (selected) g.drawImage(menuCursor(), x - 5, y + 6);
+      if (this.swapFrom === i) drawTag(g, '↕', CARD_X + CARD_W - 22, y + 1, '#e0a020');
     }
 
-    // Barra inferiore con messaggio o istruzioni.
-    drawWindow(g, 6, SCREEN_H - 26, SCREEN_W - 12, 22, WIN_STYLE);
-    const hint = this.message
-      ?? (this.swapFrom !== null ? 'Scegli con chi scambiare.'
-        : this.mode === 'battle' ? 'Scegli chi mandare in campo.'
-          : 'Z: opzioni · X: indietro');
-    drawText(g, hint, 14, SCREEN_H - 21, { color: PAL.uiText, shadow: PAL.uiTextShadow });
-
-    if (this.submenu) {
-      const w = 72;
-      const h = this.submenu.length * 14 + 10;
-      const x = SCREEN_W - w - 8;
-      const y = SCREEN_H - h - 30;
-      drawWindow(g, x, y, w, h, WIN_STYLE);
-      for (let i = 0; i < this.submenu.length; i++) {
-        const label = this.submenu[i];
-        if (i === this.subIndex) g.drawImage(menuCursor(), x + 5, y + 6 + i * 14);
-        drawText(g, label, x + 14, y + 6 + i * 14, { color: PAL.uiText, shadow: PAL.uiTextShadow });
+    // Barra inferiore: tipi della creatura selezionata e istruzioni.
+    drawWindow(g, 4, SCREEN_H - 22, SCREEN_W - 8, 18, WIN_STYLE);
+    const sel = party[this.index];
+    let tx = 10;
+    if (sel) {
+      for (const t of sel.types) {
+        tx += drawTag(g, t.toUpperCase().slice(0, 6), tx, SCREEN_H - 18, TYPE_COLORS[t] ?? '#888') + 3;
       }
     }
+    const hint = this.message
+      ?? (this.swapFrom !== null ? 'Scegli con chi scambiare.'
+        : this.mode === 'battle' ? 'Chi mandi in campo?'
+          : this.mode === 'item' ? 'Su quale creatura?'
+            : 'Z: opzioni · X: indietro');
+    drawText(g, hint, tx + 4, SCREEN_H - 18, { color: PAL.uiText, shadow: PAL.uiTextShadow });
 
-    // Tipi della creatura selezionata.
-    const sel = state.party[this.index];
-    if (sel) {
-      let tx = 8;
-      for (const t of sel.types) {
-        tx += drawTag(g, t.toUpperCase().slice(0, 6), tx, SCREEN_H - 40, TYPE_COLORS[t] ?? '#888') + 3;
+    if (this.submenu) {
+      const w = 74;
+      const h = this.submenu.length * 14 + 10;
+      const x = SCREEN_W - w - 8;
+      const y = SCREEN_H - h - 26;
+      drawWindow(g, x, y, w, h, WIN_STYLE);
+      for (let i = 0; i < this.submenu.length; i++) {
+        if (i === this.subIndex) g.drawImage(menuCursor(), x + 5, y + 6 + i * 14);
+        drawText(g, this.submenu[i], x + 14, y + 6 + i * 14, { color: PAL.uiText, shadow: PAL.uiTextShadow });
       }
     }
   }

@@ -148,60 +148,44 @@ function drawFlowers(g: CanvasRenderingContext2D, variant: number, frame: number
   }
 }
 
-/** Ciuffo compatto e ben leggibile: l'erba alta deve saltare all'occhio. */
-const TALLGRASS_A = [
-  '................',
-  '................',
-  '.....o....o.....',
-  '....oDo..oDo....',
-  '..o.oDDooDDo.o..',
-  '.oDooDDDDDDooDo.',
-  '.oDDDDMMMMDDDDo.',
-  '.oDMMMMMMMMMMDo.',
-  '.oDMMLLMMLLMMDo.',
-  '.oDMMMMMMMMMMDo.',
-  '.oDDMMMMMMMMDDo.',
-  '..oDDDDDDDDDDo..',
-  '...oooooooooo...',
-  '................',
-  '................',
-  '................',
-];
-
-const TALLGRASS_B = [
-  '................',
-  '................',
-  '..o....o....o...',
-  '.oDo..oDo..oDo..',
-  '.oDDooDDDooDDo..',
-  '.oDDDDDDDDDDDDo.',
-  '.oDDMMMMMMMMDDo.',
-  '.oDMMMMLLMMMMDo.',
-  '.oDMMLLHHLLMMDo.',
-  '.oDMMMMMMMMMMDo.',
-  '.oDDMMMMMMMMDDo.',
-  '..oDDDDDDDDDDo..',
-  '...oooooooooo...',
-  '................',
-  '................',
-  '................',
-];
-
+/**
+ * Erba alta: ciuffi di fili lunghi e chiari.
+ * Devono distinguersi a colpo d'occhio dall'erba normale senza formare
+ * una macchia scura compatta quando molte tessere sono affiancate.
+ */
 function drawTallGrass(g: CanvasRenderingContext2D, variant: number, frame: number): void {
   drawGrass(g, 0);
-  const legend = {
-    o: '#173d20',
-    D: PAL.bushDark,
-    M: PAL.bushMid,
-    L: PAL.bushLite,
-    H: '#63b25c',
-  };
-  const rows = variant === 1 ? TALLGRASS_B : TALLGRASS_A;
-  // L'oscillazione sposta il ciuffo di 1px alternando i fotogrammi.
-  stamp(g, rows, legend, frame === 1 ? 1 : 0, frame === 1 ? -1 : 0);
-  // Ombra alla base per staccare il ciuffo dal terreno.
-  g.globalAlpha = 0.22;
-  fill(g, '#0d2416', 3, 12, 10, 2);
+  const dark = '#2c6b34';
+  const mid = '#4f9c48';
+  const lite = '#68b85a';
+  const hi = '#8ad46a';
+  const sets: Array<Array<[number, number, number]>> = [
+    [[1, 5, 9], [5, 2, 12], [9, 6, 8], [12, 3, 11]],
+    [[2, 3, 11], [6, 6, 8], [10, 2, 12], [13, 5, 9]],
+    [[0, 4, 10], [4, 6, 8], [8, 3, 11], [12, 6, 8]],
+    [[2, 6, 8], [6, 3, 11], [10, 5, 9], [13, 2, 12]],
+  ];
+  const blades = sets[variant % sets.length];
+
+  for (let i = 0; i < blades.length; i++) {
+    const [bx, by, bh] = blades[i];
+    const dirSign = i % 2 === 0 ? 1 : -1;
+    for (let k = 0; k < bh; k++) {
+      const y = by + bh - 1 - k;
+      if (y < 0 || y >= TILE) continue;
+      const t = k / bh;
+      // La punta oscilla, la base resta ferma.
+      const lean = Math.round(t * t * (frame === 1 ? 2.2 : 0.8)) * dirSign;
+      const x = bx + lean;
+      px(g, x, y, dark);
+      px(g, x + 1, y, k > bh * 0.55 ? hi : mid);
+      if (k < bh * 0.75) px(g, x + 2, y, lite);
+      else px(g, x + 2, y, dark);
+    }
+  }
+  // Ombra alla base dei ciuffi.
+  g.globalAlpha = 0.2;
+  fill(g, '#173d20', 1, 13, 14, 2);
   g.globalAlpha = 1;
 }
 
@@ -381,8 +365,6 @@ function drawCliff(g: CanvasRenderingContext2D, variant: number): void {
 }
 
 function drawRock(g: CanvasRenderingContext2D, variant: number): void {
-  drawGrass(g, 0);
-  if (variant === 1) drawDirt(g, 0);
   const rows = [
     '................',
     '................',
@@ -407,7 +389,10 @@ function drawRock(g: CanvasRenderingContext2D, variant: number): void {
     M: PAL.rockMid,
     L: PAL.rockLite,
     H: PAL.rockHi,
-  }, 0, 0);
+  }, 0, variant === 1 ? 1 : 0);
+  g.globalAlpha = 0.25;
+  fill(g, '#0b2018', 2, 12, 12, 2);
+  g.globalAlpha = 1;
 }
 
 /**
@@ -502,7 +487,6 @@ function buildTreeCanvas(): HTMLCanvasElement {
 function drawTreeQuad(g: CanvasRenderingContext2D, quad: number): void {
   const tree = buildTreeCanvas();
   if (quad >= 2) {
-    drawGrass(g, 0);
     g.globalAlpha = 0.25;
     fill(g, '#0b2018', quad === 2 ? 3 : 0, 12, 13, 3);
     g.globalAlpha = 1;
@@ -513,7 +497,6 @@ function drawTreeQuad(g: CanvasRenderingContext2D, quad: number): void {
 }
 
 function drawBush(g: CanvasRenderingContext2D): void {
-  drawGrass(g, 0);
   const rows = [
     '................',
     '................',
@@ -533,12 +516,15 @@ function drawBush(g: CanvasRenderingContext2D): void {
     '................',
   ];
   stamp(g, rows, {
-    o: PAL.outline,
-    D: PAL.bushDark,
-    M: PAL.bushMid,
-    L: PAL.bushLite,
-    H: '#63b25c',
+    o: '#173d20',
+    D: PAL.bushMid,
+    M: '#57a64d',
+    L: '#6cba5c',
+    H: '#8ad46a',
   }, 0, 0);
+  g.globalAlpha = 0.22;
+  fill(g, '#0b2018', 3, 13, 10, 2);
+  g.globalAlpha = 1;
 }
 
 function drawLedge(g: CanvasRenderingContext2D): void {
@@ -708,7 +694,6 @@ function drawDoor(g: CanvasRenderingContext2D, variant: number): void {
 }
 
 function drawSign(g: CanvasRenderingContext2D): void {
-  drawGrass(g, 0);
   const rows = [
     '................',
     '................',
@@ -736,7 +721,6 @@ function drawSign(g: CanvasRenderingContext2D): void {
 }
 
 function drawFence(g: CanvasRenderingContext2D, variant: number): void {
-  drawGrass(g, 0);
   const W = PAL.woodMid;
   const D = PAL.woodDark;
   const L = PAL.woodLite;
@@ -1100,9 +1084,226 @@ const MAT = [
   '................',
 ];
 
+
+// ---------------------------------------------------------------------------
+// Grotta
+// ---------------------------------------------------------------------------
+
+function drawCaveFloor(g: CanvasRenderingContext2D, variant: number): void {
+  // Pavimento chiaro e caldo: deve staccare nettamente dalle pareti.
+  fill(g, '#7a6f78');
+  dither(g, '#8a7f88', 6);
+  speckle(g, '#665c66', 0.12, 91 + variant);
+  speckle(g, '#998e98', 0.05, 137 + variant);
+  if (variant === 1) {
+    for (const [x, y] of [[3, 5], [10, 9], [6, 12]] as Array<[number, number]>) {
+      px(g, x, y, '#a89ca6');
+      px(g, x + 1, y, '#a89ca6');
+      px(g, x, y + 1, '#5c525c');
+      px(g, x + 1, y + 1, '#8a7f88');
+    }
+  }
+  if (variant === 3) {
+    // Cristalli di sale: rari, per non appesantire la trama.
+    for (const [x, y] of [[8, 4]] as Array<[number, number]>) {
+      px(g, x, y, '#dff2fa');
+      px(g, x, y + 1, '#a8c8dc');
+      px(g, x + 1, y + 1, '#dff2fa');
+    }
+  }
+}
+
+function drawCaveWall(g: CanvasRenderingContext2D, variant: number): void {
+  fill(g, '#241f2e');
+  dither(g, '#2e2839', 6);
+  speckle(g, '#1a1622', 0.16, 53 + variant);
+  speckle(g, '#3d3550', 0.06, 77 + variant);
+  for (let i = 0; i < 3; i++) {
+    const x = 2 + ((i * 5 + variant * 3) % 12);
+    const h = 4 + ((i + variant) % 3) * 2;
+    const y = (i * 5 + variant) % 10;
+    vline(g, x, y, h, '#151120');
+    px(g, x + 1, y + h - 1, '#3d3550');
+  }
+  if (variant === 1) {
+    // Cresta illuminata: segna il confine con il pavimento sottostante.
+    hline(g, 0, 0, TILE, '#6f6480');
+    hline(g, 0, 1, TILE, '#544a63');
+    hline(g, 0, 2, TILE, '#3a3348');
+    for (let x = 0; x < TILE; x += 3) px(g, x, 3, '#3a3348');
+  }
+  if (variant === 2) {
+    for (let i = 0; i < 5; i++) px(g, 4 + i, 6 + ((i * 3) % 4), '#c8a34a');
+  }
+}
+
+/** Masso appoggiato sul pavimento della grotta. */
+function drawCaveRock(g: CanvasRenderingContext2D): void {
+  const rows = [
+    '................',
+    '................',
+    '.....oooo.......',
+    '....oLLLLo......',
+    '...oLLHHLLo.....',
+    '..oLLHHHHLLo....',
+    '..oLMMHHMMLo....',
+    '.oLMMMMMMMMLo...',
+    '.oMMMMMMMMMMo...',
+    '.oMDDMMMMDDMo...',
+    '.oDDDDDDDDDDo...',
+    '..oDDDDDDDDo....',
+    '...oooooooo.....',
+    '................',
+    '................',
+    '................',
+  ];
+  stamp(g, rows, {
+    o: '#151120',
+    D: '#4a4458',
+    M: '#6a6378',
+    L: '#8d859c',
+    H: '#b0a8bc',
+  }, 0, 0);
+  // Ombra proiettata.
+  g.globalAlpha = 0.3;
+  fill(g, '#100d18', 2, 12, 12, 2);
+  g.globalAlpha = 1;
+}
+
+function drawCaveWater(g: CanvasRenderingContext2D, _variant: number, frame: number): void {
+  fill(g, '#2a4a6a');
+  for (let y = 0; y < TILE; y++) {
+    const phase = (y * 3 + frame * 4) % 16;
+    if (phase < 4) hline(g, 0, y, TILE, '#1c3350');
+    else if (phase < 6) hline(g, 0, y, TILE, '#3d6f96');
+  }
+  const sx = (frame * 3) % 16;
+  for (const [x, y] of [[3, 4], [10, 9], [6, 13]] as Array<[number, number]>) {
+    px(g, (x + sx) % 16, y, '#9fd8f0');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Decorazioni all'aperto
+// ---------------------------------------------------------------------------
+
+const CAVE_ENTRANCE = [
+  '................',
+  '...RRRRRRRRRR...',
+  '..RRDDDDDDDDRR..',
+  '.RRDDssssssDDRR.',
+  '.RDDsssssssssDR.',
+  'RRDssssssssssDRR',
+  'RRDssssssssssDRR',
+  'RRDssssssssssDRR',
+  'RRDssssssssssDRR',
+  'RRDssssssssssDRR',
+  'RRDssssssssssDRR',
+  'RRDssssssssssDRR',
+  'RRDDssssssssDDRR',
+  'RRRRRRRRRRRRRRRR',
+  'MMMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMM',
+];
+
+const STUMP = [
+  '................',
+  '................',
+  '................',
+  '....oooooo......',
+  '...oLLLLLLo.....',
+  '..oLDDDDDDLo....',
+  '..oLDwwwwDLo....',
+  '..oLDwwwwDLo....',
+  '..oLDDDDDDLo....',
+  '..oLLLLLLLLo....',
+  '..oWWWWWWWWo....',
+  '..oWWWWWWWWo....',
+  '...oooooooo.....',
+  '................',
+  '................',
+  '................',
+];
+
+const CRATE = [
+  '................',
+  '..oooooooooooo..',
+  '..oLLLLLLLLLLo..',
+  '..oLWWWWWWWWLo..',
+  '..oLWDDDDDDWLo..',
+  '..oLWDWWWWDWLo..',
+  '..oLWDWWWWDWLo..',
+  '..oLWDDDDDDWLo..',
+  '..oLWWWWWWWWLo..',
+  '..oLWDDDDDDWLo..',
+  '..oLWWWWWWWWLo..',
+  '..oLLLLLLLLLLo..',
+  '..oooooooooooo..',
+  '................',
+  '................',
+  '................',
+];
+
+const LAMP = [
+  '......oo........',
+  '.....oYYo.......',
+  '....oYWWYo......',
+  '....oYWWYo......',
+  '.....oYYo.......',
+  '......oo........',
+  '......DD........',
+  '......DD........',
+  '......DD........',
+  '......DD........',
+  '......DD........',
+  '.....oDDo.......',
+  '....oDDDDo......',
+  '....oooooo......',
+  '................',
+  '................',
+];
+
+const WELL = [
+  '................',
+  '....oooooooo....',
+  '...oWWWWWWWWo...',
+  '...oWDDDDDDWo...',
+  '...oWDssssDWo...',
+  '...oWDssssDWo...',
+  '...oWDssssDWo...',
+  '...oWDDDDDDWo...',
+  '..oWWWWWWWWWWo..',
+  '..oLLLLLLLLLLo..',
+  '..oWWWWWWWWWWo..',
+  '..oWWWWWWWWWWo..',
+  '..oooooooooooo..',
+  '................',
+  '................',
+  '................',
+];
+
 // ---------------------------------------------------------------------------
 // Registro dei tile
 // ---------------------------------------------------------------------------
+
+const DECO_LEGEND: Record<string, string | null> = {
+  o: PAL.outline,
+  D: PAL.woodDark,
+  W: PAL.woodMid,
+  L: PAL.woodLite,
+  Y: '#f0d874',
+  s: '#2f79c4',
+};
+
+/** Decorazione appoggiata sul terreno sottostante (sfondo trasparente). */
+function deco(rows: string[]) {
+  return (g: CanvasRenderingContext2D): void => {
+    stamp(g, rows, DECO_LEGEND, 0, 0);
+    g.globalAlpha = 0.22;
+    fill(g, '#0b2018', 3, 13, 10, 2);
+    g.globalAlpha = 1;
+  };
+}
 
 const WOOD_LEGEND = {
   o: PAL.outline,
@@ -1127,7 +1328,7 @@ export const TILES: Record<string, TileDef> = {
   grass: { draw: (g, v) => drawGrass(g, v), variants: 5 },
   grassPlain: { draw: (g) => drawGrass(g, 0) },
   flowers: { draw: (g, v, f) => drawFlowers(g, v, f), variants: 3, frames: 2, frameRate: 34 },
-  tallgrass: { draw: (g, v, f) => drawTallGrass(g, v, f), variants: 2, frames: 2, frameRate: 26, tag: 'tallgrass' },
+  tallgrass: { draw: (g, v, f) => drawTallGrass(g, v, f), variants: 4, frames: 2, frameRate: 26, tag: 'tallgrass' },
   dirt: { draw: (g, v) => drawDirt(g, v), variants: 2 },
   sand: { draw: (g, v) => drawSand(g, v), variants: 2, tag: 'sand' },
   path: { draw: (g, v) => drawPathMask(g, v), variants: 16 },
@@ -1189,7 +1390,53 @@ export const TILES: Record<string, TileDef> = {
   stairs: { draw: furniture(STAIRS, WOOD_LEGEND, 1) },
   mat: { draw: furniture(MAT, WOOD_LEGEND, 0) },
   matTile: { draw: furniture(MAT, WOOD_LEGEND, 1) },
+  chimney: {
+    draw: (g) => {
+      stamp(g, [
+        '................',
+        '....oooooooo....',
+        '....oLLLLLLo....',
+        '....oMMMMMMo....',
+        '.....oMMMMo.....',
+        '.....oDMMDo.....',
+        '.....oMMMMo.....',
+        '.....oDMMDo.....',
+        '.....oMMMMo.....',
+        '.....oDMMDo.....',
+        '.....oMMMMo.....',
+        '.....oooooo.....',
+        '................',
+        '................',
+        '................',
+        '................',
+      ], { o: PAL.outline, M: '#9a6a52', D: '#6f4636', L: '#b88a6a' }, 0, 0);
+    },
+    solid: true, over: true,
+  },
   voidBlack: { draw: (g) => fill(g, '#0a0a12'), solid: true },
+
+  // --- grotta ---
+  caveFloor: { draw: (g, v) => drawCaveFloor(g, v), variants: 4 },
+  caveWall: { draw: (g, v) => drawCaveWall(g, v), variants: 3, solid: true },
+  caveWallLit: { draw: (g) => drawCaveWall(g, 1), solid: true },
+  caveRock: { draw: (g) => drawCaveRock(g), solid: true },
+  caveWater: { draw: (g, v, f) => drawCaveWater(g, v, f), frames: 4, frameRate: 14, solid: true, tag: 'water' },
+
+  // --- decorazioni ---
+  stump: { draw: deco(STUMP), solid: true },
+  crate: { draw: deco(CRATE), solid: true },
+  lamp: { draw: deco(LAMP), solid: true },
+  well: { draw: deco(WELL), solid: true },
+  crateCave: { draw: (g) => { stamp(g, CRATE, DECO_LEGEND, 0, 0); }, solid: true },
+  caveEntrance: {
+    draw: (g) => {
+      drawCliff(g, 0);
+      stamp(g, CAVE_ENTRANCE, {
+        R: PAL.rockMid, D: PAL.rockDark, s: '#120e18', M: PAL.dirtMid,
+      }, 0, 0);
+    },
+    tag: 'door',
+  },
 };
 
 export type TileName = keyof typeof TILES;
