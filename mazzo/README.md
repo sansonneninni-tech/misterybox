@@ -64,6 +64,14 @@ vero: titolo → camera → locale → strada → busta → finale → rigioca.
 Durante lo sviluppo si può aprire un livello a parte con `#room`, `#bar`,
 `#street` in fondo all'indirizzo.
 
+## Online
+
+Il gioco è pubblicato come pagina autonoma:
+<https://claude.ai/code/artifact/6ceb3b01-fece-4d79-8f82-7cbdb16f6c92>
+
+Con il ramo principale, il flusso di GitHub Pages già presente nel repository
+pubblica MAZZO anche sotto `/mazzo/`.
+
 ## Com'è fatto
 
 ```

@@ -47,12 +47,25 @@ export class Renderer {
     const availH = Math.max(SCREEN_H / 2, window.innerHeight - margin - reserved);
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
 
-    const s = Math.max(1, Math.floor(Math.min((availW * dpr) / SCREEN_W, (availH * dpr) / SCREEN_H)));
+    const exact = Math.min((availW * dpr) / SCREEN_W, (availH * dpr) / SCREEN_H);
+    const s = Math.max(1, Math.floor(exact));
     this.scale = s;
     this.view.width = SCREEN_W * s;
     this.view.height = SCREEN_H * s;
-    this.view.style.width = `${(SCREEN_W * s) / dpr}px`;
-    this.view.style.height = `${(SCREEN_H * s) / dpr}px`;
+
+    // Su schermo grande vince l'ingrandimento intero: pixel tutti uguali.
+    // Su un telefono, pero', l'intero lascerebbe meta' schermo vuoto: li' si
+    // prende un buffer piu' grande e lo si adatta alla larghezza disponibile.
+    let cssW = (SCREEN_W * s) / dpr;
+    if (cssW < availW * 0.8 && availW < 560) {
+      const bigger = Math.max(1, Math.ceil(exact));
+      this.scale = bigger;
+      this.view.width = SCREEN_W * bigger;
+      this.view.height = SCREEN_H * bigger;
+      cssW = Math.min(availW, (availH * SCREEN_W) / SCREEN_H);
+    }
+    this.view.style.width = `${cssW}px`;
+    this.view.style.height = `${(cssW * SCREEN_H) / SCREEN_W}px`;
     this.viewCtx = ctx2d(this.view);
   }
 

@@ -120,6 +120,8 @@ test('gli oggetti sono appoggiati al tile giusto', () => {
   assert.equal(tileOf(streetMap, 19, 10), 'M', 'il motorino');
   assert.equal(tileOf(streetMap, 9, 7), 'r', 'la saracinesca');
   assert.equal(tileOf(streetMap, 25, 10), 'n', 'la panchina');
+  assert.equal(tileOf(streetMap, 11, 5), 'M', 'il motorino dell\'incontro');
+  assert.equal(tileOf(streetMap, 12, 5), 'a', 'la persona in fondo alla strada sta sull\'asfalto');
 });
 
 test('le caselle di partenza sono libere', () => {

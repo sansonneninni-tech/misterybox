@@ -15,7 +15,7 @@ const ROWS = [
   'EEEEEEEEEEEEEEEEEEEEEEEEEEEEEE',
   `${E10}mmmmmmmmmm${E10}`,
   `EEEEEEEEEw${'mm'}${'aaaaaa'}${'mm'}${E10}`,
-  `${E10}${'mm'}${'aaaaaa'}${'mm'}wEEEEEEEEE`,
+  `${E10}${'mM'}${'aaaaaa'}${'mm'}wEEEEEEEEE`,
   `${E10}${'mm'}${'aalaaa'}${'mm'}${E10}`,
   `EEEEEEEEEr${'mm'}${'aaaaaa'}${'mm'}${E10}`,
   `${E10}${'mL'}${'aaaaaa'}${'mm'}${E10}`,
@@ -62,6 +62,13 @@ export const streetMap: MapDef = {
       x: 19,
       y: 10,
       script: () => ['Non parte mai al primo colpo.'],
+    },
+    {
+      id: 'scooter3',
+      x: 11,
+      y: 5,
+      script: (ctx) =>
+        ctx.state.level3.receivedEnvelope ? ['È il suo.'] : ['Qualcuno ha lasciato il casco sopra.'],
     },
     {
       id: 'scooter2',
@@ -148,7 +155,7 @@ export const streetMap: MapDef = {
     },
     {
       id: 'contatto',
-      x: 14,
+      x: 12,
       y: 5,
       dir: 'down',
       look: { suit: '#4a4f5e', suitLo: '#363a47', shirt: '#dcd8cb', hair: '#2c2621', beard: false },

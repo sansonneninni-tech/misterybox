@@ -64,8 +64,12 @@ export class Input {
     this.fresh.clear();
   }
 
+  /**
+   * Un tocco rapidissimo sul pad puo' finire dentro un solo fotogramma: il
+   * tasto appena premuto conta come premuto anche se e' gia' stato rilasciato.
+   */
   isDown(b: Btn): boolean {
-    return this.down.has(b);
+    return this.down.has(b) || this.fresh.has(b);
   }
 
   /** Vero solo nel frame in cui il tasto viene premuto. */

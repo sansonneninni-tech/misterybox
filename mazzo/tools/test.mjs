@@ -369,7 +369,7 @@ async function main() {
   await clearDialogue(page);
 
   // L'incontro.
-  const arrivato = await interactAt(page, 14, 5, 14, 6, 'ArrowUp');
+  const arrivato = await interactAt(page, 12, 5, 12, 6, 'ArrowUp');
   check(arrivato, 'si arriva alla persona in fondo alla strada');
   await clearDialogue(page, 90);
   await page.waitForFunction(() => window.MAZZO.game.state.level3.receivedEnvelope, null, { timeout: 20000 });
@@ -413,6 +413,39 @@ async function main() {
     check(singleErrors.length === 0, `nessun errore nella pagina singola${singleErrors.length ? `: ${singleErrors[0]}` : ''}`);
     await single.screenshot({ path: join(SHOTS, '09-file-unico.png') });
     await single.close();
+  }
+
+  log('\nSCHERMI TOUCH');
+  {
+    const ctx = await browser.newContext({
+      viewport: { width: 390, height: 780 },
+      hasTouch: true,
+      isMobile: true,
+    });
+    const mob = await ctx.newPage();
+    const mobErrors = [];
+    mob.on('pageerror', (e) => mobErrors.push(String(e)));
+    await mob.goto(`http://127.0.0.1:${PORT}/#room`, { waitUntil: 'load' });
+    await mob.waitForFunction(() => window.MAZZO !== undefined, null, { timeout: 10000 });
+    await sleep(600);
+    check(await mob.evaluate(() => document.querySelectorAll('#touch-controls > *').length === 5), 'compaiono pad e tasto E');
+    // Salta l'introduzione toccando il tasto E, poi cammina verso destra.
+    for (let i = 0; i < 25; i++) {
+      await mob.tap('#touch-controls > *:nth-child(5)');
+      await sleep(120);
+    }
+    const before = await mob.evaluate(() => window.MAZZO.game.current.player.x);
+    // Il pad si tiene premuto: touchstart, un attimo, touchend.
+    const right = mob.locator('#touch-controls > *:nth-child(4)');
+    await right.dispatchEvent('touchstart');
+    await sleep(500);
+    await right.dispatchEvent('touchend');
+    await sleep(100);
+    const after = await mob.evaluate(() => window.MAZZO.game.current.player.x);
+    check(after !== before, 'il pad direzionale muove Mazzo');
+    check(mobErrors.length === 0, `nessun errore su mobile${mobErrors.length ? `: ${mobErrors[0]}` : ''}`);
+    await mob.screenshot({ path: join(SHOTS, '10-touch.png') });
+    await ctx.close();
   }
 
   log('\nCONSOLE');
