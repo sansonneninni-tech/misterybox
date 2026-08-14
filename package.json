@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "node tools/test.mjs && node tools/test-systems.mjs",
     "shots": "node tools/shots.mjs",
-    "build:page": "npm run build && node tools/build-artifact.mjs"
+    "build:page": "npm run build && node tools/build-artifact.mjs",
+    "check:deploy": "node tools/check-deploy.mjs",
+    "build:drop": "node tools/build-drop.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

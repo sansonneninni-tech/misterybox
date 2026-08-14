@@ -30,9 +30,34 @@ npm run build:page   # dist/index.html + dist/verdania.html (file unico)
 `dist/verdania.html` è l'intero gioco in un solo file: nessuna richiesta di
 rete, funziona aperto da disco, allegato o incorporato in un'altra pagina.
 
-Il workflow `.github/workflows/deploy.yml` pubblica `dist/` su GitHub Pages a
-ogni push sul ramo principale. Va attivato una volta sola dalle impostazioni
-del repository: **Settings → Pages → Source: GitHub Actions**.
+```bash
+npm run check:deploy   # serve dist/ con le intestazioni di netlify.toml e prova il gioco
+npm run build:drop     # dist/verdania-netlify.zip, pronto da trascinare
+```
+
+### Netlify
+
+`netlify.toml` contiene già comando di build, cartella da pubblicare, versione
+di Node, cache e intestazioni di sicurezza. Tre modi per pubblicare:
+
+1. **Collegando il repository** — su [app.netlify.com](https://app.netlify.com)
+   *Add new site → Import an existing project → GitHub → misterybox*.
+   Non serve configurare nulla: legge `netlify.toml`. Ogni push aggiorna il sito.
+2. **Trascinando l'archivio** — `npm run build:drop`, poi trascina
+   `dist/verdania-netlify.zip` su [app.netlify.com/drop](https://app.netlify.com/drop).
+   Online in pochi secondi, senza collegare il repository.
+3. **Da riga di comando** — `npx netlify-cli deploy --prod --dir=dist`
+   (la prima volta chiede l'accesso al tuo account).
+
+`npm run check:deploy` verifica il pacchetto prima della pubblicazione: avvia
+il gioco applicando le stesse intestazioni di `netlify.toml`, Content Security
+Policy compresa, e fallisce se compare un errore o una richiesta di rete.
+
+### GitHub Pages
+
+Il workflow `.github/workflows/deploy.yml` pubblica `dist/` a ogni push sul
+ramo principale. Va attivato una volta sola dalle impostazioni del
+repository: **Settings → Pages → Source: GitHub Actions**.
 
 La pagina ospite può riservare spazio al proprio contenuto impostando
 `document.documentElement.dataset.uiReserved` (in pixel) prima dell'avvio: il
