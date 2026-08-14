@@ -12,7 +12,9 @@
     "test": "node tools/test-maps.mjs && node tools/test.mjs",
     "test:dist": "npm run build:page && node tools/test.mjs --dist",
     "build:page": "npm run build && node tools/build-artifact.mjs",
-    "shots": "node tools/shots.mjs"
+    "shots": "node tools/shots.mjs",
+    "check:deploy": "node tools/check-deploy.mjs",
+    "build:drop": "node tools/build-drop.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1",

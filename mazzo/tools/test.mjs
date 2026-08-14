@@ -4,6 +4,7 @@
  *
  *   node tools/test.mjs           partita intera + screenshot
  *   node tools/test.mjs --dist    prova la build di produzione invece dei sorgenti
+ *   node tools/test.mjs --url=... prova un sito gia' servito da qualcun altro
  *   node tools/test.mjs --keep    lascia il server acceso a fine prova
  */
 
@@ -16,7 +17,10 @@ import { dirname, join } from 'node:path';
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SHOTS = join(ROOT, 'screenshots');
 const KEEP = process.argv.includes('--keep');
-const DIST = process.argv.includes('--dist');
+const URL_ARG = process.argv.find((a) => a.startsWith('--url='));
+const BASE = URL_ARG ? URL_ARG.slice('--url='.length).replace(/\/$/, '') : null;
+// Con --url il pacchetto e' gia' quello di produzione, servito da fuori.
+const DIST = process.argv.includes('--dist') || BASE !== null;
 const PORT = 5188;
 
 let failures = 0;
@@ -239,11 +243,15 @@ async function main() {
   rmSync(SHOTS, { recursive: true, force: true });
   mkdirSync(SHOTS, { recursive: true });
 
-  // Con --dist si prova esattamente quello che finisce online.
-  const server = DIST
-    ? await preview({ root: ROOT, preview: { port: PORT, strictPort: true, host: '127.0.0.1' }, logLevel: 'error' })
-    : await createServer({ root: ROOT, server: { port: PORT, strictPort: true, host: '127.0.0.1' }, logLevel: 'error' });
-  if (!DIST) await server.listen();
+  // Con --dist si prova esattamente quello che finisce online; con --url il
+  // sito e' gia' acceso altrove, per esempio dietro le intestazioni di Netlify.
+  const server = BASE
+    ? null
+    : DIST
+      ? await preview({ root: ROOT, preview: { port: PORT, strictPort: true, host: '127.0.0.1' }, logLevel: 'error' })
+      : await createServer({ root: ROOT, server: { port: PORT, strictPort: true, host: '127.0.0.1' }, logLevel: 'error' });
+  if (server && !DIST) await server.listen();
+  const base = BASE ?? `http://127.0.0.1:${PORT}`;
 
   const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
   const page = await browser.newPage({ viewport: { width: 960, height: 640 } });
@@ -254,7 +262,7 @@ async function main() {
     if (m.type() === 'error') errors.push(m.text());
   });
 
-  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'load' });
+  await page.goto(`${base}/`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.MAZZO !== undefined, null, { timeout: 10000 });
   await sleep(600);
 
@@ -403,9 +411,9 @@ async function main() {
     single.on('requestfailed', (r) => singleErrors.push(`richiesta fallita: ${r.url()}`));
     let external = 0;
     single.on('request', (r) => {
-      if (!r.url().startsWith(`http://127.0.0.1:${PORT}/mazzo.html`) && !r.url().startsWith('data:')) external++;
+      if (!r.url().startsWith(`${base}/mazzo.html`) && !r.url().startsWith('data:')) external++;
     });
-    await single.goto(`http://127.0.0.1:${PORT}/mazzo.html`, { waitUntil: 'load' });
+    await single.goto(`${base}/mazzo.html`, { waitUntil: 'load' });
     await single.waitForFunction(() => window.MAZZO !== undefined, null, { timeout: 10000 });
     await sleep(800);
     check(await single.evaluate(() => window.MAZZO.game.current.name === 'title'), 'mazzo.html si apre da solo');
@@ -425,7 +433,7 @@ async function main() {
     const mob = await ctx.newPage();
     const mobErrors = [];
     mob.on('pageerror', (e) => mobErrors.push(String(e)));
-    await mob.goto(`http://127.0.0.1:${PORT}/#room`, { waitUntil: 'load' });
+    await mob.goto(`${base}/#room`, { waitUntil: 'load' });
     await mob.waitForFunction(() => window.MAZZO !== undefined, null, { timeout: 10000 });
     await sleep(600);
     check(await mob.evaluate(() => document.querySelectorAll('#touch-controls > *').length === 5), 'compaiono pad e tasto E');
@@ -453,7 +461,7 @@ async function main() {
 
   if (!KEEP) {
     await browser.close();
-    await server.close();
+    if (server) await server.close();
   }
   log(`\n${failures === 0 ? '\x1b[32mTUTTO OK\x1b[0m' : `\x1b[31m${failures} problemi\x1b[0m`}\n`);
   process.exit(failures === 0 ? 0 : 1);

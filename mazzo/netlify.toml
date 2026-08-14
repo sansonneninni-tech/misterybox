@@ -1,0 +1,22 @@
+# Configurazione per un sito Netlify dedicato solo a MAZZO.
+#
+# Nell'interfaccia di Netlify: "Add new site" -> "Import an existing project",
+# si sceglie il repository e si imposta **Base directory: mazzo**. Da lì in poi
+# vale questo file: comando di build, cartella da pubblicare e intestazioni
+# sono già scritti qui, non serve toccare niente a mano.
+#
+# Se invece si pubblica l'intero repository dalla radice, comanda il
+# netlify.toml che sta lì: quello costruisce anche Verdania e mette MAZZO
+# sotto /mazzo/.
+
+[build]
+  command = "npm run build:page"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Il gioco non ha dipendenze a runtime, ma la build usa TypeScript e Vite.
+  NPM_FLAGS = "--include=dev"
+
+# Le intestazioni vere e proprie stanno in public/_headers: così valgono anche
+# per il deploy manuale, dove nessuno legge questo file.

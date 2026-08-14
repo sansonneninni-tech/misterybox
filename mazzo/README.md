@@ -69,8 +69,28 @@ Durante lo sviluppo si può aprire un livello a parte con `#room`, `#bar`,
 Il gioco è pubblicato come pagina autonoma:
 <https://claude.ai/code/artifact/6ceb3b01-fece-4d79-8f82-7cbdb16f6c92>
 
-Con il ramo principale, il flusso di GitHub Pages già presente nel repository
-pubblica MAZZO anche sotto `/mazzo/`.
+### Netlify
+
+Tre strade, tutte già pronte:
+
+1. **Trascinamento.** `npm run build:drop` produce `dist/mazzo-netlify.zip`
+   (37 kB): si trascina su <https://app.netlify.com/drop> e il sito è online.
+   Le intestazioni viaggiano dentro l'archivio (`_headers`).
+2. **Repository, solo MAZZO.** Su Netlify: *Import an existing project*,
+   si sceglie il repository e si imposta **Base directory: `mazzo`**. Comando
+   di build, cartella e intestazioni li legge da `mazzo/netlify.toml`.
+3. **Repository, tutto il sito.** Il `netlify.toml` alla radice costruisce
+   Verdania alla radice e MAZZO sotto `/mazzo/`.
+
+Prima di pubblicare:
+
+```bash
+npm run check:deploy   # serve dist/ con le intestazioni vere (CSP compresa)
+                       # e ci gioca una partita intera
+```
+
+Il flusso di GitHub Pages già presente nel repository pubblica MAZZO sotto
+`/mazzo/` quando il ramo viene unito in `main`.
 
 ## Com'è fatto
 

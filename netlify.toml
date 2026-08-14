@@ -1,9 +1,13 @@
 # Configurazione Netlify.
 # Collegando il repository dall'interfaccia di Netlify non serve impostare
 # nulla a mano: build, cartella da pubblicare e intestazioni sono qui.
+#
+# Il sito porta due giochi: Verdania alla radice e MAZZO sotto /mazzo/.
+# Per pubblicare solo MAZZO basta impostare "Base directory: mazzo" e comanda
+# il netlify.toml che sta lì.
 
 [build]
-  command = "npm run build:page"
+  command = "npm run build:page && npm --prefix mazzo ci && npm --prefix mazzo run build:page && cp -r mazzo/dist dist/mazzo"
   publish = "dist"
 
 [build.environment]
@@ -27,6 +31,17 @@
 
 [[headers]]
   for = "/verdania.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Stesso trattamento per il secondo gioco.
+[[headers]]
+  for = "/mazzo/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/mazzo/*"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
