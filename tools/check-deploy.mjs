@@ -92,8 +92,23 @@ async function main() {
 
   const browser = await chromium.launch({ args: ['--no-sandbox'] });
 
-  for (const page_path of ['/', '/verdania.html']) {
-    const page = await browser.newPage({ viewport: { width: 1000, height: 720 } });
+  // Ogni pagina va provata anche su un telefono vero: e' li' che un documento
+  // senza <meta name="viewport"> si rimpicciolisce fino a diventare inusabile.
+  const targets = [
+    { path: '/', device: 'desktop', width: 1000, height: 720, dpr: 1, mobile: false },
+    { path: '/', device: 'telefono', width: 390, height: 780, dpr: 3, mobile: true },
+    { path: '/verdania.html', device: 'desktop', width: 1000, height: 720, dpr: 1, mobile: false },
+    { path: '/verdania.html', device: 'telefono', width: 390, height: 780, dpr: 3, mobile: true },
+  ];
+
+  for (const t of targets) {
+    const page_path = t.path;
+    const page = await browser.newPage({
+      viewport: { width: t.width, height: t.height },
+      deviceScaleFactor: t.dpr,
+      hasTouch: t.mobile,
+      isMobile: t.mobile,
+    });
     const problems = [];
     page.on('pageerror', (e) => problems.push(`errore: ${e.message}`));
     page.on('console', (m) => {
@@ -149,13 +164,35 @@ async function main() {
       };
     });
 
-    const label = page_path === '/' ? 'index.html' : 'verdania.html';
+    const label = `${page_path === '/' ? 'index.html' : 'verdania.html'} (${t.device})`;
     const mosso = before && (st.x !== before.x || st.y !== before.y);
     if (st.mondo && st.errors === 0 && mosso) {
       ok(`${label}: il gioco parte e risponde ai comandi (${st.map}, ${before.x},${before.y} -> ${st.x},${st.y})`);
     } else {
       bad(`${label}: mondo ${st.mondo}, movimento ${mosso}, errori ${st.errors}`);
     }
+    const doc = await page.evaluate(() => {
+      const c = document.getElementById('screen').getBoundingClientRect();
+      return {
+        modo: document.compatMode,           // "CSS1Compat" = modalita' standard
+        viewport: !!document.querySelector('meta[name="viewport"]'),
+        charset: !!document.characterSet,
+        vw: window.innerWidth,
+        larghezzaSchermo: Math.round(c.width),
+      };
+    });
+    if (doc.modo === 'CSS1Compat') ok(`${label}: documento in modalita' standard`);
+    else bad(`${label}: modalita' quirks (manca il doctype)`);
+    if (doc.viewport) ok(`${label}: meta viewport presente`);
+    else bad(`${label}: manca <meta name="viewport"> — su telefono la pagina si rimpicciolisce`);
+    // Il viewport deve coincidere con la larghezza del dispositivo: se il
+    // browser ripiega su ~980px, la pagina viene mostrata in miniatura.
+    if (Math.abs(doc.vw - t.width) <= 2) ok(`${label}: viewport ${doc.vw}px = larghezza del dispositivo`);
+    else bad(`${label}: viewport ${doc.vw}px invece di ${t.width}px — pagina rimpicciolita`);
+    const quota = doc.larghezzaSchermo / t.width;
+    if (quota >= 0.55) ok(`${label}: schermo di gioco ${doc.larghezzaSchermo}px (${Math.round(quota * 100)}% della larghezza)`);
+    else bad(`${label}: schermo di gioco solo ${doc.larghezzaSchermo}px (${Math.round(quota * 100)}% della larghezza)`);
+
     if (problems.length === 0) ok(`${label}: nessuna violazione della CSP ne' errore in console`);
     else bad(`${label}: ${problems.length} problemi\n      ${problems.slice(0, 4).join('\n      ')}`);
     if (external.length === 0) ok(`${label}: nessuna richiesta verso l'esterno`);
@@ -163,7 +200,9 @@ async function main() {
     if (st.save) ok(`${label}: salvataggio disponibile`);
     else bad(`${label}: localStorage non disponibile`);
 
-    await page.screenshot({ path: join(ROOT, 'screenshots', `deploy-${label}.png`) });
+    await page.screenshot({
+      path: join(ROOT, 'screenshots', `deploy-${page_path === '/' ? 'index' : 'verdania'}-${t.device}.png`),
+    });
     await page.close();
   }
 
