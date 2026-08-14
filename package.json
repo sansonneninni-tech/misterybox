@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "node tools/test.mjs && node tools/test-systems.mjs",
-    "shots": "node tools/shots.mjs"
+    "shots": "node tools/shots.mjs",
+    "build:page": "npm run build && node tools/build-artifact.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

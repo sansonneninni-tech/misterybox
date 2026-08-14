@@ -59,9 +59,14 @@ function boot(): void {
       console.info(`[Verdania] Musica ${on ? 'attiva' : 'disattivata'}`);
     }
     if (code === 'KeyF') {
+      // In un iframe lo schermo intero puo' essere negato: fallisce in silenzio.
       const el = document.documentElement;
-      if (!document.fullscreenElement) void el.requestFullscreen?.();
-      else void document.exitFullscreen?.();
+      try {
+        if (!document.fullscreenElement) el.requestFullscreen?.().catch(() => {});
+        else document.exitFullscreen?.().catch(() => {});
+      } catch {
+        /* ignora */
+      }
     }
   });
 

@@ -21,6 +21,23 @@ npm run build    # controllo dei tipi + bundle in dist/
 npm run preview
 ```
 
+## Pubblicazione
+
+```bash
+npm run build:page   # dist/index.html + dist/verdania.html (file unico)
+```
+
+`dist/verdania.html` è l'intero gioco in un solo file: nessuna richiesta di
+rete, funziona aperto da disco, allegato o incorporato in un'altra pagina.
+
+Il workflow `.github/workflows/deploy.yml` pubblica `dist/` su GitHub Pages a
+ogni push sul ramo principale. Va attivato una volta sola dalle impostazioni
+del repository: **Settings → Pages → Source: GitHub Actions**.
+
+La pagina ospite può riservare spazio al proprio contenuto impostando
+`document.documentElement.dataset.uiReserved` (in pixel) prima dell'avvio: il
+motore ne tiene conto scegliendo l'ingrandimento dello schermo.
+
 ## Comandi
 
 | Tasto | Azione |
@@ -32,7 +49,11 @@ npm run preview
 | M | musica on/off |
 | F | schermo intero |
 
-Su dispositivi touch compare automaticamente un gamepad a schermo.
+Su dispositivi touch compare automaticamente un gamepad a schermo: in
+verticale sotto lo schermo, in orizzontale ai lati.
+
+Lo schermo viene ingrandito di un fattore intero calcolato sui pixel fisici,
+quindi resta nitido anche sui display ad alta densità.
 
 ## Come si gioca
 

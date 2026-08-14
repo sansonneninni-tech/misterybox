@@ -33,16 +33,26 @@ export class Renderer {
     window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 120));
   }
 
+  /**
+   * Sceglie il piu' grande ingrandimento intero che entra nello spazio
+   * disponibile. Il calcolo avviene in pixel fisici: sugli schermi ad alta
+   * densita' l'immagine resta perfettamente nitida e riempie molto piu' spazio
+   * di quanto permetterebbe un ingrandimento intero in pixel CSS.
+   */
   resize(): void {
     const margin = window.innerWidth < 560 ? 0 : 24;
-    const availW = Math.max(SCREEN_W, window.innerWidth - margin);
-    const availH = Math.max(SCREEN_H, window.innerHeight - margin);
-    const s = Math.max(1, Math.floor(Math.min(availW / SCREEN_W, availH / SCREEN_H)));
+    // Spazio riservato dalla pagina ospite (intestazioni, legenda dei tasti).
+    const reserved = Number(document.documentElement.dataset.uiReserved ?? 0) || 0;
+    const availW = Math.max(SCREEN_W / 2, window.innerWidth - margin);
+    const availH = Math.max(SCREEN_H / 2, window.innerHeight - margin - reserved);
+    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+
+    const s = Math.max(1, Math.floor(Math.min((availW * dpr) / SCREEN_W, (availH * dpr) / SCREEN_H)));
     this.scale = s;
     this.view.width = SCREEN_W * s;
     this.view.height = SCREEN_H * s;
-    this.view.style.width = `${SCREEN_W * s}px`;
-    this.view.style.height = `${SCREEN_H * s}px`;
+    this.view.style.width = `${(SCREEN_W * s) / dpr}px`;
+    this.view.style.height = `${(SCREEN_H * s) / dpr}px`;
     this.viewCtx = ctx2d(this.view);
   }
 

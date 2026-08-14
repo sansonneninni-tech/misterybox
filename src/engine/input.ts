@@ -126,6 +126,8 @@ export class Input {
 export function buildTouchControls(input: Input, root: HTMLElement): HTMLElement | null {
   const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   if (!isTouch) return null;
+  // Segnala alla pagina che deve lasciare spazio ai comandi a schermo.
+  document.documentElement.classList.add('touch');
 
   const wrap = document.createElement('div');
   wrap.id = 'touch-controls';

@@ -1,0 +1,328 @@
+<title>Verdania</title>
+
+<style>
+  /*
+    Un mondo visivo solo: una console portatile appoggiata su un tavolo al
+    buio. Niente tema chiaro alternativo — la pagina dipinge sempre il proprio
+    fondo, così regge su qualunque sfondo dell'ospite.
+    Palette derivata dal gioco stesso: il blu notte della schermata iniziale,
+    l'oro del logo, il verde del pulsante di avvio.
+  */
+  :root {
+    --ground: #070c13;
+    --ground-glow: #101a2b;
+    --shell: #121b28;
+    --shell-hi: #22314a;
+    --shell-lo: #060a11;
+    --ink: #ccd8e6;
+    --ink-dim: #78899e;
+    --gold: #f0c04a;
+    --accent: #7fd6a5;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(120% 80% at 50% 0%, var(--ground-glow) 0%, var(--ground) 62%),
+      var(--ground);
+    color: var(--ink);
+    font-family: var(--mono);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+
+  #app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 14px;
+  }
+
+  /* --- targhetta: il nome è stampato sul guscio, non è un titolone --- */
+  .plate {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: rise 620ms cubic-bezier(.2, .7, .3, 1) both;
+  }
+
+  .wordmark {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.44em;
+    text-indent: 0.44em;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  .plate .rule {
+    width: 46px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--shell-hi));
+  }
+
+  .plate .rule--r {
+    background: linear-gradient(270deg, transparent, var(--shell-hi));
+  }
+
+  .ready {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  .ready::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
+    animation: pulse 2.8s ease-in-out infinite;
+  }
+
+  /* --- cornice: lo schermo è incassato nel guscio --- */
+  .bezel {
+    position: relative;
+    padding: 12px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, var(--shell) 0%, var(--shell-lo) 100%);
+    box-shadow:
+      inset 0 1px 0 var(--shell-hi),
+      inset 0 -1px 0 #04070c,
+      0 24px 60px rgba(0, 0, 0, .6);
+    animation: rise 720ms 60ms cubic-bezier(.2, .7, .3, 1) both;
+  }
+
+  .bezel::after {
+    content: "";
+    position: absolute;
+    inset: 12px;
+    border-radius: 3px;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 1px rgba(120, 160, 210, .18);
+  }
+
+  canvas#screen {
+    display: block;
+    image-rendering: pixelated;
+    background: #000;
+    border-radius: 2px;
+  }
+
+  /* --- legenda: i tasti nell'ordine in cui si imparano --- */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 18px;
+    animation: rise 800ms 120ms cubic-bezier(.2, .7, .3, 1) both;
+  }
+
+  .legend dl {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+  }
+
+  .legend dt { margin: 0; }
+  .legend dd {
+    margin: 0;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  kbd {
+    display: inline-block;
+    min-width: 20px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: var(--shell);
+    box-shadow: inset 0 1px 0 var(--shell-hi), 0 1px 0 #04070c;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 10px;
+    line-height: 1;
+    text-align: center;
+  }
+
+  /* --- avvio --- */
+  #boot {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 24px;
+    text-align: center;
+    background: radial-gradient(90% 60% at 50% 45%, var(--ground-glow), var(--ground) 70%);
+  }
+
+  #boot h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.4em;
+    text-indent: 0.4em;
+    color: var(--gold);
+  }
+
+  #boot p {
+    max-width: 34em;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.9;
+    color: var(--ink-dim);
+  }
+
+  #boot-start {
+    margin-top: 4px;
+    padding: 13px 34px;
+    border: 0;
+    border-radius: 5px;
+    background: var(--accent);
+    color: #06110c;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    text-indent: 0.24em;
+    cursor: pointer;
+  }
+
+  #boot-start:hover { filter: brightness(1.08); }
+  #boot-start:active { transform: translateY(1px); }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  #fatal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    margin: 0;
+    padding: 24px;
+    overflow: auto;
+    background: #180b0f;
+    color: #ffb4b4;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .35; }
+  }
+
+  @media (max-width: 620px), (max-height: 520px) {
+    .plate, .legend { display: none; }
+    #app { padding: 0; gap: 0; }
+    .bezel { padding: 0; border-radius: 0; box-shadow: none; }
+    .bezel::after { inset: 0; }
+  }
+
+  /*
+    Con i comandi a schermo: in verticale il pad sta sotto e il gioco sale
+    sopra; in orizzontale i comandi stanno ai lati e lo spazio verticale
+    resta tutto disponibile.
+  */
+  @media (orientation: portrait) {
+    :root.touch #app { padding-bottom: 190px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .plate, .bezel, .legend { animation: none; }
+    .ready::before { animation: none; }
+  }
+</style>
+
+<div id="app">
+  <div class="plate">
+    <span class="rule" aria-hidden="true"></span>
+    <h1 class="wordmark">Verdania</h1>
+    <span class="rule rule--r" aria-hidden="true"></span>
+    <span class="ready">pronto</span>
+  </div>
+
+  <div class="bezel">
+    <canvas id="screen" width="240" height="160" aria-label="Schermo di gioco"></canvas>
+  </div>
+
+  <div class="legend">
+    <dl><dt><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></dt><dd>muovi</dd></dl>
+    <dl><dt><kbd>Z</kbd></dt><dd>conferma</dd></dl>
+    <dl><dt><kbd>X</kbd></dt><dd>annulla · corri</dd></dl>
+    <dl><dt><kbd>C</kbd></dt><dd>menu</dd></dl>
+    <dl><dt><kbd>M</kbd></dt><dd>musica</dd></dl>
+  </div>
+</div>
+
+<div id="boot">
+  <h1>Verdania</h1>
+  <p>
+    Un gioco di ruolo con visuale dall'alto: esplora la regione, cattura le
+    creature, allena la squadra.<br />
+    Frecce o WASD per muoverti · Z conferma · X annulla · C apre il menu.<br />
+    Su telefono e tablet compaiono i comandi a schermo.
+  </p>
+  <button id="boot-start" type="button">Inizia</button>
+</div>
+
+<pre id="fatal"></pre>
+
+<script>
+  // Comunica al motore quanto spazio occupano targhetta e legenda, così lo
+  // schermo sceglie un ingrandimento che le lascia visibili.
+  (function () {
+    function reserve() {
+      var plate = document.querySelector('.plate');
+      var legend = document.querySelector('.legend');
+      var h = 0;
+      if (plate && plate.offsetParent !== null) h += plate.offsetHeight + 14;
+      if (legend && legend.offsetParent !== null) h += legend.offsetHeight + 14;
+      var touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      if (touch && window.innerHeight > window.innerWidth) h += 190;
+      document.documentElement.dataset.uiReserved = String(h + 24);
+    }
+    reserve();
+    window.addEventListener('resize', function () {
+      reserve();
+    }, { capture: true });
+  })();
+</script>
+
+<script type="module">
+/*__BUNDLE__*/
+</script>
