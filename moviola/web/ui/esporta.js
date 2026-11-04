@@ -128,7 +128,10 @@ export function render(root, { app }) {
         const blob = codec === 'zip' ? await renderToZip(opts) : await renderToWebM(opts);
         if (demo) {
           const url = URL.createObjectURL(blob);
-          dialog({ title: `${name} · prova del render`, wide: true, body: h('video', { src: url, autoplay: true, loop: true, muted: true, playsInline: true, controls: true, style: { width: '100%', background: '#000' } }), onClose: () => URL.revokeObjectURL(url) });
+          const vid = h('video', { src: url, autoplay: true, loop: true, muted: true, playsInline: true, controls: true, style: { width: '100%', background: '#000' } });
+          // i WebM registrati dal browser non dichiarano la durata: la si fa leggere fino in fondo
+          vid.addEventListener('loadedmetadata', () => { if (!isFinite(vid.duration) || vid.duration < clip.format.duration * 0.5) { vid.currentTime = 1e6; vid.addEventListener('seeked', () => { vid.currentTime = 0; vid.play().catch(() => {}); }, { once: true }); } }, { once: true });
+          dialog({ title: `${name} · prova del render`, wide: true, body: vid, onClose: () => URL.revokeObjectURL(url) });
           return;
         }
         const a = h('a', { href: URL.createObjectURL(blob), download: `${name}.${codec === 'zip' ? 'zip' : blob.type.includes('mp4') ? 'mp4' : 'webm'}` });
