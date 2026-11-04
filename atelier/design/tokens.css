@@ -1,0 +1,96 @@
+/* ==========================================================================
+   ATELIER — design tokens
+   Direzione: "provino a contatto in camera oscura".
+   Nero assoluto, giunture da 1px, angoli vivi, testo leggero.
+   Il colore appartiene solo alle immagini. Un unico accento, la "matita
+   grassa", marca tutto ciò che è una decisione o un consenso dell'artista.
+   ========================================================================== */
+
+@font-face { font-family: "Space Grotesk"; font-weight: 300; font-style: normal; font-display: swap; src: url("fonts/space-grotesk-latin-300-normal.woff2") format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "DM Sans"; font-weight: 300; font-style: normal; font-display: swap; src: url("fonts/dm-sans-latin-300-normal.woff2") format("woff2"); }
+@font-face { font-family: "DM Sans"; font-weight: 300; font-style: italic; font-display: swap; src: url("fonts/dm-sans-latin-300-italic.woff2") format("woff2"); }
+@font-face { font-family: "DM Sans"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/dm-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "DM Mono"; font-weight: 300; font-style: normal; font-display: swap; src: url("fonts/dm-mono-latin-300-normal.woff2") format("woff2"); }
+@font-face { font-family: "DM Mono"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/dm-mono-latin-400-normal.woff2") format("woff2"); }
+
+:root {
+  /* --- Colore ----------------------------------------------------------- */
+  --void: #000000;            /* fondo di tutto: niente grigi scuri al posto del nero */
+  --tile: #0d0d0d;            /* riempimento di una cella mentre l'immagine carica */
+  --raise: #111111;           /* pannelli sovrapposti (dialog, menu) — unico secondo livello */
+  --salt: #f8f8f8;            /* tutto il testo e le icone */
+  --ash: #7b7b7b;             /* etichette, numeri, testo secondario (4.7:1 sul nero) */
+  --veil: rgba(248, 248, 248, 0.45);  /* testo sopra le fotografie, stato hover dei link */
+  --seam: rgba(248, 248, 248, 0.12);  /* ogni bordo, divisore, giuntura della griglia */
+  --seam-strong: rgba(248, 248, 248, 0.32); /* bordo attivo/selezionato, campo a fuoco */
+  --scrim: rgba(0, 0, 0, 0.78);      /* dietro ai dialog */
+
+  /* La matita grassa: SOLO per ciò che è una tua decisione o richiede il tuo
+     consenso — selezione segnata, "dichiarata finita", costo da approvare.
+     Mai come sfondo, mai come decorazione, mai sui pulsanti normali. */
+  --mark: #ff4d2e;
+  --mark-dim: rgba(255, 77, 46, 0.16);
+
+  /* Grigio neutro del tavolo luminoso: per giudicare luce e colore come in
+     Lightroom. Usato solo come sfondo dell'immagine nel visore. */
+  --neutral-18: #767676;
+
+  /* Stati di sistema: restano acromatici, si distinguono per forma e parola. */
+  --ok: var(--salt);
+  --warn: var(--salt);
+  --error: var(--salt);
+
+  /* --- Tipografia ------------------------------------------------------- */
+  --font-display: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-ui: "DM Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --w-light: 300;   /* peso di base di tutto il testo */
+  --w-regular: 400; /* solo per controlli piccoli e logotipo: mai oltre */
+
+  --t-label: 10px;   /* etichette maiuscole, tracking ampio */
+  --t-meta: 11px;    /* metadati in mono */
+  --t-ui: 12px;      /* navigazione, pulsanti, voci */
+  --t-body: 13px;    /* paragrafi */
+  --t-lead: 16px;    /* testo dell'interlocutore, ipotesi */
+  --t-title: 29px;   /* titoli di schermata */
+  --t-code: 44px;    /* codici sulle celle (Ct, Lu, Rx): il gesto firma */
+  --t-hero: 88px;    /* numeri enormi: conteggi, costo nel dialog */
+
+  --track-label: 0.14em;
+  --track-ui: 0.06em;
+  --track-display: -0.04em;
+
+  --lh-tight: 1;
+  --lh-ui: 1.3;
+  --lh-body: 1.72;
+
+  /* --- Spazio e forma --------------------------------------------------- */
+  --s-1: 4px;
+  --s-2: 6px;
+  --s-3: 10px;
+  --s-4: 16px;   /* padding standard di cella e pannello */
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 72px;
+
+  --radius: 0px;          /* assoluto: nessun angolo arrotondato */
+  --hair: 1px;
+
+  --bar-h: 44px;          /* barra superiore */
+  --status-h: 26px;       /* barra di stato inferiore */
+  --rail-w: 216px;        /* colonna filtri/albero */
+  --side-w: 380px;        /* pannello dell'interlocutore / dettaglio */
+
+  /* --- Movimento -------------------------------------------------------- */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --fast: 0.2s;   /* cambi di colore e opacità */
+  --slow: 0.4s;   /* filtri sulle immagini, aperture di pannelli */
+  --hold: 1.2s;   /* tempo di pressione per approvare un costo */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --fast: 0s; --slow: 0s; }
+}
