@@ -213,7 +213,6 @@ async function boot() {
   app.render();
   app.refreshStatus();
   setInterval(() => { if (document.visibilityState === 'visible') app.refreshStatus(); }, 60_000);
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
 window.app = app;
