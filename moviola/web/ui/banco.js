@@ -7,6 +7,7 @@ import { PROCESSES, FAMILIES, BLENDS, byId, defaultParams } from '../engine/proc
 import { ASPECTS, MOTION_MODES, newSeed, dims, uid } from '../engine/clip.js';
 import { keyValue } from '../engine/motion.js';
 import { mainPlayer, syncPlayer } from '../app.js';
+import { openProvino } from './provino.js';
 
 const ICON = {
   play: '<svg viewBox="0 0 14 14"><path d="M3 1.5v11l9-5.5z"/></svg>',
@@ -83,6 +84,7 @@ export function render(root, { app }) {
         m.mode === 'ritmico' ? [bpm, h('span.meta', null, 'bpm'), div] : null,
         m.mode !== 'fermo' && m.mode !== 'ritmico' ? [h('span.meta', null, 'velocità'), speed] : null),
       h('div.row', { style: { marginLeft: 'auto' } },
+        h('button.btn', { title: 'Sei variazioni in movimento, da segnare', onclick: () => { player.pause(); openProvino({ onOpen: () => app.go('banco') }); } }, 'Provino ×6'),
         h('button.btn.btn--quiet', { title: 'Nuovo seme: stessa ricetta, altri caso e forme', onclick: () => { clip.seed = newSeed(); changed(['head', 'structure']); } }, 'Seme ', h('span.mono', null, String(clip.seed))),
         saveBtn),
     );

@@ -224,6 +224,15 @@ textarea.field { resize: vertical; min-height: 64px; line-height: 1.5; }
 .qr svg { width: 100%; height: 100%; display: block; }
 pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; color: var(--ash); border: var(--hair) solid var(--seam); padding: var(--s-3); overflow: auto; max-height: 260px; margin: 0; white-space: pre-wrap; word-break: break-word; }
 
+/* ---------- Provino ------------------------------------------------------- */
+.provino { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--seam); border: var(--hair) solid var(--seam); }
+.provino__tile { position: relative; background: #000; border: 0; padding: 0 0 26px; cursor: pointer; color: var(--salt); text-align: left; }
+.provino__tile canvas { width: 100%; display: block; aspect-ratio: auto; }
+.provino__n { position: absolute; left: 0; top: 0; background: var(--void); font-family: var(--font-mono); font-size: 10px; padding: 3px 6px; }
+.provino__said { position: absolute; left: 8px; right: 8px; bottom: 6px; font-family: var(--font-mono); font-size: 10px; color: var(--ash); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.provino__tile[aria-pressed="true"] { outline: 2px solid var(--mark); outline-offset: -2px; z-index: 1; }
+.provino__tile[aria-pressed="true"] .provino__n { background: var(--mark); color: var(--void); }
+
 /* ---------- Interlocutore ------------------------------------------------- */
 .crit-sheet { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--seam); }
 .crit-sheet img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
@@ -293,6 +302,9 @@ pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; col
   .vivo__key { min-width: 72px; padding: 6px 8px; }
   .vivo__key .code { font-size: 18px; }
   .vivo__tools { bottom: calc(var(--s-3) + 60px); right: var(--s-3); }
+  .vivo__tools[data-open="false"] .vivo__map, .vivo__tools[data-open="false"] .vivo__fs { display: none; }
+  .vivo__hint { display: none; }
+  .provino { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .exp-grid { grid-template-columns: 1fr; height: auto; }
   .exp-grid > * + * { border-left: 0; border-top: var(--hair) solid var(--seam); }

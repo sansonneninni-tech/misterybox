@@ -33,10 +33,11 @@ export function render(root, { app }) {
   const keysRow = h('div.vivo__bl');
   const sel = (cur, on) => h('select', { onchange: (e) => { on(allParams.find((x) => x.key === e.target.value)); remember(); drawHud(); } }, allParams.map((p) => h('option', { value: p.key, selected: p === cur }, p.label)));
   const recBtn = h('button.btn', { onclick: () => toggleRec() }, 'Registra un giro', h('span.btn__key', null, 'R'));
-  const tools = h('div.vivo__tools', null,
+  const tools = h('div.vivo__tools', { 'data-open': 'false' },
+    h('button.btn.only-phone', { onclick: () => { tools.dataset.open = tools.dataset.open === 'true' ? 'false' : 'true'; } }, 'X / Y'),
     h('div.vivo__map', null, h('span.label', null, 'X'), sel(mapX, (v) => { mapX = v; }), h('span.label', null, 'Y'), sel(mapY, (v) => { mapY = v; })),
     recBtn,
-    h('button.btn', { onclick: () => fullscreen() }, 'Tutto schermo', h('span.btn__key', null, 'F')));
+    h('button.btn.vivo__fs', { onclick: () => fullscreen() }, 'Tutto schermo', h('span.btn__key', null, 'F')));
   wrap.append(player.canvas, pad, cross, h('div.vivo__hud', null, tl, tr), keysRow, tools);
   root.append(wrap);
 
@@ -55,7 +56,7 @@ export function render(root, { app }) {
     fill(tl, 
       h('span', null, `${fmtTime(fr, player.fps)} · ${fr + 1}/${player.total}`),
       h('span', null, `${mm.label.toLowerCase()} ${clip.motion.mode === 'ritmico' ? clip.motion.bpm + ' bpm' : ''} · seme ${clip.seed}`),
-      rec ? h('span.rec', null, h('i'), `registro ${Math.round((rec.n / player.total) * 100)}%`) : h('span', null, 'spazio · M carattere · T tempo · N seme · 1–9 processi'));
+      rec ? h('span.rec', null, h('i'), `registro ${Math.round((rec.n / player.total) * 100)}%`) : h('span.vivo__hint', null, 'spazio · M carattere · T tempo · N seme · 1–9 processi'));
     fill(tr, 
       mapX ? h('span', null, `X ${mapX.label} ${fmtNum(valueAt(mapX), mapX.d)}`) : null,
       mapY ? h('span', null, `Y ${mapY.label} ${fmtNum(valueAt(mapY), mapY.d)}`) : null);
