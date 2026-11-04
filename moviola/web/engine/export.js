@@ -111,6 +111,32 @@ export class ZipWriter {
   }
 }
 
+/** Prova del render nella pagina demo: ogni fotogramma calcolato davvero alla
+ *  risoluzione scelta, tenuto come JPEG leggero e riguardato a tempo esatto.
+ *  Niente registratore del browser, che sotto carico perde fotogrammi. */
+export async function renderToPreview(opts) {
+  const { renderer: r, items, clip, long, onProgress, signal } = opts;
+  const { w, h } = dims(clip.format.aspect, long);
+  const fps = clip.format.fps;
+  const total = Math.round(clip.format.duration * fps);
+  r.setSize(w, h); r.prune([]); r.reset();
+  const copy = document.createElement('canvas'); copy.width = w; copy.height = h;
+  const g = copy.getContext('2d');
+  const frames = [];
+  const t0 = performance.now();
+  for (let i = 0; i < total; i++) {
+    if (signal?.aborted) throw new DOMException('annullato', 'AbortError');
+    const t = i / fps;
+    for (const s of items) if (s.kind === 'video') await seekVideo(s.el, videoTime(s, t));
+    r.render(clip, t, i, null, { display: true });
+    g.drawImage(r.canvas, 0, 0, w, h);
+    frames.push(await new Promise((res) => copy.toBlob(res, 'image/jpeg', 0.92)));
+    const el = (performance.now() - t0) / 1000;
+    onProgress && onProgress(i + 1, total, (el / (i + 1)) * (total - i - 1));
+  }
+  return { frames, fps, w, h };
+}
+
 export async function renderToZip(opts) {
   const { renderer: r, items, clip, long, name, meta, onProgress, signal } = opts;
   const { w, h } = dims(clip.format.aspect, long);
@@ -175,6 +201,7 @@ export function estimate(codec, w, h, fps, frames) {
     h264: px * 0.06,
     zip: px * 4.2,
     webm: px * 0.05,
+    prova: px * 0.25,  // JPEG tenuti in memoria per riguardarli
   }[codec] || px;
   return perFrame * frames;
 }

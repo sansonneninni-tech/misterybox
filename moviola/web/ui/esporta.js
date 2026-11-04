@@ -5,7 +5,7 @@ import { S, saveVersion, versionsOf, versionById, expById, auxRenderer, auxSourc
 import { h, fill, toast, seg, fmtBytes, isPhone, ago, confirmDialog, dialog } from './kit.js';
 import { dims, LONG_SIDES, normalizeClip, clone } from '../engine/clip.js';
 import { byId } from '../engine/processes.js';
-import { renderToServer, renderToZip, renderToWebM, estimate, needsNote } from '../engine/export.js';
+import { renderToServer, renderToZip, renderToWebM, renderToPreview, estimate, needsNote } from '../engine/export.js';
 import { qrSvg } from './qr.js';
 
 let codec = null;
@@ -26,7 +26,8 @@ export function render(root, { app }) {
     : [
       { id: 'zip', label: 'Sequenza PNG 16 bit (.zip)', bits: 16, available: true, note: 'senza perdita, calcolata nel browser; lenta ma esatta' },
       { id: 'webm', label: 'WebM (prova)', bits: 8, available: !!window.MediaRecorder, note: 'in tempo reale, compresso: solo per guardare' },
-    ].filter((c) => !demo || c.id === 'webm').map((c) => demo ? { ...c, label: 'Prova del render', note: 'la clip calcolata e rivista qui, compressa' } : c);
+    ];
+  if (demo) codecs.splice(0, codecs.length, { id: 'prova', label: 'Prova del render', bits: 8, available: true, note: 'ogni fotogramma calcolato alla risoluzione scelta e rivisto qui a tempo esatto' });
   if (!codec || !codecs.some((c) => c.id === codec && c.available)) codec = codecs.find((c) => c.available)?.id;
 
   const left = h('div.form-col');
@@ -125,15 +126,8 @@ export function render(root, { app }) {
         await addRender(rec);
         toast(`Pronto in ${Math.round((performance.now() - t0) / 1000)} s: ${rec.file.split('/').pop()}`, info.platform === 'darwin' && !isPhone() ? { label: 'Mostra nel Finder', run: () => reveal(rec.file) } : null);
       } else {
+        if (demo) { showPreview(await renderToPreview(opts), name); return; }
         const blob = codec === 'zip' ? await renderToZip(opts) : await renderToWebM(opts);
-        if (demo) {
-          const url = URL.createObjectURL(blob);
-          const vid = h('video', { src: url, autoplay: true, loop: true, muted: true, playsInline: true, controls: true, style: { width: '100%', background: '#000' } });
-          // i WebM registrati dal browser non dichiarano la durata: la si fa leggere fino in fondo
-          vid.addEventListener('loadedmetadata', () => { if (!isFinite(vid.duration) || vid.duration < clip.format.duration * 0.5) { vid.currentTime = 1e6; vid.addEventListener('seeked', () => { vid.currentTime = 0; vid.play().catch(() => {}); }, { once: true }); } }, { once: true });
-          dialog({ title: `${name} · prova del render`, wide: true, body: vid, onClose: () => URL.revokeObjectURL(url) });
-          return;
-        }
         const a = h('a', { href: URL.createObjectURL(blob), download: `${name}.${codec === 'zip' ? 'zip' : blob.type.includes('mp4') ? 'mp4' : 'webm'}` });
         document.body.append(a); a.click(); a.remove();
         await addRender({ id: 'r' + Date.now(), created: Date.now(), file: a.download, codec, w: r.w, h: r.h, fps: clip.format.fps, frames: Math.round(clip.format.duration * clip.format.fps), versionId: ver.id, name, thumb: ver.thumb });
@@ -149,6 +143,24 @@ export function render(root, { app }) {
       app.status();
       if (app.route === 'esporta') { drawLeft(); drawRight(); }
     }
+  }
+
+  function showPreview({ frames, fps, w, h: hh }, name) {
+    const cv = h('canvas', { width: w, height: hh, style: { width: '100%', height: 'auto', display: 'block', background: '#000', cursor: 'pointer' } });
+    const g = cv.getContext('2d');
+    const info = h('span.meta');
+    let raf = 0, paused = false, shown = -1, busy = false, t0 = performance.now(), at = 0;
+    const tick = (now) => {
+      raf = requestAnimationFrame(tick);
+      if (!paused) at = (now - t0) / 1000;
+      const i = Math.floor(at * fps) % frames.length;
+      if (i === shown || busy) return;
+      busy = true;
+      createImageBitmap(frames[i]).then((bm) => { g.drawImage(bm, 0, 0); bm.close?.(); shown = i; info.textContent = `${i + 1}/${frames.length} · ${fps} fps · ${w}×${hh} · tocca per fermare`; }).catch(() => {}).finally(() => { busy = false; });
+    };
+    cv.addEventListener('click', () => { paused = !paused; if (!paused) t0 = performance.now() - at * 1000; });
+    raf = requestAnimationFrame(tick);
+    dialog({ title: `${name} · prova del render`, wide: true, body: h('div.stack', null, cv, info), onClose: () => { cancelAnimationFrame(raf); frames.length = 0; } });
   }
 
   async function queue(clip0, useWork, v) {
