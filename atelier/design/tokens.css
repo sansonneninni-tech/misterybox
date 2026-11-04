@@ -83,6 +83,8 @@
   --status-h: 26px;       /* barra di stato inferiore */
   --rail-w: 216px;        /* colonna filtri/albero */
   --side-w: 380px;        /* pannello dell'interlocutore / dettaglio */
+  --rebate: 24px;         /* margine "pellicola" sotto ogni cella */
+  --tab-h: 58px;          /* barra di navigazione in basso su iPhone */
 
   /* --- Movimento -------------------------------------------------------- */
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
