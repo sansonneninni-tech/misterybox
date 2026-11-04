@@ -53,6 +53,19 @@ Ricerca fatta su Refero (stili) partendo dai siti indicati. Riferimenti usati:
    bordi, simmetria, saturazione), propone ipotesi eseguibili e dice quando
    non è d'accordo. Nel prototipo i testi sono scritti in anticipo.
 
+## Percorso e gerarchia
+
+Il lavoro segue quattro passi, mostrati nella navigazione in alto (in basso su
+iPhone): **1 Raccogli** (Archivio) → **2 Combina** (Tela) → **3 Scegli**
+(Laboratorio) → **4 Esporta** (Lightroom), con **oppure Da zero** come partenza
+alternativa. Il passo corrente è pieno, quelli fatti hanno il bordo chiaro.
+
+Ogni schermata apre con una **guida** (`.guide`): i sotto-passi numerati, quello
+corrente in evidenza con la sua spiegazione, e a destra l'unico pulsante
+principale (`.btn--solid`) che porta avanti. Regola: un solo pulsante pieno per
+schermata. Le zone di servizio (colonne, guida, barre degli strumenti) stanno su
+`--panel`, leggermente più chiaro del nero, così l'immagine resta il centro.
+
 ## Schermate
 
 | Sezione | Contenuto |

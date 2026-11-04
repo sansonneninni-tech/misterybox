@@ -18,9 +18,10 @@
   /* --- Colore ----------------------------------------------------------- */
   --void: #000000;            /* fondo di tutto: niente grigi scuri al posto del nero */
   --tile: #0d0d0d;            /* riempimento di una cella mentre l'immagine carica */
-  --raise: #111111;           /* pannelli sovrapposti (dialog, menu) — unico secondo livello */
+  --panel: #0a0a0a;           /* zone di servizio (colonne, guida, barre): separa gli strumenti dal lavoro */
+  --raise: #141414;           /* pannelli sovrapposti (dialog, menu) */
   --salt: #f8f8f8;            /* tutto il testo e le icone */
-  --ash: #7b7b7b;             /* etichette, numeri, testo secondario (4.7:1 sul nero) */
+  --ash: #8f8f8f;             /* etichette, numeri, testo secondario (6.4:1 sul nero) */
   --veil: rgba(248, 248, 248, 0.45);  /* testo sopra le fotografie, stato hover dei link */
   --seam: rgba(248, 248, 248, 0.12);  /* ogni bordo, divisore, giuntura della griglia */
   --seam-strong: rgba(248, 248, 248, 0.32); /* bordo attivo/selezionato, campo a fuoco */
@@ -49,12 +50,12 @@
   --w-light: 300;   /* peso di base di tutto il testo */
   --w-regular: 400; /* solo per controlli piccoli e logotipo: mai oltre */
 
-  --t-label: 10px;   /* etichette maiuscole, tracking ampio */
+  --t-label: 11px;   /* etichette maiuscole, tracking ampio */
   --t-meta: 11px;    /* metadati in mono */
   --t-ui: 12px;      /* navigazione, pulsanti, voci */
   --t-body: 13px;    /* paragrafi */
   --t-lead: 16px;    /* testo dell'interlocutore, ipotesi */
-  --t-title: 29px;   /* titoli di schermata */
+  --t-title: 32px;   /* titoli di schermata */
   --t-code: 44px;    /* codici sulle celle (Ct, Lu, Rx): il gesto firma */
   --t-hero: 88px;    /* numeri enormi: conteggi, costo nel dialog */
 
@@ -79,7 +80,7 @@
   --radius: 0px;          /* assoluto: nessun angolo arrotondato */
   --hair: 1px;
 
-  --bar-h: 44px;          /* barra superiore */
+  --bar-h: 56px;          /* barra superiore con il percorso */
   --status-h: 26px;       /* barra di stato inferiore */
   --rail-w: 216px;        /* colonna filtri/albero */
   --side-w: 380px;        /* pannello dell'interlocutore / dettaglio */
