@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<canvas id="c"></canvas>
+<script type="module">
+import { Renderer } from '../web/engine/renderer.js';
+import { PROCESSES, defaultParams } from '../web/engine/processes.js';
+import { defaultClip } from '../web/engine/clip.js';
+const r = new Renderer(document.getElementById('c'));
+r.setSize(480, 270);
+// sorgente di prova: un gradiente con forme, per i processi che trasformano
+const sc = document.createElement('canvas'); sc.width = 640; sc.height = 360;
+const g = sc.getContext('2d');
+const gr = g.createLinearGradient(0,0,640,360); gr.addColorStop(0,'#2b2622'); gr.addColorStop(1,'#c9b8a0');
+g.fillStyle = gr; g.fillRect(0,0,640,360);
+g.fillStyle = '#111'; g.beginPath(); g.arc(250,180,90,0,7); g.fill();
+g.fillStyle = '#eee'; g.fillRect(400,60,60,240);
+const out = {};
+for (const p of PROCESSES) {
+  const clip = defaultClip(); clip.seed = 7;
+  clip.motion.mode = 'contemplativo';
+  clip.chain = [{ id: 'a', proc: p.id, on: true, mix: 1, blend: 'normale', params: defaultParams(p.id) }];
+  r.setSources(p.gen ? [] : [{ el: sc, w: 640, h: 360, kind: 'image' }]);
+  r.setSources([{ el: sc, w: 640, h: 360, kind: 'image' }]);
+  r.reset(); r.prune([]);
+  const frames = p.feedback || p.history ? 40 : 1;
+  for (let f = 0; f < frames; f++) r.render(clip, 2 + f / 24, 48 + f, null);
+  out[p.id] = { err: r.errors.get(p.id) || null, img: r.canvas.toDataURL('image/png') };
+}
+window.__out = out; window.__float = r.float;
+</script>
