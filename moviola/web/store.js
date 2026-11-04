@@ -82,5 +82,19 @@ export async function openStore() {
     const r = await fetch('/api/info', { cache: 'no-store' });
     if (r.ok && (r.headers.get('content-type') || '').includes('json')) return new ServerStore(await r.json());
   } catch {}
-  return new LocalStore().open();
+  try { return await new LocalStore().open(); }
+  catch { return new MemoryStore(); }
+}
+
+/** Quando il browser non concede IndexedDB (navigazione privata, pagine
+ *  incorporate): si lavora lo stesso, ma tutto resta solo in memoria. */
+class MemoryStore extends LocalStore {
+  constructor() { super(); this.volatile = true; this.mem = new Map(); }
+  _tx(c, mode, fn) {
+    if (!this.mem.has(c)) this.mem.set(c, new Map());
+    const m = this.mem.get(c);
+    const s = { getAll: () => ({ result: [...m.values()] }), get: (id) => ({ result: m.get(id) }), put: (o) => { m.set(o.id, o); }, delete: (id) => { m.delete(id); } };
+    const r = fn(s);
+    return Promise.resolve(r && r.result);
+  }
 }

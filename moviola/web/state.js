@@ -6,6 +6,7 @@ import { openStore } from './store.js';
 import { defaultClip, normalizeClip, clone, uid, dims } from './engine/clip.js';
 import { Renderer } from './engine/renderer.js';
 import { loadMedia, seekVideo, videoTime } from './media.js';
+import { pref } from './prefs.js';
 
 export const S = {
   store: null,
@@ -37,7 +38,7 @@ export async function boot() {
   }
   // riprende il lavoro lasciato aperto
   try {
-    const saved = JSON.parse(localStorage.getItem('moviola.work') || 'null');
+    const saved = JSON.parse(pref.get('moviola.work') || 'null');
     if (saved && S.experiments.some((e) => e.id === saved.expId)) {
       S.expId = saved.expId; S.versionId = saved.versionId; S.work = normalizeClip(saved.work); S.dirty = !!saved.dirty;
     }
@@ -46,7 +47,7 @@ export async function boot() {
 }
 
 export function remember() {
-  try { localStorage.setItem('moviola.work', JSON.stringify({ expId: S.expId, versionId: S.versionId, work: S.work, dirty: S.dirty })); } catch {}
+  try { pref.set('moviola.work', JSON.stringify({ expId: S.expId, versionId: S.versionId, work: S.work, dirty: S.dirty })); } catch {}
 }
 
 // ------------------------------------------------------------- sorgenti

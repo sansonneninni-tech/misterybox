@@ -8,6 +8,7 @@ import { ASPECTS, MOTION_MODES, newSeed, dims, uid } from '../engine/clip.js';
 import { keyValue } from '../engine/motion.js';
 import { mainPlayer, syncPlayer } from '../app.js';
 import { openProvino } from './provino.js';
+import { pref } from '../prefs.js';
 
 const ICON = {
   play: '<svg viewBox="0 0 14 14"><path d="M3 1.5v11l9-5.5z"/></svg>',
@@ -278,15 +279,15 @@ export function render(root, { app }) {
   }
 
   // ------------------------------------------------------------- stage
-  const screen = h('div.screen', { 'data-ground': localStorage.getItem('moviola.ground') || 'void' });
+  const screen = h('div.screen', { 'data-ground': pref.get('moviola.ground') || 'void' });
   const badge = h('div.screen__badge');
   const note = h('div.screen__note');
   screen.append(player.canvas, badge, note);
   const tc = h('span.tc');
   const playBtn = h('button.icon-btn', { title: 'Riproduci / ferma (spazio)', 'aria-label': 'Riproduci', onclick: () => { player.toggle(); drawTransport(); } });
-  const previewSel = h('select.field.only-desk', { 'aria-label': 'Risoluzione dell’anteprima', onchange: (e) => { player.setPreview(Number(e.target.value)); localStorage.setItem('moviola.preview', e.target.value); updateBadge(); } },
+  const previewSel = h('select.field.only-desk', { 'aria-label': 'Risoluzione dell’anteprima', onchange: (e) => { player.setPreview(Number(e.target.value)); pref.set('moviola.preview', e.target.value); updateBadge(); } },
     [640, 960, 1280, 1920].map((v) => h('option', { value: v, selected: v === player.previewLong }, `anteprima ${v}`)));
-  const ground = h('button.tag.only-desk', { title: 'Fondo nero o grigio neutro 18%', onclick: () => { screen.dataset.ground = screen.dataset.ground === 'neutral' ? 'void' : 'neutral'; localStorage.setItem('moviola.ground', screen.dataset.ground); } }, 'Fondo');
+  const ground = h('button.tag.only-desk', { title: 'Fondo nero o grigio neutro 18%', onclick: () => { screen.dataset.ground = screen.dataset.ground === 'neutral' ? 'void' : 'neutral'; pref.set('moviola.ground', screen.dataset.ground); } }, 'Fondo');
   const transport = h('div.transport', null,
     h('button.icon-btn', { title: 'Dall’inizio', 'aria-label': 'Dall’inizio', onclick: () => { player.restart(); } }, icon('start')),
     h('button.icon-btn', { title: 'Fotogramma prima (←)', 'aria-label': 'Fotogramma prima', onclick: () => step(-1) }, icon('prev')),

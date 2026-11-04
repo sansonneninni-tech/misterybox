@@ -8,6 +8,7 @@ import { byId } from '../engine/processes.js';
 import { MOTION_MODES } from '../engine/clip.js';
 import { keyValue } from '../engine/motion.js';
 import { mainPlayer, syncPlayer } from '../app.js';
+import { pref } from '../prefs.js';
 
 let handlers = null;
 export function keys(e) { return handlers ? handlers(e) : false; }
@@ -21,10 +22,10 @@ export function render(root, { app }) {
   const player = mainPlayer();
   const allParams = [];
   clip.chain.forEach((p) => byId[p.proc].params.forEach((d) => { if (!d.options) allParams.push({ key: `${p.id}.${d.id}`, pass: p, d, label: `${byId[p.proc].code} · ${d.label}` }); }));
-  const saved = JSON.parse(localStorage.getItem('moviola.vivo.' + S.expId) || '{}');
+  const saved = JSON.parse(pref.get('moviola.vivo.' + S.expId) || '{}');
   let mapX = allParams.find((x) => x.key === saved.x) || allParams[0];
   let mapY = allParams.find((x) => x.key === saved.y) || allParams[1] || allParams[0];
-  const remember = () => { try { localStorage.setItem('moviola.vivo.' + S.expId, JSON.stringify({ x: mapX?.key, y: mapY?.key })); } catch {} };
+  const remember = () => { try { pref.set('moviola.vivo.' + S.expId, JSON.stringify({ x: mapX?.key, y: mapY?.key })); } catch {} };
 
   const wrap = h('div.vivo');
   const pad = h('div.vivo__pad');

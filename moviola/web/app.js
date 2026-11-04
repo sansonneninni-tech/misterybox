@@ -9,6 +9,7 @@ import * as laboratorio from './ui/laboratorio.js';
 import * as vivo from './ui/vivo.js';
 import * as esporta from './ui/esporta.js';
 import * as interlocutore from './ui/interlocutore.js';
+import { pref } from './prefs.js';
 
 const SCREENS = { archivio, banco, laboratorio, vivo, esporta };
 const shell = document.getElementById('shell');
@@ -65,7 +66,7 @@ function closeSide() { shell.dataset.side = 'closed'; }
 
 export function setStatus(extra) {
   const parts = [];
-  if (S.store) parts.push(S.store.mode === 'server' ? 'archivio sul Mac' : 'archivio nel browser (demo)');
+  if (S.store) parts.push(S.store.mode === 'server' ? 'archivio sul Mac' : S.store.volatile ? 'prova: niente resta salvato' : 'archivio nel browser (demo)');
   const p = app.player;
   if (p) parts.push(p.float ? 'motore 16 bit virgola mobile' : 'motore 8 bit');
   const exp = S.experiments.find((e) => e.id === S.expId);
@@ -113,8 +114,9 @@ async function start() {
   const initial = location.hash.slice(1) || (S.work ? 'banco' : 'archivio');
   go(initial);
   if (S.store.mode === 'browser') {
-    const seen = localStorage.getItem('moviola.demo-note');
-    if (!seen) { toast('Pagina demo: l’archivio resta in questo browser. Sul Mac, con il server, esporti ProRes.'); localStorage.setItem('moviola.demo-note', '1'); }
+    const seen = pref.get('moviola.demo-note');
+    if (S.store.volatile) toast('Pagina di prova: qui il lavoro non resta salvato quando chiudi. Sul Mac, con il server, si salva tutto e si esporta in ProRes.');
+    else if (!seen) { toast('Pagina demo: l’archivio resta in questo browser. Sul Mac, con il server, esporti ProRes.'); pref.set('moviola.demo-note', '1'); }
   }
 }
 

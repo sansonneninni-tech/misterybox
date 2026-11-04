@@ -2,7 +2,7 @@
 // Ogni render è legato a una versione dell'albero e scrive un .json accanto.
 
 import { S, saveVersion, versionsOf, versionById, expById, auxRenderer, auxSources, addRender } from '../state.js';
-import { h, fill, toast, seg, fmtBytes, isPhone, ago, confirmDialog } from './kit.js';
+import { h, fill, toast, seg, fmtBytes, isPhone, ago, confirmDialog, dialog } from './kit.js';
 import { dims, LONG_SIDES, normalizeClip, clone } from '../engine/clip.js';
 import { byId } from '../engine/processes.js';
 import { renderToServer, renderToZip, renderToWebM, estimate, needsNote } from '../engine/export.js';
@@ -16,13 +16,17 @@ let stationTimer = 0;
 
 export function render(root, { app }) {
   const server = S.store.mode === 'server';
+  // pagina di prova pubblicata: il browser non lascia scaricare file
+  const demo = !server && window.MOVIOLA_DEMO === 'artifact';
   const info = S.info || {};
+  // la prova nel browser si guarda, non si consegna: basta il 1280
+  if (demo && long > 1920 && !render.demoLong) { long = 1280; render.demoLong = true; }
   const codecs = server
     ? Object.entries(info.codecs || {}).map(([id, c]) => ({ id, ...c }))
     : [
       { id: 'zip', label: 'Sequenza PNG 16 bit (.zip)', bits: 16, available: true, note: 'senza perdita, calcolata nel browser; lenta ma esatta' },
       { id: 'webm', label: 'WebM (prova)', bits: 8, available: !!window.MediaRecorder, note: 'in tempo reale, compresso: solo per guardare' },
-    ];
+    ].filter((c) => !demo || c.id === 'webm').map((c) => demo ? { ...c, label: 'Prova del render', note: 'la clip calcolata e rivista qui, compressa' } : c);
   if (!codec || !codecs.some((c) => c.id === codec && c.available)) codec = codecs.find((c) => c.available)?.id;
 
   const left = h('div.form-col');
@@ -47,7 +51,8 @@ export function render(root, { app }) {
     const est = estimate(codec, w, hh, fps, frames);
     const c = codecs.find((x) => x.id === codec);
     const notes = needsNote(clip);
-    if (!server) notes.push('Nella pagina demo il render avviene in questo browser. Sul Mac, con il server, si esporta in ProRes direttamente nella cartella Filmati.');
+    if (demo) notes.push('Questa è la pagina di prova: qui il browser non permette di salvare file. Sul Mac, con npm start, la stessa clip esce in ProRes 422 HQ o PNG 16 bit direttamente nella cartella Filmati.');
+    else if (!server) notes.push('Nella pagina demo il render avviene in questo browser. Sul Mac, con il server, si esporta in ProRes direttamente nella cartella Filmati.');
     if (isPhone() && server) notes.push('Dal telefono il render 4K è lento e consuma batteria: meglio mandarlo al Mac (serve una finestra di MOVIOLA aperta sul Mac come stazione).');
     if (w * hh > 3840 * 2160 * 0.6 && isPhone()) notes.push('Sull’iPhone la memoria può non bastare per il 4K: prova 1920.');
 
@@ -121,6 +126,11 @@ export function render(root, { app }) {
         toast(`Pronto in ${Math.round((performance.now() - t0) / 1000)} s: ${rec.file.split('/').pop()}`, info.platform === 'darwin' && !isPhone() ? { label: 'Mostra nel Finder', run: () => reveal(rec.file) } : null);
       } else {
         const blob = codec === 'zip' ? await renderToZip(opts) : await renderToWebM(opts);
+        if (demo) {
+          const url = URL.createObjectURL(blob);
+          dialog({ title: `${name} · prova del render`, wide: true, body: h('video', { src: url, autoplay: true, loop: true, muted: true, playsInline: true, controls: true, style: { width: '100%', background: '#000' } }), onClose: () => URL.revokeObjectURL(url) });
+          return;
+        }
         const a = h('a', { href: URL.createObjectURL(blob), download: `${name}.${codec === 'zip' ? 'zip' : blob.type.includes('mp4') ? 'mp4' : 'webm'}` });
         document.body.append(a); a.click(); a.remove();
         await addRender({ id: 'r' + Date.now(), created: Date.now(), file: a.download, codec, w: r.w, h: r.h, fps: clip.format.fps, frames: Math.round(clip.format.duration * clip.format.fps), versionId: ver.id, name, thumb: ver.thumb });

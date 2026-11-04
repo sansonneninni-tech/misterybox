@@ -8,6 +8,7 @@ import { Player } from '../engine/player.js';
 import { normalizeClip, clone, STATES } from '../engine/clip.js';
 import { byId } from '../engine/processes.js';
 import { mainPlayer } from '../app.js';
+import { pref } from '../prefs.js';
 
 let playerB = null;
 let slotA = null, slotB = null;
@@ -28,7 +29,7 @@ export function render(root, { app }) {
   const B = playerB;
 
   const treeEl = h('div.lab__tree');
-  const duo = h('div.duo', { 'data-mode': mode === 'tendina' ? 'split' : 'pair', 'data-ground': localStorage.getItem('moviola.ground') || 'void' });
+  const duo = h('div.duo', { 'data-mode': mode === 'tendina' ? 'split' : 'pair', 'data-ground': pref.get('moviola.ground') || 'void' });
   const cellA = h('div.duo__cell', null, A.canvas, h('span.duo__lbl', null, 'A'));
   const cellB = h('div.duo__cell', null, B.canvas, h('span.duo__lbl', null, 'B'));
   const handle = h('div.duo__handle', { role: 'slider', 'aria-label': 'Tendina tra A e B', tabindex: 0 });
