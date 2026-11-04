@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Atelier">
+  <title>ATELIER — prototipo</title>
+  <meta name="description" content="Prototipo cliccabile dell'interfaccia di ATELIER, laboratorio di ricerca artistica.">
+  <link rel="stylesheet" href="../tokens.css">
+  <link rel="stylesheet" href="../components.css">
+</head>
+<body>
+  <div class="shell" id="shell" data-side="open">
+    <header class="bar">
+      <div class="logo">Atelier</div>
+      <nav class="nav nav--steps" id="nav" aria-label="Percorso di lavoro">
+        <button class="nav__item" data-go="archivio"><span class="nav__num">1</span><span class="nav__txt"><span class="nav__verb">Raccogli</span><span class="nav__name">Archivio</span></span></button>
+        <button class="nav__item nav__item--alt" data-go="zero"><span class="nav__num">○</span><span class="nav__txt"><span class="nav__verb">oppure</span><span class="nav__name">Da zero</span></span></button>
+        <button class="nav__item" data-go="tela"><span class="nav__num">2</span><span class="nav__txt"><span class="nav__verb">Combina</span><span class="nav__name">Tela</span></span></button>
+        <button class="nav__item" data-go="laboratorio"><span class="nav__num">3</span><span class="nav__txt"><span class="nav__verb">Scegli</span><span class="nav__name">Laboratorio</span></span></button>
+        <button class="nav__item" data-go="esporta"><span class="nav__num">4</span><span class="nav__txt"><span class="nav__verb">Esporta</span><span class="nav__name">Lightroom</span></span></button>
+      </nav>
+      <div class="bar__end">
+        <button class="link only-desk" data-go="sistema">Sistema</button>
+        <button class="engine" id="engineBtn" title="Motore generativo"></button>
+        <button class="link" id="sideBtn" title="Mostra o nascondi il pannello laterale (I)">Interlocutore</button>
+      </div>
+    </header>
+    <main class="main" id="main"></main>
+    <button class="side-scrim" data-act="side-close" aria-label="Chiudi il pannello"></button>
+    <aside class="side" id="side" aria-label="Pannello laterale"></aside>
+    <footer class="status" id="status"></footer>
+  </div>
+  <div id="layer"></div>
+
+  <script src="data.js"></script>
+  <script src="processes.js"></script>
+  <script src="critic.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

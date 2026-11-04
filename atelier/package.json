@@ -1,0 +1,22 @@
+{
+  "name": "atelier",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ATELIER — laboratorio locale di ricerca artistica",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js",
+    "build:web": "node tools/build-web.mjs"
+  },
+  "dependencies": {
+    "express": "^4.22.3",
+    "multer": "^2.5.0",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.5"
+  }
+}
