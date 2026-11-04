@@ -66,6 +66,26 @@ principale (`.btn--solid`) che porta avanti. Regola: un solo pulsante pieno per
 schermata. Le zone di servizio (colonne, guida, barre degli strumenti) stanno su
 `--panel`, leggermente più chiaro del nero, così l'immagine resta il centro.
 
+## Come lavora un artista, e cosa ne segue
+
+- **Si lavora a occhio, non a pulsanti.** Muovere un parametro cambia subito
+  l'anteprima (ricalcolata a 640 px mentre il cursore si sposta). Il gesto e il
+  risultato devono stare nello stesso istante.
+- **Si sceglie per confronto, come su un provino a contatto.** "Provino: 6
+  variazioni" lancia sei versioni dello stesso gesto (seme sempre diverso, altri
+  parametri spostati di poco) su un foglio unico. Si segnano con la matita grassa
+  le poche da tenere; solo quelle entrano nel laboratorio, già segnate da te.
+  L'imprevisto viene cercato, ma la selezione resta tua.
+- **Il perché conta quanto il come.** Ogni variante ha un quaderno: una nota tua
+  che resta nella cronologia (in rosso, perché è tua) e nel file `.json`
+  esportato con l'immagine.
+- **Si giudica da vicino.** "Schermo intero" (tasto F) mostra l'immagine da sola,
+  su nero o grigio 18%; un tocco passa al 100% reale dei pixel e si trascina per
+  esplorare grana e bordi.
+- **Il percorso non è un binario.** I passi guidano, ma ogni sezione resta
+  aperta: si torna all'archivio, si ramifica una variante sulla tela, si riapre
+  un'opera dichiarata finita.
+
 ## Schermate
 
 | Sezione | Contenuto |

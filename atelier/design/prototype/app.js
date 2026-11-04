@@ -231,7 +231,7 @@
       + (n < 4 ? `<div class="layer"><button class="slot-empty" data-act="pick-slot">+ aggiungi dall'archivio o dal laboratorio</button></div>` : "");
     const cells = Math.min(4, n + (n < 4 ? 1 : 0));
     const stage = S.telaView === "anteprima" && S.preview
-      ? `<img src="${S.preview.full}" alt="Anteprima">`
+      ? `<img id="previewImg" src="${S.preview.full}" alt="Anteprima" data-view="${S.preview.full}">`
       : `<div class="layers" data-n="${cells}">${layers}</div>`;
     const params = p ? Object.entries(p.params).map(([k, d]) => `<label class="param"><span class="label">${k}</span><span class="meta"><b>${d.labels ? d.labels[S.params[k] >= 0.5 ? 1 : 0] : S.params[k]}</b></span>
       <input class="range" type="range" min="${d.min}" max="${d.max}" step="${d.step}" value="${S.params[k]}" data-param="${k}"></label>`).join("") : "";
@@ -239,13 +239,14 @@
     return `<div class="view view--full"><div class="stage" data-ground="${S.ground}">
       <div class="pane__head"><h1 class="title">Tela</h1><span class="meta">${n} ${n === 1 ? "sorgente" : "sorgenti"} · ${S.tela.map(code).join(" × ") || "vuota"}</span>
         <div class="pane__tools">
+          ${S.preview && S.telaView === "anteprima" ? `<button class="btn" data-act="view" title="Schermo intero, zoom 1:1 (F)">Schermo intero</button>` : ""}
           <div class="seg">${[["sorgenti", "Affianca"], ["anteprima", "Anteprima risultato"]].map(([v, l]) => `<button class="seg__opt" data-tview="${v}" aria-pressed="${S.telaView === v}" ${v === "anteprima" && !S.preview ? "disabled" : ""}>${l}</button>`).join("")}</div>
           <div class="seg" title="Fondo del visore">${[["void", "Nero"], ["neutral", "Grigio 18%"]].map(([v, l]) => `<button class="seg__opt" data-ground="${v}" aria-pressed="${S.ground === v}">${l}</button>`).join("")}</div>
         </div></div>
       ${guide(2, "Combina", [
         ["Metti le sorgenti", `${n}/4 sulla tela · ${esc((p || paid).name)} ne usa ${needs}`, ok && n > 0],
         ["Scegli un processo", `${esc((p || paid).name)} · ${p ? "locale, gratis" : "Higgsfield, a pagamento"}`, true],
-        [p ? "Regola e guarda" : "Leggi il preventivo", p ? "muovi i parametri, poi Anteprima" : "modello, crediti e saldo prima di partire", !!S.preview],
+        [p ? "Regola e guarda" : "Leggi il preventivo", p ? "muovi i parametri: l'anteprima cambia mentre li sposti" : "modello, crediti e saldo prima di partire", !!S.preview],
         [p ? "Crea la variante" : "Approva tu", p ? "finisce nel laboratorio, nell'albero" : "tieni premuto per spendere", !!S.madeHere],
       ], S.madeHere ? `<button class="btn btn--solid btn--lg" data-go="laboratorio">Confronta nel laboratorio →</button>`
         : p ? `<button class="btn btn--solid btn--lg" data-act="make" ${ok ? "" : "disabled"}>Crea variante →</button>`
@@ -265,17 +266,65 @@
         </div>
         <div class="controls__acts"><div class="label"><span class="label__n">4</span>Crea</div>
           ${!ok ? `<span class="meta">Aggiungi ${needs - n} ${needs - n === 1 ? "sorgente" : "sorgenti"} sulla tela per usare questo processo.</span>` : ""}
-          ${p ? `<button class="btn" data-act="preview" ${ok ? "" : "disabled"}>Anteprima</button><button class="btn btn--lg" data-act="make" ${ok ? "" : "disabled"}>Crea variante nel laboratorio →</button>`
+          ${p ? `<button class="btn" data-act="provino" ${ok ? "" : "disabled"} title="Sei variazioni dello stesso gesto, da scegliere come su un foglio di provini">Provino: 6 variazioni</button><button class="btn btn--lg" data-act="make" ${ok ? "" : "disabled"}>Crea variante nel laboratorio →</button>`
               : `<button class="btn btn--lg btn--paid" data-act="quote" ${ok ? "" : "disabled"}>Prepara la generazione <span class="btn__cost">~${paid.credits} cr / variante</span></button>`}
         </div>
       </div>
       </div></div></div></div></div>`;
   }
-  async function doPreview() {
+  // Anteprima dal vivo: a ogni movimento di un parametro ricalcolo a 640 px,
+  // senza ridisegnare la schermata, così il cursore resta sotto il dito.
+  let liveT = null, liveBusy = false, liveAgain = false;
+  function livePreview(delay = 90) {
+    clearTimeout(liveT);
+    liveT = setTimeout(async () => {
+      const p = PR.local[S.proc]; if (!p || S.tela.length < p.inputs) return;
+      if (liveBusy) { liveAgain = true; return; }
+      liveBusy = true;
+      try {
+        const els = await Promise.all(S.tela.slice(0, p.inputs).map(el));
+        const c = PR.at(640, () => p.run(els, S.params));
+        const url = c.toDataURL("image/jpeg", 0.85), first = !S.preview || S.telaView !== "anteprima";
+        S.preview = { full: url }; S.telaView = "anteprima";
+        const img = $("#previewImg");
+        if (first || !img) render(); else { img.src = url; img.dataset.view = url; }
+      } finally { liveBusy = false; if (liveAgain) { liveAgain = false; livePreview(0); } }
+    }, delay);
+  }
+  async function doPreview() { livePreview(0); }
+  // Provino: sei variazioni attorno ai parametri attuali. Il seme cambia sempre,
+  // gli altri parametri si spostano poco. Si sceglie segnando, come sui provini.
+  async function openProvino() {
     const p = PR.local[S.proc]; if (!p) return;
-    const els = await Promise.all(S.tela.slice(0, p.inputs).map(el));
-    const c = p.run(els, S.params);
-    S.preview = { full: c.toDataURL("image/jpeg", 0.9) }; S.telaView = "anteprima"; render();
+    const els = await Promise.all(S.tela.slice(0, p.inputs).map(el)), r = PR.rng(Date.now() % 100000);
+    const sheet = [];
+    for (let i = 0; i < 6; i++) {
+      const prm = { ...S.params };
+      for (const [k, d] of Object.entries(p.params)) {
+        if (k === "seme") prm[k] = Math.floor(r() * (d.max - d.min)) + d.min;
+        else if (!d.labels && i > 0) { const span = (d.max - d.min) * 0.22, v = prm[k] + (r() * 2 - 1) * span; prm[k] = Math.round(Math.min(d.max, Math.max(d.min, v)) / d.step) * d.step; prm[k] = Number(prm[k].toFixed(3)); }
+      }
+      const c = PR.at(900, () => p.run(els, prm));
+      sheet.push({ prm, c, url: c.toDataURL("image/jpeg", 0.85), on: false });
+    }
+    const draw = () => {
+      const k = sheet.filter((x) => x.on).length;
+      layer.innerHTML = `<div class="scrim" data-scrim><div class="dialog dialog--wide" role="dialog" aria-modal="true" aria-label="Provino">
+        <div class="dialog__head"><span class="label" style="color:var(--salt)">Provino · ${esc(p.name)} su ${S.tela.slice(0, p.inputs).map(code).join(" × ")}</span><span class="meta" style="margin-left:auto">segna quelle che vuoi tenere</span><button class="btn btn--quiet" data-close>×</button></div>
+        <div class="vgrid contact" style="--cols:3">${sheet.map((x, i) => `<button class="tile tile--frame" data-pv="${i}" data-marked="${x.on}" aria-pressed="${x.on}"><span class="tile__img"><img src="${x.url}" alt=""></span>
+          <span class="tile__rebate"><b>${pad(i + 1)}</b> ${Object.entries(x.prm).map(([a, b]) => `${a} ${b}`).join(" · ")}<span>${x.on ? "tenuta" : ""}</span></span></button>`).join("")}</div>
+        <div class="dialog__foot"><button class="btn btn--quiet" data-close>Chiudi senza tenere nulla</button><span class="spacer"></span>
+          <button class="btn btn--solid btn--lg" id="pvKeep" ${k ? "" : "disabled"}>${k ? `Tieni ${k === 1 ? "la segnata" : `le ${k} segnate`} nel laboratorio →` : "Segna almeno una variazione"}</button></div></div></div>`;
+      $$("[data-pv]", layer).forEach((b) => (b.onclick = () => { const x = sheet[+b.dataset.pv]; x.on = !x.on; draw(); }));
+      $$("[data-pv] img", layer).forEach((im, i) => im.addEventListener("dblclick", (e) => { e.stopPropagation(); openViewer(sheet[i].url); }));
+      const kb = $("#pvKeep"); if (kb) kb.onclick = async () => {
+        const kept = [];
+        for (const x of sheet.filter((y) => y.on)) { const full = p.run(els, x.prm); const n = makeNode({ proc: S.proc, sources: S.tela.slice(0, p.inputs), params: x.prm, canvas: full, paid: false }); n.marked = true; n.status = "scelta"; kept.push(n); }
+        closeDialog(); S.madeHere = true; S.cur = kept[0].id; S.cmpA = kept[0].parent; S.cmpB = kept[0].id;
+        toast(`${kept.length} ${kept.length === 1 ? "variante tenuta" : "varianti tenute"} e segnate da te: ${kept.map((n) => n.code).join(", ")}.`, "Apri nel laboratorio", () => go("laboratorio")); render();
+      };
+    };
+    draw();
   }
   async function doMake() {
     const p = PR.local[S.proc]; if (!p) return;
@@ -330,6 +379,7 @@
         <div class="pane__head"><h1 class="title">${n.code}</h1><span class="meta">${esc(n.procName)} · ${n.sources.map(code).join(" × ")}</span><span class="status-chip" data-s="${n.status}">${n.status}</span>
           <div class="pane__tools">
             ${S.labMode === "ab" ? pick("A") + pick("B") : ""}
+            <button class="btn" data-act="view" title="Schermo intero, zoom 1:1 (F)">Schermo intero</button>
             <div class="seg">${[["ab", "A/B"], ["griglia", "Griglia"], ["singola", "Singola"]].map(([v, l]) => `<button class="seg__opt" data-lab="${v}" aria-pressed="${S.labMode === v}">${l}</button>`).join("")}</div>
             <div class="seg">${[["void", "Nero"], ["neutral", "18%"]].map(([v, l]) => `<button class="seg__opt" data-ground="${v}" aria-pressed="${S.ground === v}">${l}</button>`).join("")}</div>
           </div></div>
@@ -337,6 +387,7 @@
         <div class="stage" data-ground="${S.ground}" style="flex:1;min-height:0"><div class="stage__canvas" style="${S.labMode === "griglia" ? "place-items:start;padding:0;overflow:auto" : ""}">${stage}</div></div>
         <div class="actbar">
           <span class="meta actbar__info">${pr || "nessun parametro"} · ${n.w}×${n.h} px · ${n.paid ? "Higgsfield (simulato)" : "locale, 0 crediti"} · creata ${n.t}</span>
+          <label class="notebook"><span class="label">Quaderno · ${n.code}</span><textarea class="field" id="noteIn" rows="2" placeholder="Perché questa variante? Cosa ti disturba, cosa ti interessa. Resta nella cronologia e nel file esportato.">${esc(n.note)}</textarea></label>
           <span class="actbar__group"><span class="label">Decidi su ${n.code}</span>
             <button class="btn" data-act="mark">${n.marked ? "Togli il segno" : "Segna come scelta"} <span class="btn__key">M</span></button>
             <button class="btn" data-act="review">${n.status === "in esame" ? "Torna a materiale" : "Metti in esame"}</button>
@@ -347,6 +398,8 @@
         </div></div></div>`;
   }
   after.laboratorio = () => {
+    const ni = $("#noteIn"); if (ni) ni.addEventListener("input", () => { const n = node(S.cur); if (n) { n.note = ni.value; n.noteAt = now(); } });
+    ni && ni.addEventListener("change", () => renderSide());
     const c = $("#cmp"), h = $("#cmpH"); if (!c) return;
     const move = (e) => { const r = c.getBoundingClientRect(); S.split = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100)); c.style.setProperty("--split", S.split + "%"); };
     c.addEventListener("pointerdown", (e) => { c.setPointerCapture(e.pointerId); move(e); c.onpointermove = move; });
@@ -419,7 +472,7 @@
       ["jpeg", "JPEG qualità 100", "Solo per anteprime o invio veloce: comprime.", ""],
     ];
     const first = sel[0];
-    const sidecar = first ? JSON.stringify({ opera: first.code, stato: first.status, decisa_da: first.status === "finita" ? "artista" : null, processo: first.proc, parametri: first.params, sorgenti: first.sources.map((s) => { const i = item(s); return i ? { codice: i.code, titolo: i.original, autore: i.author, diritti: i.rights, fonte: i.url } : { esperimento: code(s) }; }), motore: first.paid ? "higgsfield" : "locale", crediti: 0, dimensioni_px: [first.w, first.h], ingrandimento: false }, null, 2) : "";
+    const sidecar = first ? JSON.stringify({ opera: first.code, stato: first.status, decisa_da: first.status === "finita" ? "artista" : null, processo: first.proc, parametri: first.params, nota: first.note || null, sorgenti: first.sources.map((s) => { const i = item(s); return i ? { codice: i.code, titolo: i.original, autore: i.author, diritti: i.rights, fonte: i.url } : { esperimento: code(s) }; }), motore: first.paid ? "higgsfield" : "locale", crediti: 0, dimensioni_px: [first.w, first.h], ingrandimento: false }, null, 2) : "";
     const g = guide(4, "Esporta per Lightroom", [
       ["Scegli le versioni", `${sel.length} ${sel.length === 1 ? "selezionata" : "selezionate"} · le segnate sono in cima`, sel.length > 0],
       ["Formato e cartella", "TIFF 16 bit consigliato, dimensione nativa", sel.length > 0],
@@ -515,6 +568,7 @@
     while (cur) {
       out.unshift({ what: `${cur.code} · ${cur.procName}`, meta: `${cur.t} · ${Object.entries(cur.params).map(([k, v]) => k + " " + v).join(", ")}` });
       if (cur.marked) out.splice(1, 0, { what: "Segnata da te", meta: "matita grassa", human: true });
+      if (cur.note) out.splice(1, 0, { what: "Nota tua", meta: `${cur.noteAt || cur.t} · «${cur.note}»`, human: true });
       const p = cur.parent; cur = node(p);
       if (!cur && item(p)) out.unshift({ what: `Sorgente ${item(p).code} · ${item(p).title}`, meta: item(p).source });
     }
@@ -660,6 +714,26 @@
     layer.innerHTML = `<div class="scrim" data-scrim><div class="dialog" style="width:min(940px,100%)"><div class="dialog__head"><span class="label">Aggiungi alla tela</span><button class="btn btn--quiet" data-close style="margin-left:auto">×</button></div>
       <div class="vgrid" style="--cols:6">${all.map((x) => tile({ attrs: `data-pick="${x.id}"`, img: x.src, code: x.code, size: 26, left: `<b>${esc(x.code)}</b>` })).join("")}</div></div></div>`;
   }
+  // Visione a schermo intero: adatta allo schermo, un tocco per il 100% (1:1) e trascinare per spostarsi.
+  function openViewer(src) {
+    if (!src) return;
+    layer.innerHTML = `<div class="viewer" data-ground="${S.ground}" role="dialog" aria-modal="true" aria-label="Visione a schermo intero">
+      <div class="viewer__bar"><span class="meta" id="vwInfo">adattata allo schermo · tocca per 1:1</span><span class="spacer"></span>
+        <div class="seg">${[["void", "Nero"], ["neutral", "18%"]].map(([v, l]) => `<button class="seg__opt" data-vg="${v}" aria-pressed="${S.ground === v}">${l}</button>`).join("")}</div>
+        <button class="btn" data-close>Chiudi <span class="btn__key">Esc</span></button></div>
+      <div class="viewer__img" id="vwBox"><img src="${src}" alt="" id="vwImg" draggable="false"></div></div>`;
+    const box = $("#vwBox"), img = $("#vwImg"), info = $("#vwInfo");
+    let one = false, drag = null, moved = false;
+    const set = (v, ex, ey) => {
+      one = v; box.dataset.one = v ? "true" : "false";
+      info.textContent = v ? `100% · ${img.naturalWidth}×${img.naturalHeight} px · trascina per spostarti` : "adattata allo schermo · tocca per 1:1";
+      if (v && ex != null) { const r = box.getBoundingClientRect(); box.scrollLeft = (ex - r.left) / r.width * img.naturalWidth - r.width / 2; box.scrollTop = (ey - r.top) / r.height * img.naturalHeight - r.height / 2; }
+    };
+    box.addEventListener("pointerdown", (e) => { moved = false; drag = { x: e.clientX, y: e.clientY, l: box.scrollLeft, t: box.scrollTop }; box.setPointerCapture(e.pointerId); });
+    box.addEventListener("pointermove", (e) => { if (!drag || !one) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; box.scrollLeft = drag.l - dx; box.scrollTop = drag.t - dy; });
+    box.addEventListener("pointerup", (e) => { const wasDrag = moved; drag = null; if (!wasDrag) set(!one, e.clientX, e.clientY); });
+    $$("[data-vg]", layer).forEach((b) => (b.onclick = () => { S.ground = b.dataset.vg; $(".viewer", layer).dataset.ground = S.ground; $$("[data-vg]", layer).forEach((x) => x.setAttribute("aria-pressed", x.dataset.vg === S.ground)); }));
+  }
   function openEngine() {
     layer.innerHTML = `<div class="scrim" data-scrim><div class="dialog" style="width:min(520px,100%)"><div class="dialog__head"><span class="dot ${S.engine.connected ? "" : "dot--off"}"></span><span class="label">Motori</span><button class="btn btn--quiet" data-close style="margin-left:auto">×</button></div>
       <div class="dialog__body"><dl class="dl"><dt>Higgsfield</dt><dd>${S.engine.connected ? `Collegato tramite CLI · <span class="credits">${S.engine.credits} crediti</span>` : "Non collegato: esegui <span class='meta'><b>higgsfield auth login</b></span>"}</dd>
@@ -690,7 +764,7 @@
     if (d.sel) { S.sel = d.sel; if (phone()) { S.sideTab = "dettaglio"; S.side = true; } else if (e.detail === 2) { addToTela(d.sel); return; } return render(); }
     if (d.facet) { S.f[d.facet] = S.f[d.facet] === d.v ? null : d.v; return render(); }
     if (d.density) { S.density = d.density; return render(); }
-    if (d.proc) { S.madeHere = false; S.preview = null; S.telaView = "sorgenti"; S.proc = d.proc; S.params = PR.local[d.proc] ? PR.defaults(d.proc) : {}; return render(); }
+    if (d.proc) { S.madeHere = false; S.preview = null; S.telaView = "sorgenti"; S.proc = d.proc; S.params = PR.local[d.proc] ? PR.defaults(d.proc) : {}; render(); if (PR.local[d.proc]) livePreview(0); return; }
     if (d.tview) { S.telaView = d.tview; return render(); }
     if (d.ground) { S.ground = d.ground; return render(); }
     if (d.untela !== undefined) { S.tela.splice(+d.untela, 1); S.telaView = "sorgenti"; return render(); }
@@ -714,6 +788,8 @@
       case "add-tag": { const v = prompt("Nuovo tag"); if (v) { item(d.id).tags.push(v.trim().toLowerCase()); render(); } return; }
       case "pick-slot": return openPicker();
       case "preview": return doPreview();
+      case "provino": return openProvino();
+      case "view": return openViewer(S.view === "tela" && S.preview ? S.preview.full : (node(S.cur) || {}).full);
       case "make": return doMake();
       case "quote": return openCost(S.proc, S.tela.slice(0, PR.paid[S.proc].inputs));
       case "branch": S.tela = [n.id]; S.telaView = "sorgenti"; return go("tela");
@@ -744,6 +820,7 @@
     S.params[t.dataset.param] = Number(t.value);
     const lbl = t.closest(".param").querySelector(".meta b"), d = PR.local[S.proc].params[t.dataset.param];
     lbl.textContent = d.labels ? d.labels[Number(t.value) >= 0.5 ? 1 : 0] : t.value;
+    livePreview();
   });
   document.addEventListener("submit", (e) => { if (e.target.id === "chatF") { e.preventDefault(); const v = $("#chatIn").value.trim(); if (v) sendChat(v); } });
   document.addEventListener("keydown", (e) => {
@@ -752,6 +829,7 @@
     const map = { 1: "archivio", 2: "tela", 3: "laboratorio", 4: "zero", 5: "esporta" };
     if (map[e.key]) return go(map[e.key]);
     if (e.key === "i" || e.key === "I") { S.side = !S.side; return render(); }
+    if ((e.key === "f" || e.key === "F") && !e.metaKey) { const src = S.view === "tela" && S.preview ? S.preview.full : S.view === "laboratorio" ? (node(S.cur) || {}).full : item(S.sel) && item(S.sel).file; return openViewer(src); }
     if ((e.key === "m" || e.key === "M") && S.view === "laboratorio") { const n = node(S.cur); if (n) { n.marked = !n.marked; render(); } }
     if (e.key === "o" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); go("archivio"); setTimeout(() => $("#fileIn") && $("#fileIn").click(), 50); }
   });

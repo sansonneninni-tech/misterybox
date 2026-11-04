@@ -5,7 +5,7 @@
    Esposto come window.AtelierProcesses (script classico, funziona anche senza
    server di moduli). */
 (function () {
-  const MAX = 1100; // lato massimo di lavoro nel prototipo
+  let MAX = 1100; // lato massimo di lavoro nel prototipo
 
   function rng(seed) {
     let a = seed >>> 0;
@@ -196,5 +196,8 @@
 
   function defaults(id) { const o = {}; for (const [k, v] of Object.entries(P[id].params)) o[k] = v.value; return o; }
 
-  window.AtelierProcesses = { local: P, paid: PAID, defaults, rng };
+  // Esegue fn con un lato massimo diverso (anteprima dal vivo a bassa risoluzione).
+  function at(max, fn) { const old = MAX; MAX = max; try { return fn(); } finally { MAX = old; } }
+
+  window.AtelierProcesses = { local: P, paid: PAID, defaults, rng, at };
 })();
