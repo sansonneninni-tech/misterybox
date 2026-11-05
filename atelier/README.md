@@ -4,10 +4,11 @@ Laboratorio di ricerca artistica: archivio visivo, tela per combinare, processi
 sperimentali, interlocutore critico, varianti con Higgsfield (solo con il tuo
 consenso al costo) ed esportazione per Lightroom.
 
-Il percorso è in quattro passi, sempre visibili in alto:
-**1 Raccogli → 2 Combina → 3 Scegli → 4 Esporta**, più **Da zero** per partire
+Il percorso è in tre passi, sempre visibili in alto:
+**1 Scegli → 2 Trasforma → 3 Salva**, più **oppure parti da zero** per partire
 senza immagini. Il sistema non decide mai che un'opera è finita: lo decidi tu,
-con un gesto esplicito.
+con la casella «Questa è finita» al passo 3. La mappa di ogni richiesta del
+brief, con il punto preciso dove si trova, è in `docs/BRIEF.md`.
 
 ## Avvio sul Mac (un comando)
 
@@ -35,20 +36,22 @@ tuo archivio. Fuori casa si può usare Tailscale (gratuito) e lo stesso indirizz
 
 ## Come si lavora
 
-- **Raccogli.** Trascina file (anche TIFF, HEIC, WebP), incolla un indirizzo, o apri
-  la scheda **Archivi del mondo**: Openverse, Wikimedia Commons, Europeana,
-  Library of Congress, Cleveland Museum of Art, NASA, Internet Archive, Met, Art
-  Institute of Chicago. Anteprima, licenza e importazione restano dentro l'app.
-- **Combina.** Fino a quattro immagini sulla tela, 19 processi locali in quattro
-  famiglie (composizione, materia, combinazione, genesi). Muovendo un cursore
-  l'anteprima si aggiorna subito. **Provino** (tasto P) lancia sei variazioni dello
-  stesso gesto: segni le poche da tenere e solo quelle entrano nel laboratorio.
-- **Scegli.** Albero delle varianti, confronto A/B trascinabile, griglia,
-  **schermo intero** (tasto F, un tocco per il 100% dei pixel). Ogni variante ha un
-  **quaderno** per le tue note, che restano nella cronologia e nel file esportato.
-- **Esporta.** TIFF 16 bit (consigliato), TIFF 8 bit, PNG, JPEG 100 o file
+- **1 Scegli.** Aggiungi foto (o trascinale in qualunque punto della finestra),
+  incolla un indirizzo, o apri la scheda **Cerca negli archivi**: Openverse,
+  Wikimedia Commons, Europeana, Library of Congress, Cleveland Museum of Art, NASA,
+  Internet Archive, Met, Art Institute of Chicago. Le foto nuove compaiono in cima,
+  già scelte. Sotto ogni foto: provenienza e diritti; la «i» apre i dettagli.
+- **2 Trasforma.** Gli effetti sono miniature della tua foto già trasformata: un
+  tocco li applica. Un cursore, **Intensità**, e **Un'altra versione**. Con due o più
+  foto compaiono gli effetti che le combinano (e **Vedi affiancate**). Sotto
+  l'anteprima l'**interlocutore** dice cosa non lo convince, con **Proponi una
+  direzione** e **Discuti**. **Tieni questa** salva a piena risoluzione; sulle
+  tenute ci sono **Parti da questa** (un ramo) e **Confronta** (A/B). **Mostrami 6
+  versioni**, Higgsfield (sempre con il costo prima) e in **Avanzato** tutti i
+  parametri, l'albero e la cronologia.
+- **3 Salva.** TIFF 16 bit (consigliato), TIFF 8 bit, PNG, JPEG 100 o file
   originale, alla risoluzione nativa. Accanto, un `.atelier.json` con sorgenti,
-  diritti, processi, parametri, semi e note. In Lightroom: **File → Importa**.
+  diritti, processi, parametri, versioni e note. In Lightroom: **File → Importa**.
 
 ## Higgsfield (generazioni a pagamento)
 
