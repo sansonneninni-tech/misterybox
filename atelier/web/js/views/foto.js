@@ -63,13 +63,13 @@ export default {
             h('span', { class: 's-drop__plus' }, '+'),
             h('span', { class: 's-drop__t' }, app.isPhone() ? 'Tocca qui per scegliere dalle tue Foto' : 'Trascina qui le foto, o clicca per sceglierle'),
             h('span', { class: 's-drop__d' }, 'JPEG, PNG, TIFF, WebP · anche più foto insieme')),
-          urlRow,
           h('div', { class: 's-empty__alt' },
             h('button', { class: 'link', onclick: () => app.go('cerca') }, 'Cerca negli archivi del mondo'),
             h('span', { class: 'muted' }, '·'),
             h('button', { class: 'link', onclick: samples }, 'Prova con 18 foto di esempio'),
             h('span', { class: 'muted' }, '·'),
-            h('button', { class: 'link', onclick: () => app.startFromZero() }, 'oppure parti da zero'))),
+            h('button', { class: 'link', onclick: () => app.startFromZero() }, 'oppure parti da zero')),
+          urlRow),
         cta);
       clear(cta, h('button', { class: 'btn btn--solid s-cta__btn', onclick: pick }, 'Aggiungi foto'),
         h('span', { class: 's-cta__why' }, 'Dal Mac puoi anche trascinarle in qualunque punto della finestra.'));

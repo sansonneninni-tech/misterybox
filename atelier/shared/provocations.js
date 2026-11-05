@@ -85,16 +85,52 @@ export function critique(a, context = {}) {
 }
 
 // Proposte per partire da zero, a partire da un'idea scritta.
-export function proposeFromIdea(idea = '', seed = Date.now()) {
+// L'idea decide davvero: i temi riconosciuti scelgono i processi, il testo
+// stesso fa da seme (stessa idea, stessa immagine), e la prima proposta
+// cerca le parole dell'idea negli archivi del mondo.
+const THEMES = [
+  { id: 'acqua', nome: 'acqua', w: ['acqua', 'mare', 'onda', 'fium', 'piogg', 'lago', 'liquid', 'nuot', 'bagn', 'lacrim', 'ghiacc', 'neve', 'sale'],
+    make: (r) => ({ titolo: 'Correnti lente', descrizione: 'Tracce lunghe che seguono un campo invisibile, come acqua che non si vede.', passi: [{ processo: 'flusso', parametri: { particles: 7000, length: 420, turbulence: 1 + r() * 1.5, ground: 'light' } }] }) },
+  { id: 'aria', nome: 'aria e movimento', w: ['vento', 'aria', 'volo', 'vola', 'ali', 'uccell', 'fumo', 'nebbia', 'nuvol', 'cielo', 'tempo', 'cors', 'moviment', 'danz', 'fuga', 'viaggi'],
+    make: (r) => ({ titolo: 'Turbine', descrizione: 'Molte tracce corte e agitate: il movimento senza il corpo che si muove.', passi: [{ processo: 'flusso', parametri: { particles: 12000, length: 90, turbulence: 6 + r() * 5 } }] }) },
+  { id: 'frattura', nome: 'memoria e frattura', w: ['memori', 'ricord', 'rovin', 'framment', 'rott', 'crep', 'spezz', 'vetr', 'specch', 'archivi', 'ferit', 'cicatric', 'passat', 'perdit'],
+    make: (r) => ({ titolo: 'Frammenti', descrizione: 'Una superficie già rotta prima di esistere: celle irregolari separate da fratture.', passi: [{ processo: 'voronoi', parametri: { cells: 40 + Math.round(r() * 140), edges: 2, displace: 8 + r() * 10 } }] }) },
+  { id: 'regola', nome: 'regola e costruzione', w: ['regol', 'codic', 'ordin', 'macchin', 'sistem', 'ripet', 'grigli', 'citt', 'palazz', 'strad', 'finestr', 'tessut', 'tram', 'numer', 'calcol'],
+    make: (r) => ({ titolo: 'Regola cieca', descrizione: 'Una regola elementare che produce strutture che sembrano volute.', passi: [{ processo: 'automa', parametri: { rule: [30, 45, 73, 110, 137, 150][Math.floor(r() * 6)], cell: 3, density: 0.2 + r() * 0.6 } }] }) },
+  { id: 'corpo', nome: 'corpo, animale, cosa viva', w: ['corp', 'pell', 'pelo', 'pelliccia', 'gatt', 'cane', 'cani', 'animal', 'besti', 'carn', 'occhi', 'mano', 'mani', 'volt', 'viso', 'sangu', 'oss', 'cuor', 'fior', 'fogli', 'alber', 'radic', 'bosc', 'erba', 'sem', 'uov', 'insett', 'lupo', 'cavall', 'pesc', 'serpent', 'piuma'],
+    make: (r) => ({ titolo: 'Pelle senza corpo', descrizione: 'Un rumore fitto e torto su se stesso: pelliccia, tessuto, epidermide di qualcosa che non c\'è.', passi: [{ processo: 'rumore', parametri: { scale: 8 + r() * 8, warp: 3.5 + r() * 2.5, octaves: 7, bands: 0 } }] }) },
+  { id: 'notte', nome: 'notte, sogno, assenza', w: ['nott', 'buio', 'ombr', 'sogn', 'sonn', 'mort', 'lutt', 'vuot', 'silenz', 'assenz', 'luna', 'stell', 'paur', 'solitud', 'nero'],
+    make: (r) => ({ titolo: 'Strati di buio', descrizione: 'Un rumore lento diviso in pochi strati: un paesaggio che si vede appena.', passi: [{ processo: 'rumore', parametri: { scale: 1.2 + r() * 1.5, warp: 1 + r(), octaves: 4, bands: 3 + Math.round(r() * 3) } }] }) },
+  { id: 'luce', nome: 'luce e calore', w: ['luce', 'sole', 'fuoc', 'bianc', 'alba', 'calor', 'estat', 'oro', 'fiamm', 'lampo'],
+    make: (r) => ({ titolo: 'Bagliore', descrizione: 'Molti strati sottili, come luce che brucia una superficie.', passi: [{ processo: 'rumore', parametri: { scale: 3 + r() * 3, warp: 2 + r() * 2, octaves: 6, bands: 9 + Math.round(r() * 3) } }] }) },
+];
+const STOP = new Set(['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'uno', 'una', 'di', 'a', 'da', 'in', 'con', 'su', 'per', 'tra', 'fra', 'e', 'o', 'che', 'del', 'della', 'dei', 'delle', 'nel', 'nella', 'al', 'alla', 'non', 'come', 'è', 'mi', 'si', 'ci', 'ma', 'se']);
+export function ideaSeed(idea = '') { let x = 2166136261; for (const c of idea.trim().toLowerCase()) { x ^= c.charCodeAt(0); x = Math.imul(x, 16777619) >>> 0; } return x; }
+export function ideaWords(idea = '') { return idea.toLowerCase().replace(/[^\p{L}\s']/gu, ' ').split(/[\s']+/).filter((w) => w.length > 2 && !STOP.has(w)); }
+
+export function proposeFromIdea(idea = '') {
+  const text = idea.trim();
+  const words = ideaWords(text);
+  const seed = ideaSeed(text);
   const rng = makeRng(seed);
-  const t = idea.toLowerCase();
   const out = [];
-  const has = (...w) => w.some((x) => t.includes(x));
-  if (has('acqua', 'mare', 'flu', 'nebbia', 'vento', 'tempo', 'movimento')) out.push({ titolo: 'Correnti', descrizione: 'Tracce che seguono un campo invisibile: il movimento senza il corpo che si muove.', passi: [{ processo: 'flusso', parametri: { particles: 6000, length: 240, turbulence: 2 + rng() * 3 } }] });
-  if (has('memoria', 'archivio', 'rovina', 'frammento', 'rotto', 'crepa')) out.push({ titolo: 'Frammenti', descrizione: 'Celle irregolari separate da fratture: una superficie già rotta prima di esistere.', passi: [{ processo: 'voronoi', parametri: { cells: 40 + rng.int(0, 120), edges: 2 } }] });
-  if (has('regola', 'codice', 'ordine', 'macchina', 'sistema', 'ripetizione')) out.push({ titolo: 'Regola cieca', descrizione: 'Una regola elementare produce strutture che sembrano intenzionali.', passi: [{ processo: 'automa', parametri: { rule: rng.pick([30, 45, 73, 110, 137, 150]), cell: 3 } }] });
-  out.push({ titolo: 'Paesaggio senza luogo', descrizione: 'Un rumore piegato su se stesso: geologie o tessuti che non appartengono a nessun posto.', passi: [{ processo: 'rumore', parametri: { scale: 2 + rng() * 4, warp: 1.5 + rng() * 2.5 } }] });
-  if (out.length < 3) out.push({ titolo: 'Fratture', descrizione: 'Lo spazio diviso in celle, ognuna una piccola stanza chiusa.', passi: [{ processo: 'voronoi', parametri: { cells: 30 + rng.int(0, 60) } }] });
-  if (out.length < 4) out.push({ titolo: 'Ordine involontario', descrizione: 'Righe che nascono da una regola: un tessuto, un codice, una pioggia.', passi: [{ processo: 'automa', parametri: { rule: rng.pick([30, 90, 110, 126]), cell: 4 } }] });
+  const q = `«${text.length > 40 ? text.slice(0, 40) + '…' : text}»`;
+  if (words.length) {
+    const query = words.slice(0, 3).join(' ');
+    out.push({ titolo: `Cerca «${query}» nei musei`, tipo: 'archivi', cerca: query,
+      descrizione: 'Cerco le parole della tua idea negli archivi del mondo, prendo due immagini da archivi diversi e le accosto. Poi le trasformi.',
+      perche: `La tua idea diventa una ricerca vera: le immagini trovate parlano di «${query}». Restano tra le tue foto, con autore e licenza.` });
+  }
+  const hits = THEMES.map((t) => ({ t, w: words.filter((w) => t.w.some((s) => w.startsWith(s))) })).filter((x) => x.w.length);
+  for (const { t, w } of hits.slice(0, 3)) out.push({ ...t.make(rng), seme: seed, perche: `Da «${w.join(', ')}» leggo ${t.nome}.` });
+  if (!hits.length) {
+    const pick = THEMES[seed % THEMES.length];
+    out.push({ ...pick.make(rng), seme: seed, perche: text ? `Nelle parole di ${q} non riconosco un tema: la scelta e i parametri vengono dal testo stesso, quindi la stessa idea dà sempre la stessa immagine. È un punto di partenza, non un'illustrazione.` : 'Senza un\'idea scelgo io un punto di partenza. Scrivi qualcosa e le proposte cambiano.' });
+    const other = THEMES[(seed >> 3) % THEMES.length] === pick ? THEMES[(seed + 1) % THEMES.length] : THEMES[(seed >> 3) % THEMES.length];
+    out.push({ ...other.make(rng), seme: seed + 1, perche: 'Una seconda strada, opposta alla prima, dallo stesso testo.' });
+  }
+  if (text) out.push({ titolo: 'Con l\'intelligenza artificiale', tipo: 'ai', prompt: `${text}. Ambiguous, raw, unresolved image; no stock-photo polish, no glossy AI look, no centered hero subject.`,
+    descrizione: 'Higgsfield parte dal testo della tua idea. È a pagamento: prima vedi il costo e parte solo se lo approvi.',
+    perche: 'Qui l\'idea arriva così com\'è al modello generativo.' });
   return out;
 }

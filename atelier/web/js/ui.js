@@ -36,6 +36,9 @@ export function toast(msg, action) {
   const t = h('div', { class: 'toast', role: 'status' }, h('span', {}, msg),
     action ? h('button', { class: 'link', onclick: () => { action.run(); t.remove(); } }, action.label) : null);
   document.body.append(t);
+  // Sempre staccato di 12px sopra il pulsante principale, mai attaccato.
+  const cta = [...document.querySelectorAll('.s-cta')].find((c) => c.offsetParent);
+  if (cta) { const top = cta.getBoundingClientRect().top; if (top < innerHeight) t.style.bottom = `${Math.round(innerHeight - top + 12)}px`; }
   setTimeout(() => t.remove(), action ? 7000 : 3500);
 }
 

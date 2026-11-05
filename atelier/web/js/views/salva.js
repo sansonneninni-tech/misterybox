@@ -87,8 +87,9 @@ export default {
       const n = list.filter((a) => sel.has(a.id)).length;
       const f = formats.find((x) => x.id === fmt);
       const bytes = list.filter((a) => sel.has(a.id)).reduce((s, a) => s + a.width * a.height * (fmt === 'tiff16' ? 6 : 3), 0);
-      const btn = h('button', { class: 'btn btn--solid s-cta__btn' + (progress ? ' is-busy' : ''), disabled: !n || !!progress, onclick: run },
-        progress || (n ? `Salva ${n} ${n === 1 ? 'versione' : 'versioni'}` : 'Salva le versioni'));
+      const again = done && !progress && done.ok.length && done.ids === [...sel].sort().join() && done.fmt === fmt;
+      const btn = h('button', { class: 'btn btn--solid s-cta__btn' + (progress ? ' is-busy' : ''), disabled: !n || !!progress, onclick: again ? () => download(done.ok) : run },
+        progress || (again ? `Salvate ✓ · scarica di nuovo` : n ? `Salva ${n} ${n === 1 ? 'versione' : 'versioni'}` : 'Salva le versioni'));
       clear(cta, btn, h('span', { class: 's-cta__why' }, n ? `${f?.name || ''}${fmt === 'tiff16' ? ` · circa ${fmtBytes(bytes)}` : ''}` : 'Spunta almeno una versione qui sopra.'),
         h('button', { class: 'btn btn--quiet s-cta__alt', onclick: () => app.go('tela') }, '← Trasforma'));
     }
@@ -100,15 +101,29 @@ export default {
         drawCta(`Salvo ${i + 1} di ${todo.length}…`);
         try { ok.push({ ...(await app.api.exportAsset(a.id, fmt)), title: a.title }); } catch (e) { err.push(`${a.title}: ${e.message}`); }
       }
-      done = { ok, err };
+      done = { ok, err, ids: todo.map((a) => a.id).sort().join(), fmt };
       drawCta();
       drawResult();
+      result.scrollIntoView({ block: 'end', behavior: 'smooth' });
+      // Sul Mac i file sono già nella cartella; altrove (prova online, iPhone) li scarico subito.
+      if (!(app.status?.platform === 'darwin' && app.api.mode !== 'demo' && !app.isPhone())) download(ok);
       toast(err.length ? `${ok.length} salvate, ${err.length} non riuscite.` : `${ok.length} ${ok.length === 1 ? 'versione salvata' : 'versioni salvate'}. Pronte per Lightroom.`);
+    }
+
+    async function download(files) {
+      for (const r of files) {
+        for (const [href, name] of [[r.url, r.file], [r.sheetUrl, r.file.replace(/\.[^.]+$/, '.atelier.json')]]) {
+          const a = h('a', { href, download: name, hidden: true });
+          document.body.append(a); a.click(); a.remove();
+          await new Promise((ok) => setTimeout(ok, 350));
+        }
+      }
     }
 
     function drawResult() {
       clear(result, h('div', { class: 's-panel s-panel--done' },
         h('div', { class: 's-label' }, `${done.ok.length} ${done.ok.length === 1 ? 'file salvato' : 'file salvati'}${done.err.length ? ` · ${done.err.length} non riusciti` : ''}`),
+        h('p', { class: 's-hint' }, app.api.mode === 'demo' || app.isPhone() ? 'Li trovi nei Download, ognuno con la sua scheda .atelier.json.' : `Sono in ${where}, ognuno con la sua scheda .atelier.json.`),
         done.ok.map((r) => h('div', { class: 's-file' },
           h('span', { class: 's-file__n' }, h('b', {}, r.file), ` · ${fmtBytes(r.bytes)}`),
           h('a', { class: 'btn', href: r.url, download: r.file }, 'Scarica'),

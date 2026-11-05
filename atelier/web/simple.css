@@ -272,3 +272,46 @@
   .s-work > .s-cta { order: 9; }
   .s-work::after { order: 10; }
 }
+
+/* ---------- Ritocchi dal doppio check 1 ---------------------------------- */
+.btn--solid:hover:not(:disabled) { opacity: 1; background: var(--veil-solid, #e6e6e6); }
+.s-cta__btn.btn--solid:not(:disabled) { opacity: 1; }
+.toast { background: var(--raise); color: var(--salt); border: 1px solid var(--seam-strong); padding: 10px 14px; }
+.toast .link { color: var(--salt); min-height: 44px; display: inline-flex; align-items: center; padding: 0 4px; }
+.s-canvas { height: max(300px, calc(100vh - var(--bar-h) - 380px)); }
+.s-srcs { min-height: 52px; }
+/* Dialog: il pulsante resta sempre in vista in fondo */
+.dialog { display: flex; flex-direction: column; overflow: hidden; }
+.dialog__body { overflow-y: auto; flex: 1 1 auto; min-height: 0; -webkit-overflow-scrolling: touch; }
+.dialog__head, .dialog__foot { flex: none; }
+.choice__opt input[type="radio"] { width: 20px; height: 20px; border-radius: 50%; margin-top: 0; }
+.choice__opt input[type="radio"]:checked { background: var(--salt); box-shadow: inset 0 0 0 4px var(--raise); }
+.choice__opt { min-height: 44px; }
+.dialog .check { min-height: 44px; align-items: center; }
+.dialog .check input { width: 22px; height: 22px; }
+.dialog .check input:checked { background: var(--salt); border-color: var(--salt); }
+.s-ph__info { width: 44px; height: 44px; top: 2px; right: 2px; }
+.s-ph__info::before { inset: 10px; }
+.s-url__in { min-height: 44px; }
+.s-empty__alt { order: 0; }
+@media (max-width: 760px) {
+  .s-int .range { height: 44px; }
+  .s-drop { min-height: 170px; }
+  .s-empty { gap: var(--s-3); padding-top: 0; }
+}
+
+/* ---------- Parti da zero ------------------------------------------------ */
+.s-zero .blank__idea { font-size: 22px; min-height: 96px; }
+.z-who { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; }
+.z-src { margin: 0; font-size: 13px; color: var(--ash); flex: 1; min-width: 220px; }
+.z-list { display: flex; flex-direction: column; gap: var(--s-3); }
+.z-card { border: var(--hair) solid var(--seam); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.z-card[data-kind="archivi"] { border-color: var(--seam-strong); }
+.z-card__t { font-family: var(--font-display); font-size: 20px; letter-spacing: -0.02em; }
+.z-card__why { font-size: 14px; color: var(--salt); }
+.z-card__d { font-size: 14px; color: var(--ash); line-height: 1.5; }
+.z-card__acts { display: flex; gap: var(--s-2); margin-top: 4px; }
+.z-card__acts .btn { min-height: 44px; }
+.z-cost { margin-left: 10px; font-family: var(--font-mono); font-size: 11px; opacity: 0.7; }
+.z-q { margin: 0; color: var(--ash); font-size: 14px; }
+.z-out__note { margin: 8px 0; font-size: 13px; color: var(--ash); }

@@ -98,10 +98,21 @@ export default {
     const six = h('button', { class: 'btn', disabled: !ok, onclick: () => openProvino(app, { proc, params: params(), assetIds: ids, keep: keepMany }) }, 'Mostrami 6 versioni');
 
     // ---- Decidere
-    const keepBtn = h('button', { class: 'btn btn--solid s-cta__btn', disabled: !ok, onclick: keep }, 'Tieni questa');
+    const keepBtn = h('button', { class: 'btn btn--solid s-cta__btn', disabled: !ok }, 'Tieni questa');
+    keepBtn.onclick = keep;
     const why = h('span', { class: 's-cta__why' }, ok ? '' : `«${nameOf(proc.id)}» ha bisogno di ${proc.inputs.min} foto.`);
-    const scarta = h('button', { class: 'btn s-cta__alt', disabled: !ok, onclick: () => { seed = Math.floor(Math.random() * 1e9); live(0); toast('Scartata. Eccone un\'altra.'); } }, 'Scarta');
+    const scarta = h('button', { class: 'btn s-cta__alt', disabled: !ok }, 'Scarta');
     const cta = h('div', { class: 's-cta s-cta--two' }, scarta, keepBtn, why);
+    // Appena tenuta, il pulsante pieno porta a Salva; il secondario dà un'altra versione.
+    function ctaState(isKept) {
+      keepBtn.disabled = !ok;
+      keepBtn.onclick = isKept ? () => app.go('salva') : keep;
+      keepBtn.textContent = isKept ? `Salva ${kept.length === 1 ? '1 versione' : `${kept.length} versioni`} →` : 'Tieni questa';
+      scarta.textContent = isKept ? 'Un\'altra' : 'Scarta';
+      scarta.onclick = isKept ? () => { seed = Math.floor(Math.random() * 1e9); live(0); } : () => { seed = Math.floor(Math.random() * 1e9); live(0); toast('Scartata. Eccone un\'altra.'); };
+      why.textContent = isKept ? 'Tenuta. Puoi tenerne altre, o andare a salvarle.' : (ok ? '' : why.dataset.need || '');
+    }
+    why.dataset.need = why.textContent;
 
     // ---- Il critico, sempre in vista: misure e un dissenso, mai complimenti.
     const critTarget = kept.length ? kept[kept.length - 1].asset : nodes[0]?.asset;
@@ -140,7 +151,7 @@ export default {
     let liveT = null, busy = false, againQ = false;
     if (my !== token) return;
     clear(box,
-      h('div', { class: 's-work__view' }, canvas, critic, srcs),
+      h('div', { class: 's-work__view' }, srcs, canvas, critic),
       h('div', { class: 's-work__tools' },
         h('div', { class: 's-label' }, n ? 'Scegli un effetto' : 'Scegli da dove partire'),
         fx,
@@ -175,6 +186,7 @@ export default {
     // Anteprima dal vivo a 900 px, senza ridisegnare la schermata.
     function live(delay = 80) {
       if (!ok) { note.textContent = why.textContent; return; }
+      ctaState(keptKey === key());
       clearTimeout(liveT);
       liveT = setTimeout(async () => {
         if (busy) { againQ = true; return; }
@@ -186,26 +198,31 @@ export default {
           if (my !== token) return;
           preview = { key: k, url };
           big.src = url;
-          keepBtn.disabled = keptKey === k;
-          keepBtn.textContent = keptKey === k ? 'Tenuta ✓' : 'Tieni questa';
+          ctaState(keptKey === k);
           note.textContent = nodes[0] ? '' : '';
         } catch (e) { note.textContent = e.message; }
         finally { busy = false; canvas.dataset.busy = 'false'; if (againQ) { againQ = false; live(0); } }
       }, delay);
     }
 
+    // Le miniature già pronte compaiono subito; le altre una alla volta.
+    // Una richiesta in corso non si ripete: la si riprende al ridisegno.
     async function fillThumbs() {
+      const todo = [];
       for (const b of fx.children) {
-        if (!b._fill) continue;
-        const { pid, img, can } = b._fill;
-        if (!can) continue;
-        const k = JSON.stringify([ids, pid]);
+        if (!b._fill?.can) continue;
+        const k = JSON.stringify([ids, b._fill.pid]);
+        const c = thumbs.get(k);
+        if (typeof c === 'string') b._fill.img.src = c; else todo.push([b._fill, k]);
+      }
+      for (const [{ pid, img }, k] of todo) {
         if (!thumbs.has(k)) {
-          try { thumbs.set(k, await app.api.preview({ assetIds: ids, process: pid, params: paramsFor(app.processes.find((x) => x.id === pid), 0.55), seed: 7, size: 260 })); }
-          catch { continue; }
+          const pr = app.api.preview({ assetIds: ids, process: pid, params: paramsFor(app.processes.find((x) => x.id === pid), 0.55), seed: 7, size: 260 })
+            .then((u) => { thumbs.set(k, u); return u; }, (e) => { thumbs.delete(k); throw e; });
+          thumbs.set(k, pr);
         }
+        try { img.src = await thumbs.get(k); } catch { /* resta vuota */ }
         if (my !== token) return;
-        img.src = thumbs.get(k);
       }
     }
 
