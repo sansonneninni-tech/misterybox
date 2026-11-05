@@ -6,6 +6,7 @@ import materia from './materia.js';
 import combinazione from './combinazione.js';
 import genesi from './genesi.js';
 import { makeRng } from '../image.js';
+import { cleanLayout, applyLayout } from '../disponi.js';
 
 export const CATEGORIES = [
   { id: 'composizione', name: 'Composizione', hint: "Dove stanno le cose" },
@@ -60,5 +61,9 @@ export function runProcess(id, inputs, params, seed) {
     throw new Error(`«${proc.name}» richiede ${want} immagini (ne hai scelte ${n}).`);
   }
   const p = normalizeParams(proc, params);
-  return { image: proc.run(inputs, p, makeRng(seed)), params: p };
+  // La disposizione delle immagini (ribalta, ruota, sposta, scala) fa parte della versione.
+  const layout = cleanLayout(params?.disponi);
+  const ins = layout ? inputs.map((im, i) => applyLayout(im, layout[i])) : inputs;
+  if (layout) p.disponi = layout;
+  return { image: proc.run(ins, p, makeRng(seed)), params: p };
 }

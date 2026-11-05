@@ -28,7 +28,7 @@ export const app = {
     view: 'archivio',
     side: { open: false, tab: 'scheda', assetId: null },
     provider: saved.provider || 'locale',
-    tela: { expId: saved.tela?.expId || null, slots: saved.tela?.slots || [], process: saved.tela?.process || null, intensity: saved.tela?.intensity ?? 0.5, adv: {}, params: {}, seed: '', recent: saved.tela?.recent || [] },
+    tela: { expId: saved.tela?.expId || null, slots: saved.tela?.slots || [], process: saved.tela?.process || null, intensity: saved.tela?.intensity ?? 0.5, layout: saved.tela?.layout || {}, adv: {}, params: {}, seed: '', recent: saved.tela?.recent || [] },
     lab: { expId: saved.lab?.expId || null, current: null, selected: [], mode: 'singola' },
     archive: { kind: 'sorgente', q: '', tag: '', rights: '', origin: '', choice: '', selected: [] },
     search: { q: '', archives: saved.search?.archives || ['openverse', 'wikimedia', 'cleveland', 'nasa'] },
@@ -39,7 +39,7 @@ export const app = {
   persist() {
     const s = this.state;
     try {
-      localStorage.setItem('atelier.state', JSON.stringify({ provider: s.provider, tela: { expId: s.tela.expId, slots: s.tela.slots, process: s.tela.process, intensity: s.tela.intensity, recent: s.tela.recent.slice(0, 24) }, lab: { expId: s.lab.expId }, search: { archives: s.search.archives } }));
+      localStorage.setItem('atelier.state', JSON.stringify({ provider: s.provider, tela: { expId: s.tela.expId, slots: s.tela.slots, process: s.tela.process, intensity: s.tela.intensity, layout: s.tela.layout || {}, recent: s.tela.recent.slice(0, 24) }, lab: { expId: s.lab.expId }, search: { archives: s.search.archives } }));
     } catch { /* memoria del browser non disponibile */ }
   },
 
@@ -129,7 +129,7 @@ export const app = {
   async toTela(assetIds, { add = false, process = null } = {}) {
     const t = this.state.tela;
     let exp;
-    if (!add) { t.expId = null; t.slots = []; t.adv = {}; t.process = process; t.intensity = 0.5; }
+    if (!add) { t.expId = null; t.slots = []; t.adv = {}; t.layout = {}; t.process = process; t.intensity = 0.5; }
     if (!t.expId) {
       const title = `Esperimento ${new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long' })}`;
       exp = (await this.api.createExperiment({ title, hypothesis: '', assetIds })).experiment;
@@ -148,7 +148,7 @@ export const app = {
 
   async putNodesOnTela(expId, nodeIds) {
     const t = this.state.tela;
-    if (t.expId !== expId) { t.expId = expId; t.slots = []; t.process = null; t.adv = {}; }
+    if (t.expId !== expId) { t.expId = expId; t.slots = []; t.process = null; t.adv = {}; t.layout = {}; }
     for (const id of nodeIds) if (!t.slots.includes(id)) t.slots.push(id);
     t.slots = t.slots.slice(-4);
     this.persist();

@@ -80,7 +80,7 @@ export default {
     const pick = (slot) => h('select', { class: 'field field--inline', 'aria-label': `Immagine ${slot.toUpperCase()}`, onchange: (e) => { cmp[slot] = e.target.value; app.render(); } },
       nodes.map((n) => h('option', { value: n.id, selected: (slot === 'a' ? A : B).id === n.id }, `${slot.toUpperCase()} · ${nodeCode(nodes, n)} ${label(n)}`)));
 
-    const params = cur.op.params ? Object.entries(cur.op.params).map(([k, v]) => `${k} ${v}`).join(' · ') : '';
+    const params = cur.op.params ? Object.entries(cur.op.params).map(([k, v]) => (k === 'disponi' && Array.isArray(v) ? `disposizione ${v.map(dispText).join(' / ')}` : `${k} ${v}`)).join(' · ') : '';
     const info = [cur.op.engine === 'sorgente' ? 'sorgente' : cur.op.label, params, `${cur.asset.width}×${cur.asset.height} px`,
       cur.op.engine === 'higgsfield' ? `Higgsfield ${cur.op.modelName || ''} · ${cur.op.credits ?? '?'} cr${cur.op.simulated ? ' (simulati)' : ''}` : cur.op.engine === 'locale' ? 'locale · 0 crediti' : '',
       fmtDate(cur.createdAt)].filter(Boolean).join(' · ');
@@ -175,4 +175,10 @@ async function renderList(root, app) {
           h('span', { class: 'tile__rebate' }, h('b', {}, `${e.count} nodi`), h('span', {}, e.state)))))
       : stateBox('∅', 'Ancora nessun esperimento', 'Porta una o più immagini sulla tela e applica un processo: ogni risultato diventa un ramo qui.', h('button', { class: 'btn', onclick: () => app.go('tela') }, 'Vai alla tela')),
     form);
+}
+
+// La disposizione di ogni foto, a parole: «foto 2 ribaltata ↔, ruotata 90°».
+function dispText(d, i) {
+  const w = [d.fh && 'ribaltata ↔', d.fv && 'ribaltata ↕', d.r && `ruotata ${d.r}°`, (d.x || d.y) && 'spostata', d.s && d.s !== 1 && `scala ${d.s}`].filter(Boolean);
+  return `foto ${i + 1} ${w.length ? w.join(', ') : 'com\'è'}`;
 }
