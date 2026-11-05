@@ -273,3 +273,25 @@ export function openViewer(src, { ground = 'void' } = {}) {
   document.addEventListener('keydown', key, true);
   document.body.append(el);
 }
+
+// ---------- Confronta: due versioni una sopra l'altra, linea trascinabile ----------
+// items: [{ label, url }]. a e b sono gli indici di partenza.
+export function openCompare(items, a = 0, b = 1) {
+  if (items.length < 2) return toast('Serve almeno un\'altra versione da confrontare.');
+  let split = 50;
+  const imgA = h('img', { alt: '', draggable: 'false' }), imgB = h('img', { alt: '', draggable: 'false' });
+  const lblA = h('span', { class: 'compare__lbl', style: { left: '8px' } }), lblB = h('span', { class: 'compare__lbl', style: { right: '8px' } });
+  const stage = h('div', { class: 'compare s-compare', style: { '--split': '50%', touchAction: 'none' } },
+    h('div', { class: 'compare__a' }, imgA), h('div', { class: 'compare__b' }, imgB), h('div', { class: 'compare__handle' }), lblA, lblB);
+  const move = (e) => { const r = stage.getBoundingClientRect(); split = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100)); stage.style.setProperty('--split', `${split}%`); };
+  stage.addEventListener('pointerdown', (e) => { stage.setPointerCapture(e.pointerId); move(e); stage.onpointermove = move; });
+  stage.addEventListener('pointerup', () => { stage.onpointermove = null; });
+  const sel = (which) => h('label', { class: 's-compare__pick' }, h('span', { class: 's-label' }, which === 'a' ? 'A sinistra' : 'B a destra'),
+    h('select', { class: 'field', onchange: (e) => { if (which === 'a') a = Number(e.target.value); else b = Number(e.target.value); draw(); } },
+      items.map((x, i) => h('option', { value: i, selected: i === (which === 'a' ? a : b) }, x.label))));
+  function draw() { imgA.src = items[a].url; imgB.src = items[b].url; lblA.textContent = `A · ${items[a].label}`; lblB.textContent = `B · ${items[b].label}`; }
+  draw();
+  dialog({ title: 'Confronta', wide: true, body: [
+    h('p', { class: 's-hint', style: { margin: '0 0 10px' } }, 'Trascina la linea bianca per scoprire una o l\'altra.'),
+    stage, h('div', { class: 's-compare__picks' }, sel('a'), sel('b'))] });
+}

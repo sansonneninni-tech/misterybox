@@ -1,7 +1,7 @@
 // 02 · Cerca: archivi del mondo dentro ATELIER. Anteprima e importazione
 // senza uscire dall'app, con provenienza e licenza registrate.
-import { h, clear, toast, dialog, spinner, stateBox, code, guide } from '../ui.js';
-import { sourceTabs } from './archivio.js';
+import { h, clear, toast, dialog, spinner, stateBox, code } from '../ui.js';
+import { sourceTabs } from './foto.js';
 
 let last = { q: '', results: [], page: 1 };
 const RIGHT_LABEL = { libero: 'libero', 'con attribuzione': 'attribuzione', 'da verificare': 'da verificare' };
@@ -19,18 +19,15 @@ export default {
       app.persist();
     } }, a.name)));
     const results = h('div', { class: 'results' });
-    const view = h('div', { class: 'view view--full' }, h('div', { class: 'pane' },
-      h('div', { class: 'pane__head' }, h('h1', { class: 'title' }, 'Archivi del mondo'), h('span', { class: 'meta only-desk' }, 'Anteprima e importazione senza uscire. Licenza e provenienza vengono registrate.'), h('div', { class: 'pane__tools' }, sourceTabs(app, 'cerca'))),
-      guide(1, 'Raccogli le immagini', [
-        ['Importa o trova', 'cerca un soggetto, una materia, un\'epoca in musei e archivi aperti', false],
-        ['Scegli e controlla', 'apri un risultato: autore, licenza e risoluzione prima di importarlo', false],
-        ['Portala sulla tela', '«Importa e porta sulla tela» la copia nel tuo archivio e la mette al lavoro', false],
-      ], null),
+    const view = h('div', { class: 's-screen s-cerca' },
+      h('header', { class: 's-head' }, sourceTabs(app, 'cerca'),
+        h('h1', { class: 's-title' }, 'Cerca negli archivi del mondo'),
+        h('p', { class: 's-hint' }, 'Musei e archivi aperti, senza uscire da qui. Tocca un risultato per vedere autore e licenza, poi aggiungilo alle tue foto.')),
       h('div', { class: 'search' },
-        h('div', { class: 'field-row' }, input, h('button', { class: 'btn', onclick: () => run(1) }, 'Cerca')),
-        toggles,
+        h('div', { class: 'field-row' }, input, h('button', { class: 'btn btn--solid', onclick: () => run(1) }, 'Cerca')),
+        h('div', { class: 's-label' }, 'In quali archivi'), toggles,
         h('div', { class: 'row meta' }, 'Prova: ', SUGGEST.map((w) => h('button', { class: 'link meta', onclick: () => { input.value = w; run(1); } }, w)))),
-      results));
+      results);
     root.append(view);
     if (last.results.length) draw(); else clear(results, stateBox('?', 'Cosa cerchi?', 'Fotografie storiche, tavole scientifiche, opere di musei, immagini della NASA, fondi d\'archivio. Scegli gli archivi qui sopra: Openverse da solo ne raccoglie centinaia di milioni.'));
 
@@ -67,14 +64,15 @@ export default {
     function preview(it) {
       const status = h('div');
       const doImport = async (thenTela) => {
-        clear(status, spinner('Importo alla risoluzione più alta disponibile…'));
+        clear(status, spinner('Scarico alla risoluzione più alta disponibile…'));
         try {
           const r = await app.api.importFromArchive(it);
           d.close();
           app.refreshStatus();
           if (thenTela) return app.toTela([r.asset.id]);
-          toast(`Importata in archivio: ${r.asset.width}×${r.asset.height}`, { label: 'Apri la scheda', run: () => { app.go('archivio'); app.openSide('scheda', r.asset.id); } });
-        } catch (e) { clear(status, h('div', { class: 'notice' }, `Non riesco a importarla: ${e.message}`)); }
+          app.added([r.asset.id]);
+          toast(`Aggiunta alle tue foto: ${r.asset.width} × ${r.asset.height} px.`, { label: 'Vai alle tue foto', run: () => app.go('archivio') });
+        } catch (e) { clear(status, h('div', { class: 'notice' }, `Non riesco ad aggiungerla: ${e.message}. Prova un altro risultato.`)); }
       };
       const d = dialog({
         title: it.title,
@@ -97,8 +95,8 @@ export default {
               status)),
         ],
         foot: [h('span', { class: 'spacer' }),
-          h('button', { class: 'btn', onclick: () => doImport(false) }, 'Importa in archivio'),
-          h('button', { class: 'btn btn--solid', onclick: () => doImport(true) }, 'Importa e porta sulla tela')],
+          h('button', { class: 'btn', onclick: () => doImport(false) }, 'Aggiungi alle mie foto'),
+          h('button', { class: 'btn btn--solid', onclick: () => doImport(true) }, 'Aggiungi e trasformala')],
       });
     }
   },

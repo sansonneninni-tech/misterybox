@@ -13,7 +13,7 @@ let lastAnalysis = new Map();
 export function renderSide(el, app) {
   const s = app.state.side;
   const tabs = h('div', { class: 'seg', role: 'tablist' },
-    [['scheda', 'Scheda'], ['interlocutore', 'Interlocutore']].map(([id, name]) =>
+    [['scheda', 'Dettagli'], ['interlocutore', 'Interlocutore']].map(([id, name]) =>
       h('button', { class: 'seg__opt', role: 'tab', 'aria-pressed': String(s.tab === id), onclick: () => { s.tab = id; renderSide(el, app); } }, name)));
   const body = h('div', { class: 'panel__body' });
   const foot = h('div', { class: 'panel__foot', hidden: true });
@@ -27,7 +27,7 @@ export function renderSide(el, app) {
 async function renderScheda(body, app) {
   const id = app.state.side.assetId;
   if (!id) {
-    clear(body, h('p', { class: 'prose muted' }, "Scegli un'immagine nell'archivio, sulla tela o nel laboratorio per vederne la scheda: provenienza, diritti, tag, cronologia."));
+    clear(body, h('p', { class: 'prose muted' }, "Tocca la «i» su una foto per vederne i dettagli: provenienza, diritti, tag, cronologia."));
     return;
   }
   body.append(spinner('Carico la scheda…'));
@@ -46,11 +46,9 @@ async function renderScheda(body, app) {
     h('div', { class: 'seg seg--wrap' }, CHOICES.map(([v, label]) =>
       h('button', { class: 'seg__opt', 'aria-pressed': String((a.choice || '') === v), disabled: a.choice === 'finita', onclick: () => save({ choice: v }, `Stato: ${label.toLowerCase()}`) }, label))),
     h('div', { class: 'row' },
-      h('button', { class: 'btn', onclick: () => save({ marked: !a.marked }, a.marked ? 'Segno tolto' : 'Segnata con la matita') }, a.marked ? 'Togli il segno' : 'Segna', h('span', { class: 'btn__key' }, 'M')),
-      a.choice === 'finita'
-        ? h('button', { class: 'btn', onclick: () => save({ choice: 'scelta' }, 'Riaperta') }, 'Riapri')
-        : h('button', { class: 'btn btn--paid', onclick: () => openFinish(app, a, () => app.render()) }, 'Dichiara finita…')),
-    h('p', { class: 'meta' }, 'Il laboratorio non decide mai quando un\'opera è finita: solo tu, con un gesto esplicito.'));
+      a.kind === 'variante' ? h('button', { class: 'btn', onclick: () => save({ marked: !a.marked, choice: a.marked ? '' : 'scelta' }, a.marked ? 'Tolta dalle tenute' : 'Tenuta') }, a.marked ? 'Togli dalle tenute' : 'Tieni questa') : null,
+      a.choice === 'finita' ? h('button', { class: 'btn', onclick: () => save({ choice: 'scelta' }, 'Riaperta') }, 'Riapri') : null),
+    h('p', { class: 'meta' }, a.choice === 'finita' ? 'L\'hai dichiarata finita tu. Puoi riaprirla quando vuoi.' : 'Il laboratorio non decide mai quando un\'opera è finita: lo dichiari tu, al passo 3 Salva.'));
 
   const tagInput = h('input', { class: 'field', placeholder: 'Aggiungi tag e premi Invio', enterkeyhint: 'done', onkeydown: (e) => {
     if (e.key === 'Enter' && e.target.value.trim()) { save({ tags: [...a.tags, ...e.target.value.split(',')] }); e.target.value = ''; }
@@ -80,15 +78,15 @@ async function renderScheda(body, app) {
   const history = data.lineage?.length > 1 ? h('div', {},
     h('div', { class: 'label', style: { marginBottom: '10px' } }, 'Cronologia delle trasformazioni'),
     h('ol', { class: 'history' }, data.lineage.flatMap((n) => [h('li', {}, n.op.label || n.op.engine,
-      h('span', { class: 'meta' }, [n.op.seed != null ? `seme ${n.op.seed}` : '', n.op.credits != null ? `${n.op.credits} crediti` : '', fmtDate(n.createdAt)].filter(Boolean).join(' · '))),
+      h('span', { class: 'meta' }, [n.op.seed != null ? `versione ${n.op.seed}` : '', n.op.credits != null ? `${n.op.credits} crediti` : '', fmtDate(n.createdAt)].filter(Boolean).join(' · '))),
       n.note ? h('li', { 'data-human': 'true' }, `«${n.note}»`, h('span', { class: 'meta' }, 'nota tua')) : null]))) : null;
 
   clear(body,
     h('div', { class: 'scheda__img', 'data-marked': String(!!a.marked) }, h('img', { src: a.thumbUrl, alt: a.title })),
     title, choice,
     h('div', { class: 'row' },
-      h('button', { class: 'btn', onclick: () => app.toTela([a.id]) }, 'Sulla tela'),
-      h('button', { class: 'btn', onclick: () => openExport(app, a) }, 'Esporta'),
+      h('button', { class: 'btn', onclick: () => app.toTela([a.id]) }, 'Trasforma questa'),
+      h('button', { class: 'btn', onclick: () => openExport(app, a) }, 'Salva il file'),
       h('button', { class: 'btn btn--quiet', onclick: () => { app.state.side.tab = 'interlocutore'; app.renderSide(); } }, 'Discutila'),
       h('a', { class: 'btn btn--quiet', href: a.url, target: '_blank', rel: 'noopener' }, 'Originale')),
     dl, h('div', {}, h('div', { class: 'label', style: { marginBottom: '6px' } }, 'Tag'), tags, tagInput),
@@ -120,9 +118,9 @@ async function renderCritic(body, foot, app) {
   if (asset) {
     clear(ctx, h('img', { src: asset.thumbUrl, alt: '' }), h('div', {}, h('div', { class: 'label' }, exp ? exp.title : 'Immagine'), h('div', { class: 'node__name' }, asset.title),
       exp?.hypothesis ? h('div', { class: 'meta' }, `Ipotesi: ${exp.hypothesis}`) : null),
-      h('button', { class: 'btn btn--solid', onclick: () => analyze() }, 'Analizza'));
+      h('button', { class: 'btn btn--solid', onclick: () => analyze() }, 'Guardala e proponi'));
   } else {
-    clear(ctx, h('p', { class: 'prose muted' }, "Scegli un'immagine (in archivio, sulla tela o nel laboratorio) e chiedimi di analizzarla. Puoi anche scrivermi qui sotto: un'idea, un dubbio, un disaccordo."));
+    clear(ctx, h('p', { class: 'prose muted' }, "Scegli una foto e chiedimi di guardarla. Puoi anche scrivermi qui sotto: un'idea, un dubbio, un disaccordo."));
   }
 
   const msgs = exp ? exp.conversation : (looseChat.get(assetId || '_') || []);
@@ -136,6 +134,8 @@ async function renderCritic(body, foot, app) {
     thread.lastElementChild?.scrollIntoView({ block: 'end' });
   };
   drawThread();
+  // "Proponi una direzione" dal passo Trasforma: l'analisi parte da sola.
+  if (app.state.side.analyze && asset) { app.state.side.analyze = false; analyze(); }
 
   async function analyze() {
     const busy = spinner(provider === 'claude' ? 'Claude sta guardando l\'immagine… (fino a un minuto)' : 'Misuro luce, masse, vuoti…');
@@ -217,7 +217,7 @@ export function hypoBlock(hy, i, app, asset, exp) {
       names ? h('div', { class: 'meta' }, names) : null,
       hy.prompt ? h('div', { class: 'meta' }, `Prompt: ${hy.prompt}`) : null,
       h('div', { class: 'hypo__acts' },
-        steps.length && asset ? h('button', { class: 'btn', onclick: (e) => tryHypothesis(app, hy, steps, asset, exp, e.currentTarget) }, hy.richiede ? 'Apri sulla tela' : 'Prova') : null,
+        steps.length && asset ? h('button', { class: 'btn', onclick: (e) => tryHypothesis(app, hy, steps, asset, exp, e.currentTarget) }, hy.richiede ? 'Provala con un\'altra foto' : 'Prova questa') : null,
         hy.prompt && asset ? h('button', { class: 'btn btn--paid', onclick: () => app.paidFromPrompt?.(hy.prompt, asset, exp) }, 'Con Higgsfield', h('span', { class: 'btn__cost' }, 'preventivo')) : null)));
 }
 
@@ -228,7 +228,7 @@ async function tryHypothesis(app, hy, steps, asset, exp, btn) {
     app.state.tela.process = steps[0].processo;
     app.state.tela.params = steps[0].parametri || {};
     app.render();
-    toast(`Aggiungi un'altra immagine alla tela per «${hy.titolo}»`);
+    toast(`Aggiungi un'altra foto per «${hy.titolo}»: tocca «+ un'altra foto».`);
     return;
   }
   btn.disabled = true; btn.textContent = 'Lavoro…';

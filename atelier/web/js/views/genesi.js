@@ -1,5 +1,5 @@
 // 05 · Da zero: un'idea, non un prompt. Tre strade: algoritmo, accostamento, AI.
-import { h, clear, toast, spinner, stateBox, guide, labelN } from '../ui.js';
+import { h, clear, toast, spinner, stateBox, labelN } from '../ui.js';
 import { openHiggsfield } from '../dialogs.js';
 
 let idea = '';
@@ -13,9 +13,9 @@ export default {
     const list = h('div', { class: 'stack' });
     const stage = h('div', { class: 'stage__canvas' });
     const paths = [
-      ['algoritmo', 'Processo algoritmico', 'Rumore, flussi, fratture, automi: sul tuo Mac, a piena risoluzione. Nessun costo.', '0 cr'],
-      ['archivio', "Accostamento dall'archivio", "Due immagini lontane fra loro, scelte dall'archivio in base all'idea, sulla tela.", '0 cr'],
-      ['ai', 'Generazione AI', "Higgsfield parte dal testo dell'idea. Prima ti mostro il costo.", 'preventivo'],
+      ['algoritmo', 'Un processo del laboratorio', 'Nebbie, correnti, fratture, trame: calcolate qui, a piena risoluzione. Gratis.', 'gratis'],
+      ['archivio', 'Un accostamento inatteso', "Due tue foto lontane fra loro, scelte in base all'idea, da combinare.", 'gratis'],
+      ['ai', 'Intelligenza artificiale (Higgsfield)', "Parte dal testo dell'idea. A pagamento: prima ti mostro il costo e parte solo se lo approvi.", 'a pagamento'],
     ];
     const choice = h('div', { class: 'choice' }, paths.map(([v, t, d, c]) => h('label', { class: 'choice__opt' },
       h('input', { type: 'radio', name: 'zp', value: v, checked: path === v, onchange: () => { path = v; drawGuide(); } }),
@@ -26,23 +26,23 @@ export default {
     const goBtn = h('button', { class: 'btn btn--lg', onclick: go }, 'Avvia');
     function drawGuide() {
       const pName = paths.find((x) => x[0] === path)[1];
+      void pName;
       goBtn.className = `btn btn--lg${out ? '' : ' btn--solid'}${path === 'ai' ? ' btn--paid' : ''}`;
-      goBtn.textContent = path === 'ai' ? 'Chiedi il preventivo…' : path === 'archivio' ? 'Accosta e porta sulla tela' : out ? 'Rigenera con un altro processo' : 'Avvia';
-      clear(guideBox, guide('○', 'Parti da zero', [
-        ['Scrivi un\'ipotesi', 'o chiedi proposte all\'interlocutore', !!idea.trim() || !!out],
-        ['Scegli come procedere', pName, !!idea.trim() || !!out],
-        ['Avvia', path === 'ai' ? 'prima il preventivo, poi la tua approvazione' : 'gratis, sul tuo Mac, a piena risoluzione', !!out],
-        ['Continua sulla tela', "il risultato è la prima immagine di un nuovo esperimento", false],
-      ], out ? h('button', { class: 'btn btn--solid btn--lg', onclick: () => app.putNodesOnTela(out.expId, [out.id]) }, 'Continua sulla tela →') : null));
+      goBtn.textContent = path === 'ai' ? 'Vedi il costo (Higgsfield)…' : path === 'archivio' ? 'Accosta due mie foto' : out ? 'Creane un\'altra' : 'Crea l\'immagine';
+      clear(guideBox, h('header', { class: 's-head' },
+        h('button', { class: 'link s-back', onclick: () => app.go('archivio') }, '‹ Torna alle foto'),
+        h('h1', { class: 's-title' }, 'Parti da zero'),
+        h('p', { class: 's-hint' }, 'Scrivi un\'idea, scegli una strada, crea la prima immagine. Poi la trasformi come una foto.'),
+        out ? h('button', { class: 'btn btn--solid btn--lg', onclick: () => app.putNodesOnTela(out.expId, [out.id]) }, 'Trasforma questa →') : null));
     }
-    root.append(h('div', { class: 'screen' }, guideBox, h('div', { class: 'blank' },
+    root.append(h('div', { class: 's-screen s-zero' }, guideBox, h('div', { class: 'blank' },
       h('div', { class: 'blank__write' },
-        labelN(1, 'Ipotesi'),
+        labelN(1, 'La tua idea'),
         ta,
-        h('div', { class: 'row' }, h('button', { class: 'btn', onclick: propose }, "Chiedi proposte all'interlocutore"), h('span', { class: 'meta' }, app.state.provider === 'claude' ? 'con Claude' : 'locale')),
+        h('div', { class: 'row' }, h('button', { class: 'btn', onclick: propose }, "Proponimi delle idee"), h('span', { class: 'meta' }, app.state.provider === 'claude' ? 'con Claude' : 'locale')),
         list,
-        h('div', { class: 'stack' }, labelN(2, 'Come procedere'), choice),
-        h('div', { class: 'stack' }, labelN(3, 'Avvia'), h('div', { class: 'row' }, goBtn))),
+        h('div', { class: 'stack' }, labelN(2, 'La strada'), choice),
+        h('div', { class: 'stack' }, labelN(3, 'Crea'), h('div', { class: 'row' }, goBtn))),
       h('div', { class: 'stage', 'data-ground': 'void' }, stage))));
     drawGuide();
     app.currentImage = () => out?.asset.url;
@@ -58,19 +58,19 @@ export default {
           h('span', { class: 'hypo__title' }, hy.titolo), h('span', { class: 'muted', style: { fontSize: '12px', lineHeight: 1.55 } }, hy.descrizione),
           hy.prompt ? h('span', { class: 'meta' }, `Prompt: ${hy.prompt}`) : null,
           h('div', { class: 'hypo__acts' },
-            hy.passi?.length ? h('button', { class: 'btn', onclick: (e) => runSteps(hy, e.currentTarget) }, 'Genera in locale') : null,
-            hy.prompt ? h('button', { class: 'btn btn--paid', onclick: () => ai(hy.prompt, hy.titolo) }, 'Con Higgsfield', h('span', { class: 'btn__cost' }, 'preventivo')) : null,
-            h('button', { class: 'btn btn--quiet', onclick: () => { idea = `${hy.titolo}. ${hy.descrizione}`; ta.value = idea; } }, 'Usa come ipotesi'))))),
+            hy.passi?.length ? h('button', { class: 'btn', onclick: (e) => runSteps(hy, e.currentTarget) }, 'Crea questa (gratis)') : null,
+            hy.prompt ? h('button', { class: 'btn btn--paid', onclick: () => ai(hy.prompt, hy.titolo) }, 'Con Higgsfield', h('span', { class: 'btn__cost' }, 'a pagamento')) : null,
+            h('button', { class: 'btn btn--quiet', onclick: () => { idea = `${hy.titolo}. ${hy.descrizione}`; ta.value = idea; } }, 'Usa come idea'))))),
         ideas.domanda ? h('div', { class: 'critic__msg' }, h('span', { class: 'label' }, 'Domanda'), h('div', { class: 'critic__text' }, h('em', {}, ideas.domanda))) : null);
     }
 
     function drawOut() {
       drawGuide();
-      if (!out) return clear(stage, stateBox('·', 'Nessuna immagine iniziale', "Scrivi un'ipotesi e scegli una strada. Il risultato diventa la prima immagine di un nuovo esperimento."));
+      if (!out) return clear(stage, stateBox('·', 'Qui comparirà la prima immagine', "Scrivi un'idea e scegli una strada. Anche senza scrivere nulla puoi premere «Crea l'immagine»."));
       clear(stage, h('div', { class: 'zero-out' }, h('img', { src: out.asset.url, alt: '' }),
         h('div', { class: 'row' },
-          h('button', { class: 'btn', onclick: () => app.go('laboratorio', { lab: { expId: out.expId, current: out.id } }) }, 'Apri nel laboratorio'),
-          h('button', { class: 'btn btn--quiet', onclick: (e) => runSteps(out.hy, e.currentTarget, true) }, 'Un altro seme'))));
+          h('button', { class: 'btn btn--solid', onclick: () => app.putNodesOnTela(out.expId, [out.id]) }, 'Trasforma questa →'),
+          h('button', { class: 'btn btn--quiet', onclick: (e) => runSteps(out.hy, e.currentTarget, true) }, 'Un\'altra versione'))));
     }
 
     async function propose() {
@@ -114,15 +114,13 @@ export default {
       if (path === 'ai') return ai(idea || '', 'Da zero');
       if (path === 'archivio') {
         const { assets } = await app.api.assets({ kind: 'sorgente' });
-        if (assets.length < 2) return toast("Servono almeno due immagini in archivio: cercane qualcuna in «Cerca».");
+        if (assets.length < 2) return toast("Servono almeno due tue foto: aggiungile al passo 1, o cercale negli archivi.");
         const words = idea.toLowerCase();
         const scored = assets.map((a) => ({ a, s: a.tags.filter((t) => words.includes(t)).length + (words && a.title.toLowerCase().split(/\W+/).some((w) => w.length > 3 && words.includes(w)) ? 1 : 0) + Math.random() * 0.6 })).sort((x, y) => y.s - x.s);
         const first = scored[0].a;
         const far = scored.slice(1).sort((x, y) => overlap(first, x.a) - overlap(first, y.a) || Math.random() - 0.5)[0].a;
-        app.state.tela.expId = null; app.state.tela.slots = [];
-        app.state.tela.process = 'cadavere'; app.state.tela.params = {};
         toast(`Accosto «${first.title}» e «${far.title}»: hanno pochissimo in comune, ed è il motivo.`);
-        return app.toTela([first.id, far.id]);
+        return app.toTela([first.id, far.id], { process: 'cadavere' });
       }
       const picks = ['rumore', 'flusso', 'voronoi', 'automa'];
       const fromIdeas = ideas?.ipotesi?.find((x) => x.passi?.length);
