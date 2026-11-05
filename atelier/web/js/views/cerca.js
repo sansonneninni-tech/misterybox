@@ -41,7 +41,7 @@ export default {
       clear(results, spinner(`Cerco «${q}» in ${s.archives.length} archivi…`));
       try {
         const r = await app.api.searchArchives(q, s.archives, 1);
-        last = { q, results: r.results.map((x) => ({ ...x, page: 1, done: !x.ok || !x.items.length || x.items.length >= (x.total ?? 0) || x.pages === 1 })) };
+        last = { q, results: r.results.map((x) => ({ ...x, page: 1, done: !x.ok || !x.more })) };
         draw();
       } catch (e) { clear(results, h('div', { class: 'notice' }, e.message)); }
     }
@@ -70,7 +70,7 @@ export default {
         if (r.loading) clear(end, spinner('Carico i prossimi…'));
         else if (r.error2) clear(end, h('p', { class: 'meta' }, r.error2), h('button', { class: 'btn', onclick: () => { r.error2 = null; r.retry = 0; more(); } }, 'Riprova'));
         else if (r.done) clear(end, h('p', { class: 'meta' }, r.items.length < tot
-          ? `Fine: ${r.name} indica ${tot.toLocaleString('it-IT')} risultati ma ne lascia sfogliare ${r.items.length.toLocaleString('it-IT')}. Prova una parola più precisa.`
+          ? `Fine. ${r.name} conta ${tot.toLocaleString('it-IT')} risultati ma ne mostra ${r.items.length.toLocaleString('it-IT')}: gli altri non hanno un'immagine libera o l'archivio non li lascia sfogliare oltre. Prova una parola più precisa.`
           : 'Fine dei risultati.'));
         else clear(end, h('button', { class: 'btn', onclick: more }, 'Carica altri'));
       };
@@ -87,23 +87,27 @@ export default {
           if (x.total != null) r.total = x.total;
           end.before(...fresh.map((it) => tile(it)));
           // Alcuni archivi ripetono una pagina: si prosegue, e ci si ferma solo
-          // quando non danno più niente o tre pagine di fila sono già viste.
+          // quando non ne hanno altre o cinque pagine di fila non portano niente di nuovo.
           r.empty = fresh.length ? 0 : (r.empty || 0) + 1;
-          if (!x.items.length || r.empty >= 3 || r.items.length >= (r.total ?? 0) || (x.pages && r.page >= x.pages)) r.done = true;
+          if (!x.more || r.empty >= 5) r.done = true;
           r.retry = 0;
         } catch (e) {
-          // Un archivio lento o un intoppo: riprovo da solo una volta, poi chiedo.
-          if (!r.retry) { r.retry = 1; r.loading = false; return setTimeout(more, 1500); }
+          // Un archivio lento o che chiede di rallentare: riprovo da solo tre volte,
+          // aspettando sempre di più, poi chiedo.
+          if ((r.retry || 0) < 3) { r.retry = (r.retry || 0) + 1; r.loading = false; return setTimeout(more, [2000, 5000, 10000][r.retry - 1]); }
           r.error2 = `Non riesco a caricarne altri: ${e.message.replace(/\.$/, '')}.`;
         }
         r.loading = false; say();
-        // Se la pagina era già vista, o la riga è ancora corta, continua da sola.
-        requestAnimationFrame(() => { if (!r.done && (r.empty > 0 || row.scrollWidth - row.scrollLeft - row.clientWidth < row.clientWidth)) more(); });
+        // Se la pagina era già vista, o sei ancora vicino alla fine, continua da sola.
+        requestAnimationFrame(() => { if (!r.done && (r.empty > 0 || near())) more(); });
       }
       say();
-      // Caricamento a scaglioni: la pagina successiva parte con una pagina di anticipo,
-      // perché alcuni archivi (Openverse) impiegano più di 10 secondi a rispondere.
-      new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) more(); }, { root: row, rootMargin: '0px 6000px 0px 0px' }).observe(end);
+      // Caricamento a scaglioni: la pagina successiva parte quando mancano un paio
+      // di schermate alla fine, perché alcuni archivi (Openverse) impiegano più di
+      // 10 secondi a rispondere.
+      const near = () => row.scrollWidth - row.scrollLeft - row.clientWidth < Math.max(2400, row.clientWidth * 2);
+      row.addEventListener('scroll', () => { if (near()) more(); }, { passive: true });
+      requestAnimationFrame(() => { if (near()) more(); });
       return h('section', { class: 'results__arch' }, head, row);
     }
 

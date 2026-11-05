@@ -40,7 +40,7 @@ const openverse = {
   async search(q, page = 1) {
     const d = await getJson(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(q)}&page=${page}&page_size=20`);
     return {
-      pages: d.page_count,
+      more: page < (d.page_count || 0),
       total: d.result_count,
       items: (d.results || []).map((r) => ({
         archive: 'openverse', id: r.id, title: r.title || 'Senza titolo', author: r.creator || '', date: '',
@@ -59,11 +59,12 @@ const wikimedia = {
   description: 'Archivio libero di oltre 100 milioni di file: fotografie storiche, scienza, arte.',
   async search(q, page = 1) {
     const offset = (page - 1) * PER_PAGE;
-    const url = `https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrsearch=${encodeURIComponent(q + ' filetype:bitmap')}&gsrnamespace=6&gsrlimit=${PER_PAGE}&gsroffset=${offset}&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=640&origin=*`;
+    const url = `https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrsearch=${encodeURIComponent(q + ' filetype:bitmap')}&gsrnamespace=6&gsrlimit=${PER_PAGE}&gsroffset=${offset}&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=640&list=search&srsearch=${encodeURIComponent(q + ' filetype:bitmap')}&srnamespace=6&srlimit=1&srinfo=totalhits&srprop=&origin=*`;
     const d = await getJson(url);
     const pages = Object.values(d.query?.pages || {}).sort((a, b) => (a.index || 0) - (b.index || 0));
     return {
       total: d.query?.searchinfo?.totalhits,
+      more: Boolean(d.continue),
       items: pages.filter((p) => p.imageinfo?.[0]).map((p) => {
         const ii = p.imageinfo[0], m = ii.extmetadata || {};
         const lic = m.LicenseShortName?.value || '';
@@ -197,11 +198,13 @@ const met = {
   name: 'Metropolitan Museum',
   description: 'Open Access del Met: opere di pubblico dominio in alta risoluzione.',
   async search(q, page = 1) {
-    const s = await getJson(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&q=${encodeURIComponent(q)}`);
-    const ids = (s.objectIDs || []).slice((page - 1) * 12, page * 12);
+    // v1/search è stato ritirato dal Met il 2026-10-01: v1.1 pagina con offset e limit.
+    const s = await getJson(`https://collectionapi.metmuseum.org/public/collection/v1.1/search?hasImages=true&q=${encodeURIComponent(q)}&offset=${(page - 1) * 12}&limit=12`);
+    const ids = (s.objectIDs || []).slice(0, 12);
     const objs = await Promise.all(ids.map((id) => getJson(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`).catch(() => null)));
     return {
       total: s.total,
+      more: page * 12 < (s.total || 0),
       items: objs.filter((o) => o && o.primaryImageSmall && o.isPublicDomain).map((o) => ({
         archive: 'met', id: String(o.objectID), title: o.title, author: o.artistDisplayName, date: o.objectDate,
         thumb: o.primaryImageSmall, full: o.primaryImage || o.primaryImageSmall, page: o.objectURL,
@@ -220,6 +223,7 @@ const aic = {
     const base = d.config?.iiif_url || 'https://www.artic.edu/iiif/2';
     return {
       total: d.pagination?.total,
+      more: page * 80 < (d.pagination?.total || 0),
       items: (d.data || []).filter((r) => r.image_id && r.is_public_domain).map((r) => ({
         archive: 'aic', id: String(r.id), title: r.title, author: strip(r.artist_display), date: r.date_display,
         thumb: `${base}/${r.image_id}/full/400,/0/default.jpg`, full: `${base}/${r.image_id}/full/3000,/0/default.jpg`, fallback: `${base}/${r.image_id}/full/1686,/0/default.jpg`,
@@ -239,7 +243,7 @@ export async function searchArchive(id, q, page = 1) {
   if (!a) throw new Error(`Archivio sconosciuto: ${id}`);
   try {
     const r = await a.search(q, page);
-    return { archive: id, name: a.name, ok: true, total: r.total ?? r.items.length, pages: r.pages, items: r.items };
+    return { archive: id, name: a.name, ok: true, total: r.total ?? r.items.length, more: r.more ?? r.items.length > 0, items: r.items };
   } catch (e) {
     return { archive: id, name: a.name, ok: false, error: `${a.name} non risponde (${e.message}).`, items: [] };
   }
