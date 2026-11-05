@@ -39,7 +39,14 @@ export function localCritique(clip, m, idea) {
   if (ai) obs.push([3, 'Colori viola-magenta e superfici morbide: è il territorio dell’estetica da generatore AI. Va evitato o dichiarato apertamente.']);
   if (clip.format.loop && m.chiusura_loop !== null && m.chiusura_loop > 0.08) obs.push([1, `Il loop non si chiude: tra l’ultimo e il primo fotogramma c’è uno scarto del ${pct(m.chiusura_loop)}. In proiezione continua si vedrà il taglio.`]);
   if (!coloured && !flat) obs.push([1, 'Il colore è quasi assente e il lavoro regge sui valori: è un buon segno.']);
-  if (!obs.length) obs.push([1, 'Contrasto, movimento e densità sono tutti in un territorio medio. Niente è sbagliato, e niente insiste abbastanza.']);
+  if (!obs.length) {
+    // niente di estremo: si descrive con le misure, così la frase è di questa clip
+    const mov = m.movimento < 0.02 ? 'lento' : m.movimento < 0.04 ? 'moderato' : 'sostenuto';
+    const con = m.contrasto < 0.14 ? 'morbido' : m.contrasto < 0.22 ? 'medio' : 'deciso';
+    const col = m.saturazione < 0.12 ? 'quasi assente' : m.saturazione < 0.3 ? 'trattenuto' : 'pieno';
+    const lum = m.luminosita < 0.25 ? 'scuro' : m.luminosita > 0.6 ? 'chiaro' : 'in toni medi';
+    obs.push([1, `Quadro ${lum}, movimento ${mov}, contrasto ${con}, colore ${col}: niente è sbagliato, e niente insiste abbastanza da diventare una scelta.`]);
+  }
   obs.sort((a, b) => b[0] - a[0]);
   let lettura = obs.slice(0, 3).map((o) => o[1]).join(' ');
   if (idea) lettura += ` Rispetto alla tua ipotesi («${idea.slice(0, 120)}»): chiediti se quello che vedi la mette alla prova o la illustra soltanto.`;
@@ -47,7 +54,7 @@ export function localCritique(clip, m, idea) {
   // --------------------------------------------------------- disaccordo
   if (ai) dissent = 'Non sono d’accordo con la direzione del colore: così somiglia a mille clip generate. Prova a togliere, non ad aggiungere.';
   else if (calm && static_) dissent = 'Così com’è la clip non ha tensione: la renderei solo dopo aver rotto il suo equilibrio.';
-  else if (busy && !strobe) dissent = 'Stai accumulando processi: il risultato è rumoroso più che ambiguo. Toglierei la metà della catena.';
+  else if (busy && !strobe && on.length >= 4) dissent = 'Stai accumulando processi: il risultato è rumoroso più che ambiguo. Toglierei la metà della catena.';
 
   // ----------------------------------------------------------- ipotesi
   if (still || (calm && static_)) {

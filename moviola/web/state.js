@@ -192,6 +192,21 @@ export function auxRenderer() {
   return aux;
 }
 
+// Chi usa l'ausiliario lo prende in prestito uno alla volta: miniature, letture
+// e salvataggi non si rubano il contesto a metà.
+let auxTail = Promise.resolve();
+export function auxLock() {
+  let release;
+  const held = new Promise((res) => { release = res; });
+  const ready = auxTail.then(() => release);
+  auxTail = auxTail.then(() => held);
+  return ready;
+}
+export async function withAux(fn) {
+  const release = await auxLock();
+  try { return await fn(); } finally { release(); }
+}
+
 /** Prepara le sorgenti di una clip sul renderer ausiliario. */
 export async function auxSources(clip) {
   const r = auxRenderer();
@@ -210,7 +225,8 @@ export async function auxSources(clip) {
   return items;
 }
 
-export async function thumbnail(clip, long = 360) {
+export function thumbnail(clip, long = 360) { return withAux(() => thumbnailNow(clip, long)); }
+async function thumbnailNow(clip, long) {
   const r = auxRenderer();
   const items = await auxSources(clip);
   const { w, h } = dims(clip.format.aspect, long);

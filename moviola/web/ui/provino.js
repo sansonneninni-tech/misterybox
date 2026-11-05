@@ -3,7 +3,7 @@
 // La variazione è casuale ma dentro limiti dichiarati: seme, parametri,
 // a volte il carattere del movimento. Non si sceglie mai da sola.
 
-import { S, saveVersion, auxRenderer, auxSources, touch } from '../state.js';
+import { S, saveVersion, auxRenderer, auxSources, withAux, touch } from '../state.js';
 import { h, fill, dialog, toast, seg, isPhone } from './kit.js';
 import { byId } from '../engine/processes.js';
 import { dims, clone, newSeed, MOTION_MODES } from '../engine/clip.js';
@@ -59,7 +59,8 @@ export function openProvino({ onOpen } = {}) {
     onClose: () => { cancelAnimationFrame(raf); variants = []; },
   });
 
-  async function generate() {
+  function generate() { return withAux(generateNow); }
+  async function generateNow() {
     cancelAnimationFrame(raf);
     const r = auxRenderer();
     const items = await auxSources(base);

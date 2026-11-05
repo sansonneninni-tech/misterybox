@@ -62,13 +62,22 @@ export function startEncoder({ codec, w, h, fps, outBase }) {
   const c = CODECS[codec];
   if (!c) throw new Error('Formato sconosciuto: ' + codec);
   const { bin } = probe();
-  let output;
+  // si scrive in un posto provvisorio, nascosto, e si rinomina solo a fine
+  // salvataggio: se la pagina si chiude a metà nella cartella non resta un
+  // file rotto che DaVinci aprirebbe come buono
+  const dir = path.dirname(outBase), name = path.basename(outBase);
+  let output, tmp, final;
   if (c.kind === 'sequence') {
-    fs.mkdirSync(outBase, { recursive: true });
-    output = path.join(outBase, path.basename(outBase) + '_' + c.pattern);
+    tmp = path.join(dir, '.' + name + '.parziale');
+    final = outBase;
+    fs.mkdirSync(tmp, { recursive: true });
+    output = path.join(final, name + '_' + c.pattern);
   } else {
-    output = outBase + c.ext;
+    tmp = path.join(dir, '.' + name + '.parziale' + c.ext);
+    final = outBase + c.ext;
+    output = final;
   }
+  const target = c.kind === 'sequence' ? path.join(tmp, name + '_' + c.pattern) : tmp;
   const filters = [];
   if (c.yuv) {
     // conversione RGB -> YUV con matrice Rec.709 e gamma 709, livelli video:
@@ -87,7 +96,7 @@ export function startEncoder({ codec, w, h, fps, outBase }) {
     ...(c.yuv ? ['-colorspace', 'bt709', '-color_range', 'tv'] : []),
     '-an',
     '-metadata', 'comment=MOVIOLA',
-    output,
+    target,
   ];
   const proc = spawn(bin, args, { stdio: ['pipe', 'ignore', 'pipe'] });
   let err = '';
@@ -96,7 +105,11 @@ export function startEncoder({ codec, w, h, fps, outBase }) {
     proc.on('error', reject);
     proc.on('close', (code) => (code === 0 ? resolve() : reject(new Error(err.trim() || 'ffmpeg uscito con codice ' + code))));
   });
-  return { proc, output, done, args };
+  /** Porta il file provvisorio al suo nome definitivo. */
+  const commit = () => { fs.renameSync(tmp, final); };
+  /** Toglie ogni traccia di un salvataggio interrotto. */
+  const discard = () => { try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {} };
+  return { proc, output, done, args, commit, discard, tmp };
 }
 
 /** Copia leggera di un video non leggibile dal browser (es. ProRes in Chrome). */

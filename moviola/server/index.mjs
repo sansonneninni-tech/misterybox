@@ -74,8 +74,6 @@ function flushAll() {
     fs.writeFileSync(file, JSON.stringify([...coll(name).values()]));
   }
 }
-process.on('SIGINT', () => { flushAll(); process.exit(0); });
-process.on('SIGTERM', () => { flushAll(); process.exit(0); });
 
 // --------------------------------------------------------------- utilità HTTP
 const TYPES = {
@@ -143,6 +141,8 @@ function safeJoin(base, rel) {
 }
 const slug = (s) => String(s || 'clip').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'clip';
 
+const shortPath = (p) => { const home = os.homedir(); return p === home || p.startsWith(home + path.sep) ? '~' + p.slice(home.length) : p; };
+
 // -------------------------------------------------------------------- render
 const jobs = new Map(); // id -> { enc, frames, written, meta, status }
 
@@ -158,7 +158,8 @@ async function startRender(body) {
   const enc = startEncoder({ codec, w, h, fps, outBase: base });
   const id = crypto.randomUUID();
   const job = { id, enc, frames, written: 0, w, h, fps, codec, status: 'in corso', started: Date.now(), base, meta: body.meta || {} };
-  enc.done.then(() => { job.status = job.status === 'annullato' ? 'annullato' : 'finito'; }, (e) => { job.status = 'errore'; job.error = String(e.message || e); });
+  enc.done.then(() => { job.status = job.status === 'annullato' ? 'annullato' : 'finito'; }, (e) => { if (job.status !== 'annullato') { job.status = 'errore'; job.error = String(e.message || e); } enc.discard(); });
+  job.seen = Date.now();
   jobs.set(id, job);
   return { id, output: enc.output };
 }
@@ -168,14 +169,30 @@ async function writeFrame(job, req) {
   const buf = await readBody(req, expected + 16);
   if (buf.length !== expected) throw Object.assign(new Error(`fotogramma di ${buf.length} byte, attesi ${expected}`), { status: 400 });
   if (job.status !== 'in corso') throw Object.assign(new Error('render ' + job.status + (job.error ? ': ' + job.error : '')), { status: 409 });
+  job.seen = Date.now();
   const ok = job.enc.proc.stdin.write(buf);
   if (!ok) await new Promise((r) => job.enc.proc.stdin.once('drain', r));
   job.written++;
 }
 
+function abortRender(job, why = 'annullato') {
+  job.status = 'annullato'; job.why = why;
+  try { job.enc.proc.kill('SIGKILL'); } catch {}
+  job.enc.discard();
+  jobs.delete(job.id);
+}
+
+// pagina chiusa, rete caduta: un render che non riceve fotogrammi da un minuto
+// viene annullato e il file provvisorio cancellato
+setInterval(() => {
+  for (const job of jobs.values()) if (job.status === 'in corso' && Date.now() - job.seen > 60_000) abortRender(job, 'nessun fotogramma da un minuto');
+}, 10_000).unref();
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { for (const job of jobs.values()) abortRender(job, 'server chiuso'); flushAll(); process.exit(0); });
+
 async function endRender(job) {
   job.enc.proc.stdin.end();
   await job.enc.done;
+  job.enc.commit();
   const c = CODECS[job.codec];
   const sidecar = (c.kind === 'sequence' ? path.join(job.base, path.basename(job.base)) : job.base) + '.json';
   const meta = {
@@ -205,7 +222,7 @@ async function api(req, res, url) {
     const ff = probe();
     return send(res, 200, {
       app: 'MOVIOLA', ffmpeg: ff, codecs: Object.fromEntries(Object.entries(CODECS).map(([k, v]) => [k, { label: v.label, bits: v.bits, kind: v.kind, note: v.note, available: ff.encoders.includes(k) }])),
-      critic: critic.available(), outDir: conf.outDir, platform: process.platform,
+      critic: critic.available(), outDir: conf.outDir, outDirShort: shortPath(conf.outDir), platform: process.platform,
       lan: lanAddresses().map((ip) => `http://${ip}:${PORT}/?k=${conf.key}`), local: isLocal(req),
     });
   }
@@ -261,7 +278,7 @@ async function api(req, res, url) {
     if (!job) return send(res, 404, 'render non trovato');
     if (M === 'POST' && c === 'frame') { await writeFrame(job, req); return send(res, 200, { written: job.written }); }
     if (M === 'POST' && c === 'end') return send(res, 200, await endRender(job));
-    if (M === 'POST' && c === 'abort') { job.status = 'annullato'; job.enc.proc.kill('SIGKILL'); jobs.delete(b); return send(res, 200, { ok: true }); }
+    if (M === 'POST' && c === 'abort') { abortRender(job); return send(res, 200, { ok: true }); }
   }
 
   if (a === 'reveal' && M === 'POST') {

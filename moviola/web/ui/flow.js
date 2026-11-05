@@ -5,7 +5,7 @@
 
 import {
   S, importFiles, removeSource, sourceById, createExperiment, openExperiment, openVersion, saveVersion, updateVersion,
-  versionsOf, versionById, expById, touch, thumbnail, auxRenderer, auxSources, addRender, clipSources,
+  versionsOf, versionById, expById, touch, thumbnail, auxRenderer, auxSources, auxLock, withAux, addRender, clipSources,
 } from '../state.js';
 import { h, fill, toast, seg, isPhone, ago, dialog } from './kit.js';
 import { RECIPES, recipeById, buildClip } from '../engine/recipes.js';
@@ -13,6 +13,8 @@ import { ASPECTS, dims, clone, normalizeClip, newSeed } from '../engine/clip.js'
 import { byId } from '../engine/processes.js';
 import { renderToServer, renderToPreview } from '../engine/export.js';
 import { openProvino } from './provino.js';
+import { analyse } from '../engine/analysis.js';
+import { localCritique } from '../engine/critic.js';
 import { mainPlayer, syncPlayer } from '../app.js';
 import { qrSvg } from './qr.js';
 
@@ -196,7 +198,7 @@ export const trasforma = {
     const player = mainPlayer();
     const stage = h('div.flow__stage');
     const using = h('div.using');
-    const screen = h('div.screen.flow__screen', { onclick: () => { player.toggle(); drawUsing(); } }, player.canvas, using);
+    const screen = h('div.screen.flow__screen', { onclick: () => { player.toggle(); drawUsing(); } }, player.canvas);
     const styles = h('div.styles', { role: 'listbox', 'aria-label': 'Stili' });
     const head = h('div.scrub__head');
     const tlFill = h('i.scrub__fill');
@@ -206,11 +208,14 @@ export const trasforma = {
     tl.addEventListener('pointerup', () => { tl.onpointermove = null; });
     const timeline = h('div.scrub__wrap', null, tl, head);
     const claude = h('div.claude');
+    // pannello in due parti, con le tenute in mezzo: su iPhone, subito sotto
+    // le miniature, vengono Intensità e Movimento, poi le tenute, poi il resto
     const panel = h('div.flow__panel');
+    const more = h('div.flow__panel.flow__panel--more');
     const kept = h('div.kept');
     const action = cta('Tieni questa', () => keep());
-    stage.append(screen, timeline, styles);
-    root.append(h('div.flow.flow--trasforma', null, stage, h('div.flow__side', null, panel, kept, action)));
+    stage.append(using, screen, timeline, styles);
+    root.append(h('div.flow.flow--trasforma', null, stage, h('div.flow__side', null, h('div.flow__scroll', null, panel, kept, more), action)));
 
     let ready = false;
     let fmtOpen = false;
@@ -222,7 +227,7 @@ export const trasforma = {
       fill(using,
         h('span.using__what', null, recs.length ? `Sta usando: ${countLabel(recs)}` : 'Senza foto: immagini generate da zero'),
         h('button.using__change', { onclick: (e) => { e.stopPropagation(); app.go('scegli'); } }, 'Cambia'),
-        player.playing ? null : h('span.using__paused', null, 'In pausa · tocca per riprendere'));
+        player.playing ? null : h('span.using__paused', null, 'In pausa · tocca il video per riprendere'));
     }
 
     function drawStyles() {
@@ -250,6 +255,7 @@ export const trasforma = {
       Object.assign(S.work, next);
       touch('clip');
       syncPlayer().then(() => { player.restart(); if (!player.playing) player.play(); drawUsing(); });
+      scheduleRead();
     }
 
     function setStyle(id) { if (id === work().style) return; rebuild({ style: id }); drawStyles(); drawPanel(); }
@@ -257,14 +263,15 @@ export const trasforma = {
     function drawPanel() {
       const c = work();
       const r = recipeById(c.style);
-      const slider = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: c.intensity ?? 0.8, 'aria-label': 'Intensità', oninput: (e) => { S.work.intensity = Number(e.target.value); applyIntensity(S.work); touch('clip'); syncPlayer(); } });
+      const slider = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: c.intensity ?? 0.8, 'aria-label': 'Intensità', oninput: (e) => { S.work.intensity = Number(e.target.value); applyIntensity(S.work); touch('clip'); syncPlayer(); scheduleRead(); } });
       const bpm = h('input.field.field--num', { type: 'number', min: 30, max: 240, value: c.motion.bpm, 'aria-label': 'Battiti al minuto', onchange: (e) => rebuild({ motion: { bpm: Math.min(240, Math.max(30, Number(e.target.value) || 96)) } }) });
       fill(panel,
         h('div.flow__style', null, h('span.label', null, 'Stile'), h('span.flow__stylename', null, r.name), h('p.about', null, r.line)),
         h('label.ctl', null, h('span.ctl__lbl', null, 'Intensità', h('span.meta', null, 'quanto lo stile pesa sulle foto')), slider),
         h('div.ctl', null, h('span.ctl__lbl', null, 'Movimento', h('span.meta', null, MOVES.find((m) => m.id === c.motion.mode)?.hint || '')),
           seg(MOVES, c.motion.mode, (v) => { rebuild({ motion: { mode: v } }); drawPanel(); }, { label: 'Movimento' }),
-          c.motion.mode === 'ritmico' ? h('div.row', null, bpm, h('span.meta', null, 'battiti al minuto')) : null),
+          c.motion.mode === 'ritmico' ? h('div.row', null, bpm, h('span.meta', null, 'battiti al minuto')) : null));
+      fill(more,
         h('details.fmt', { open: fmtOpen, ontoggle: (e) => { fmtOpen = e.target.open; } },
           h('summary.fmt__sum', null, h('span', null, 'Formato'), h('span.meta', null, `${c.format.duration} s · ${c.format.aspect} · ${c.format.fps} fps`), h('span.fmt__chg', null, fmtOpen ? 'Chiudi' : 'Cambia')),
           h('div.ctl', null, h('span.ctl__lbl', null, 'Durata'),
@@ -275,7 +282,7 @@ export const trasforma = {
             seg([{ id: 24, label: '24' }, { id: 30, label: '30' }], c.format.fps, (v) => { rebuild({ format: { fps: v } }); drawPanel(); }, { label: 'Fotogrammi al secondo' }))),
         h('div.flow__more', null,
           h('button.btn', { onclick: () => { rebuild({ seed: newSeed() }); toast('Un’altra versione dello stesso stile'); } }, 'Un’altra versione'),
-          h('button.btn', { onclick: () => openProvino({ onOpen: () => { syncPlayer().then(() => player.restart()); drawPanel(); drawStyles(); } }) }, 'Mostrami 6 versioni')),
+          h('button.btn', { onclick: () => openProvino({ onOpen: () => { syncPlayer().then(() => player.restart()); drawPanel(); drawStyles(); scheduleRead(); } }) }, 'Mostrami 6 versioni')),
         h('button.switch', { role: 'switch', 'aria-checked': 'false', onclick: () => app.go('vivo') },
           h('span.switch__knob'), h('span.stack', null, h('span', null, 'Anteprima dal vivo'), h('span.meta', null, 'la suoni col dito o col mouse, in tempo reale'))),
         claude,
@@ -284,18 +291,48 @@ export const trasforma = {
       drawClaude();
     }
 
+    // Prima lettura: misura i primi secondi della clip a 192 px e ne dice la
+    // cosa più forte, con le regole locali. «Discuti» apre la lettura completa
+    // (Claude sul Mac, se c'è).
+    let reading = null, readTok = 0, readTimer = 0;
+    const readKey = (c) => JSON.stringify([c.style, c.seed, c.intensity, c.motion, c.format, c.sources.map((x) => x.id)]);
+    function scheduleRead() { clearTimeout(readTimer); readTimer = setTimeout(readNow, 800); }
+    async function readNow() {
+      const c = work(); if (!c || !claude.isConnected) return;
+      const key = readKey(c);
+      if (reading?.key === key) return;
+      const tok = ++readTok;
+      reading = { key, text: null };
+      drawClaude();
+      try {
+        const clip = clone(c);
+        clip.format = { ...clip.format, duration: Math.min(clip.format.duration, 4), loop: false };
+        const { metrics } = await withAux(async () => (tok === readTok ? analyse(auxRenderer(), await auxSources(clip), clip, { samples: 4 }) : {}));
+        if (tok !== readTok || !metrics) return;
+        const a = localCritique(clip, metrics, expById(S.expId)?.idea);
+        const first = (t) => (t || '').split(/(?<=[.!?])\s+/)[0];
+        reading.text = first(a.lettura);
+        reading.dissent = first(a.disaccordo);
+        reading.m = metrics;
+      } catch (e) { console.warn('lettura', e); if (tok === readTok) reading = null; }
+      if (tok === readTok) drawClaude();
+    }
+
+    const pc = (x) => Math.round(Math.min(1, x) * 100) + '%';
     function drawClaude() {
-      const via = S.store.mode === 'server' && S.info?.critic ? 'Claude' : 'Claude (regole locali)';
-      fill(claude, h('span.claude__who', null, via + ':'),
-        h('span.claude__txt', null, 'guardo la clip, la misuro e ti dico cosa vedo, anche se non sono d’accordo.'),
-        h('button.btn.btn--quiet', { onclick: () => app.side.open() }, 'Discuti'));
+      const real = S.store.mode === 'server' && S.info?.critic;
+      const txt = reading?.text ? [reading.text, reading.dissent ? ' ' + reading.dissent : '']
+        : 'guardo la clip e la misuro…';
+      fill(claude, h('span.claude__who', null, 'Claude (regole locali):'),
+        h('span.claude__txt', { 'aria-live': 'polite', 'data-state': reading?.text ? 'detto' : 'misuro', title: reading?.m ? `misure sui primi 4 s: movimento ${pc(reading.m.movimento * 10)} · contrasto ${pc(reading.m.contrasto * 3)} · densità ${pc(reading.m.densita_bordi * 4)} · sfarfallio ${pc(reading.m.sfarfallio * 10)}` : null }, txt),
+        h('button.btn.btn--quiet', { onclick: () => app.side.open() }, real ? 'Discuti con Claude' : 'Discuti'));
     }
 
     function drawKept() {
       const vs = versionsOf(S.expId).filter((v) => v.marked);
       fill(kept, vs.length ? [
         h('div.kept__head', null, h('span.kept__n', null, `Tenute: ${vs.length}`), h('button.link', { onclick: () => app.go('salva') }, 'Vai a 3 Salva')),
-        h('div.kept__row', null, vs.slice(-8).map((v) => h('button.kept__img', { title: `Parti da questa: ${v.note}`, 'aria-current': String(v.id === S.versionId), onclick: () => partiDa(v) }, v.thumb ? h('img', { src: v.thumb, alt: v.note }) : null))),
+        h('div.kept__row', null, vs.slice(-8).map((v) => h('button.kept__img', { title: `Parti da questa: ${v.note}`, 'aria-label': `Parti da questa: ${v.label}, ${v.note}`, 'aria-current': String(v.id === S.versionId), onclick: () => partiDa(v) }, v.thumb ? h('img', { src: v.thumb, alt: v.note }) : null))),
         h('div.row', null,
           h('span.meta', null, 'Tocca una tenuta per ripartire da lì.'),
           vs.length >= 2 ? h('button.link', { onclick: () => app.go('laboratorio') }, 'Confronta') : null,
@@ -308,7 +345,7 @@ export const trasforma = {
       S.pick = S.work.sources.map((x) => x.id); S.zero = !S.pick.length;
       if (!S.work.style) S.work.style = 'emulsione';
       await syncPlayer(); player.restart(); player.play();
-      drawUsing(); drawStyles(); drawPanel(); drawKept();
+      drawUsing(); drawStyles(); drawPanel(); drawKept(); scheduleRead();
       toast(`Riparti da ${v.label}: quello che tieni da qui nasce come suo ramo.`);
     }
 
@@ -336,7 +373,8 @@ export const trasforma = {
       ready = true;
       await syncPlayer();
       player.restart(); player.play();
-      drawUsing(); drawStyles(); drawPanel(); drawKept();
+      // la lettura prende l'ausiliario prima delle miniature, così arriva subito
+      drawUsing(); drawPanel(); readNow(); drawStyles(); drawKept();
     })().catch((e) => { console.error(e); toast('Non riesco a preparare l’anteprima: ' + e.message); });
 
     const keys = (e) => {
@@ -379,7 +417,7 @@ export const salva = {
       h('div.flow__head', null, h('h1.title', null, 'Salva il video'),
         h('p.flow__lead', null, demo
           ? 'Questa è la pagina di prova: il browser qui non può salvare file. Ogni fotogramma viene calcolato davvero e lo riguardi qui. Sul Mac, con MOVIOLA avviata, lo stesso pulsante salva il ProRes per DaVinci.'
-          : `Esce in ProRes per DaVinci, nella cartella ${info.outDir || 'Filmati/MOVIOLA'}, con accanto una scheda con tutte le informazioni per rifarlo identico.`)),
+          : `Esce in ProRes per DaVinci, nella cartella ${info.outDirShort || info.outDir || '~/Movies/MOVIOLA'}, con accanto una scheda con tutte le informazioni per rifarlo identico.`)),
       list, opts, done, action));
 
     let chosen = null;
@@ -459,6 +497,8 @@ export const salva = {
             v = await saveVersion(`${recipeById(clip.style)?.name || ''} · ${ov.duration} s · ${ov.aspect} · ${ov.fps} fps`, 'ninni', clip, v.id);
             v.marked = true; await updateVersion(v);
           }
+          const release = await auxLock();
+          try {
           const r = auxRenderer();
           const items = await auxSources(clip);
           const name = `${exp.name}_${v.label}`;
@@ -466,6 +506,7 @@ export const salva = {
           const o = { renderer: r, items, clip, long, codec: quality, name, meta: metaFor(clip, v, exp), onProgress };
           if (demo) { const p = await renderToPreview(o); results.push({ preview: p, name }); }
           else { const rec = await renderToServer(o); rec.thumb = v.thumb; await addRender(rec); results.push(rec); }
+          } finally { release(); }
         }
       } catch (e) {
         console.error(e);
@@ -479,7 +520,7 @@ export const salva = {
         results.map((rec) => h('div.savedone__row', null, h('span', null, rec.file.split('/').pop()), h('span.meta', null, `${rec.w}×${rec.h} · ${rec.fps} fps`),
           info.platform === 'darwin' && !isPhone() ? h('button.link', { onclick: () => fetch('/api/reveal', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file: rec.file }) }) }, 'Mostra nel Finder') : null)),
       ] : null);
-      if (results.length) toast(`Salvato: ${results.length} ${plural(results.length, 'video', 'video')} in ${info.outDir || 'Filmati/MOVIOLA'}`);
+      if (results.length) toast(`Salvato: ${results.length} ${plural(results.length, 'video', 'video')} in ${info.outDirShort || info.outDir || '~/Movies/MOVIOLA'}`);
     }
 
     draw();

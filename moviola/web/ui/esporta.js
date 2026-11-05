@@ -1,7 +1,7 @@
 // 05 Esporta: render alla risoluzione piena, dal fotogramma 0, per DaVinci.
 // Ogni render è legato a una versione dell'albero e scrive un .json accanto.
 
-import { S, saveVersion, versionsOf, versionById, expById, auxRenderer, auxSources, addRender } from '../state.js';
+import { S, saveVersion, versionsOf, versionById, expById, auxRenderer, auxSources, auxLock, addRender } from '../state.js';
 import { h, fill, toast, seg, fmtBytes, isPhone, ago, confirmDialog, dialog } from './kit.js';
 import { dims, LONG_SIDES, normalizeClip, clone } from '../engine/clip.js';
 import { byId } from '../engine/processes.js';
@@ -32,7 +32,7 @@ export function render(root, { app }) {
 
   const left = h('div.form-col');
   const right = h('div.form-col');
-  root.append(h('div.exp-grid', null, h('div', null, h('div.pane__head', null, h('h1.title', null, 'Esporta'), h('span.meta', null, server ? `verso ${info.outDir}` : 'pagina demo nel browser')), left), h('div', null, right)));
+  root.append(h('div.exp-grid', null, h('div', null, h('div.pane__head', null, h('h1.title', null, 'Esporta'), h('span.meta', null, server ? `verso ${info.outDirShort || info.outDir}` : 'pagina demo nel browser')), left), h('div', null, right)));
 
   const exp = expById(S.expId);
   let vId = S.versionId;
@@ -110,6 +110,7 @@ export function render(root, { app }) {
     running = { abort: () => ctrl.abort() };
     drawLeft();
     const name = `${exp?.name || 'moviola'}_${ver.label}`;
+    const release = await auxLock();
     const r = auxRenderer();
     const items = await auxSources(clip);
     const onProgress = (i, n, eta) => {
@@ -139,6 +140,7 @@ export function render(root, { app }) {
       else { console.error(e); toast('Render non riuscito: ' + e.message); }
       if (fromQueue) throw e;
     } finally {
+      release();
       running = null;
       app.status();
       if (app.route === 'esporta') { drawLeft(); drawRight(); }

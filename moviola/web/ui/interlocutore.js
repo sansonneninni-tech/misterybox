@@ -2,7 +2,7 @@
 // Mac se c'è, altrimenti regole locali) e propone ipotesi eseguibili.
 // Ogni ipotesi si prova come ramo: niente sostituisce il tuo lavoro.
 
-import { S, auxRenderer, auxSources, saveVersion, touch, expById, emit } from '../state.js';
+import { S, auxRenderer, auxSources, withAux, saveVersion, touch, expById, emit } from '../state.js';
 import { h, fill, toast } from './kit.js';
 import { analyse, contactSheet } from '../engine/analysis.js';
 import { localCritique, applyOps, describeOps, procCatalog } from '../engine/critic.js';
@@ -75,9 +75,7 @@ async function run(question) {
   const app = root.__app;
   try {
     const clip = JSON.parse(JSON.stringify(S.work));
-    const r = auxRenderer();
-    const items = await auxSources(clip);
-    const { metrics, shots } = await analyse(r, items, clip);
+    const { metrics, shots } = await withAux(async () => analyse(auxRenderer(), await auxSources(clip), clip));
     const sheet = await contactSheet(shots);
     let answer = null;
     if (S.store.mode === 'server' && S.info?.critic) {
