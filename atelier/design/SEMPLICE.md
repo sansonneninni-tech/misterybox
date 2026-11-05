@@ -126,7 +126,7 @@ Prova come un primo utente, su iPhone 14 (390×844) e Mac (1440×900):
 | 7 | Più formati selezionabili | Passo 3: scelta formato (16:9, 9:16, 1:1, 4:5, 2.39:1…) in vista |
 | 8 | 4K, 24 e 30 fps | Passo 3: `4K` e `24 / 30 fps` in vista |
 | 9 | Finisce su DaVinci | Passo 3: ProRes 422 HQ / 4444 XQ, sequenza PNG/TIFF 16 bit, `.json` |
-| 10 | Niente suono | Nessuna traccia audio |
+| 10–11 | Niente suono | Nessuna traccia audio, né importata né generata |
 | 12 | Solo motori locali gratuiti | Nessuna voce a pagamento |
 | 13 | Timeline "un po'" | Passo 2: striscia del tempo semplice sotto l'anteprima; chiavi in `Avanzato` |
 | 14 | Tempo reale se lo sceglie | Passo 2: interruttore `Anteprima dal vivo` in vista |
@@ -137,8 +137,7 @@ Prova come un primo utente, su iPhone 14 (390×844) e Mac (1440×900):
 | 19 | Cronologia e rami | `Parti da questa`, `Confronta`, `Dettagli › Cronologia` |
 | 20 | MacBook Pro M2 Pro | Render 4K locale tarato su M2 Pro |
 
-(La risposta 11 non è nell'elenco di ninni: chiedere al thread MOVIOLA a cosa si
-riferiva la domanda prima di decidere.)
+La domanda 11 ("tracce tue o audio generato?") è superata dalla risposta 10: niente suono.
 
 Verifica aggiuntiva: per ogni riga di queste due tabelle, aprire l'app e raggiungere la
 funzione in al massimo un tocco dal passo indicato. Se una riga non si raggiunge, è un
