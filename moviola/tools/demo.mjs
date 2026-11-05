@@ -3,8 +3,8 @@
 // resta nel browser; i file veri si fanno sul Mac con `npm start`.
 //
 //   node tools/demo.mjs            → dist/moviola-demo.html (pagina completa)
-//   node tools/demo.mjs --artifact → dist/moviola-artifact.html (senza
-//                                    intestazione, per la pubblicazione)
+//   node tools/demo.mjs --artifact → dist/moviola-artifact.html (per la
+//                                    pagina di prova pubblicata: niente download)
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -34,9 +34,7 @@ const head = `<title>MOVIOLA</title>
 const script = `<script>window.MOVIOLA_DEMO = ${artifact ? "'artifact'" : "'file'"};</script>
 <script type="module">${js.replace(/<\/script/gi, '<\\/script')}</script>`;
 
-const html = artifact
-  ? `${head}\n${body}\n${script}\n`
-  : `<!doctype html>\n<html lang="it">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n${head}\n</head>\n<body>\n${body}\n${script}\n</body>\n</html>\n`;
+const html = `<!doctype html>\n<html lang="it">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n${head}\n</head>\n<body>\n${body}\n${script}\n</body>\n</html>\n`;
 
 mkdirSync(join(root, 'dist'), { recursive: true });
 const out = join(root, 'dist', artifact ? 'moviola-artifact.html' : 'moviola-demo.html');
