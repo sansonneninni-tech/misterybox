@@ -7,6 +7,11 @@ e `components.css`.
 Obiettivo: chi apre l'app per la prima volta capisce cosa fare in tre secondi, e ogni
 gesto produce una risposta visibile subito.
 
+**La semplicità viene dalla struttura, non dal togliere funzioni.** Ogni richiesta
+della comanda iniziale di ATELIER e delle 20 risposte su MOVIOLA resta presente e
+raggiungibile al massimo con un tocco dal passo dove serve: vedi la mappa in fondo
+(sezione 8). Una funzione si può spostare, non eliminare.
+
 ## 1. Tre passi, gli stessi nomi in tutte e due le app
 
 | Passo | ATELIER | MOVIOLA | Azione principale |
@@ -41,20 +46,34 @@ gesto produce una risposta visibile subito.
 - Due pulsanti per decidere: `Tieni questa` (pieno) e `Scarta` (vuoto). Le tenute si accumulano in una striscia piccola con il contatore `Tenute: 2`. Il rosso `--mark` resta per ciò che tieni.
 - "Provino: 6 variazioni" resta, ma come pulsante secondario `Mostrami 6 versioni`, che apre il foglio e torna qui.
 
-## 5. Cosa si nasconde (non si cancella)
+## 5. Cosa sta un tocco più in là (mai eliminato)
 
-In `Dettagli` (ATELIER, sulla foto) o `Avanzato` (entrambe), chiusi di default:
-provenienza e diritti, cronologia e albero delle versioni, interlocutore, stati
-`materiale / in esame`, parametri, catena di processi, chiavi, scorciatoie da tastiera,
-la pagina Sistema.
+In `Dettagli` (sulla foto o sulla versione) o `Avanzato` (nel passo), chiusi di
+default ma sempre con un'etichetta visibile: modifica di provenienza e diritti,
+cronologia completa e albero delle versioni, stati `materiale / in esame`, tutti i
+parametri, catena di processi, fotogrammi chiave, scorciatoie, pagina Sistema.
+
+Restano invece **in vista**, perché sono il cuore della comanda: il commento critico
+di Claude (sezione 4b), la riga di provenienza/diritti su ogni foto, l'accesso agli
+archivi nel passo 1, la partenza da zero, `Parti da questa` e `Confronta` sulle tenute,
+e la voce Higgsfield con il suo costo.
 
 "Dichiara finita" esce dal flusso principale e vive solo nel passo 3, come casella
 accanto a ogni versione: `Questa è finita`. L'opera è finita solo se lo dici tu.
 
-## 6. Pagamenti: invariato
+## 4b. Il collaboratore critico resta in vista
 
-Higgsfield (o qualsiasi motore a pagamento) non compare nel percorso semplice: sta in
-`Avanzato`, sempre con il dialog del costo e la conferma esplicita. Mai partire da solo.
+Sotto l'anteprima del passo Trasforma, una riga fissa `Claude:` con un commento breve
+e non accondiscendente sull'immagine corrente (misure + ipotesi), e due link:
+`Proponi una direzione` e `Discuti`. `Discuti` apre la conversazione completa.
+In MOVIOLA lo stesso, sul movimento e sul ritmo.
+
+## 6. Pagamenti: visibili, mai automatici
+
+ATELIER: Higgsfield è una miniatura tra i processi del passo Trasforma, segnata
+`a pagamento · 6 crediti`, senza anteprima automatica. Il tocco apre sempre il dialog
+del costo (totale, modello, saldo prima/dopo) e parte solo con la conferma esplicita.
+MOVIOLA: solo motori locali gratuiti, come chiesto; nessuna voce a pagamento.
 
 ## 7. Parole
 
@@ -70,3 +89,57 @@ Prova come un primo utente, su iPhone 14 (390×844) e Mac (1440×900):
 3. Trasforma: l'anteprima cambia al primo tocco? (MOVIOLA: le tue foto sono nell'anteprima?)
 4. Tieni 2, salva: il file esce con il nome e la risoluzione dichiarati?
 5. Nessuno scorrimento orizzontale, nessun bersaglio sotto i 44px, nessun pannello che si apre da solo.
+
+## 8. Mappa dei requisiti: dove sta ogni cosa
+
+### ATELIER (comanda iniziale)
+
+| Richiesta | Dove sta nel percorso semplice |
+|-----------|--------------------------------|
+| Import con trascinamento e URL | Passo 1: `Aggiungi foto` (selettore / trascina ovunque) + campo `Incolla un indirizzo` sotto |
+| Molti archivi dentro l'app, senza uscire | Passo 1, seconda scheda in vista: `Le tue foto · Cerca negli archivi` |
+| Archivio con miniature, tag, provenienza, diritti | Passo 1: griglia; sotto ogni miniatura riga `provenienza · diritti`; filtro tag in alto; modifica in `Dettagli` |
+| Affiancare e combinare immagini | Passo 1 seleziona più foto → passo 2 le mostra affiancate; processi di combinazione (`Innesto`, `Rimescola`…) tra le miniature |
+| Analisi visiva e proposte sperimentali | Passo 2: riga `Claude:` con misure e ipotesi, `Proponi una direzione` (4b) |
+| Collaboratore critico, non accondiscendente | Passo 2: `Discuti`; il dissenso è dichiarato nella riga `Claude:` |
+| Varianti Higgsfield con approvazione del costo | Passo 2: miniatura `a pagamento`, dialog del costo obbligatorio (6) |
+| Partire da zero (idea, AI, algoritmo) | Passo 1: `oppure parti da zero` → ipotesi scritta + tre strade, poi passo 2 |
+| Varianti compositive, non solo estetiche | Passo 2: i processi in miniatura sono compositivi (piega, fessura, innesto, deriva…); `Mostrami 6 versioni` |
+| Confronto tra varianti | Passo 2: `Confronta` sulle tenute (A/B trascinabile) |
+| Ramificare gli esperimenti | Passo 2: `Parti da questa` su ogni tenuta; albero in `Dettagli › Versioni` |
+| Salvare sorgenti, esperimenti, cronologia | Automatico; `Dettagli › Cronologia`; scritto nel `.json` |
+| Export alla massima qualità per Lightroom | Passo 3: TIFF 16 bit / PNG 16 bit / JPEG, risoluzione reale dichiarata, `.json` accanto |
+| L'opera è finita solo se lo dici tu | Passo 3: `Questa è finita`, gesto esplicito, sempre riapribile |
+| iPhone e Mac | Tutto il percorso, con la verifica in fondo |
+| Mai generazioni a pagamento senza consenso | Sezione 6 |
+
+### MOVIOLA (le 20 risposte)
+
+| # | Risposta | Dove sta |
+|---|----------|----------|
+| 1 | Astrazione di ogni tipo | Passo 2: stili di famiglie diverse in miniatura; tutti gli altri in `Tutti gli stili` |
+| 2 | Brakhage, McLaren, Len Lye, Ikeda, Viola, Clipson | Passo 2: ogni miniatura indica a chi si ispira; `Claude:` cita i riferimenti |
+| 3 | Da zero, da immagine o da video | Passo 1: `Aggiungi foto o video` + `oppure parti da zero` |
+| 4 | Il movimento lo sceglie lui | Passo 2: controllo `Movimento` in vista accanto a `Intensità` (direzione/velocità), chiavi in `Avanzato` |
+| 5 | Pura esperienza visiva | Nessun testo/narrazione nel video |
+| 6 | Durata 1–30 s | Passo 3 (e anteprima): `Durata` da 1 a 30 s in vista |
+| 7 | Più formati selezionabili | Passo 3: scelta formato (16:9, 9:16, 1:1, 4:5, 2.39:1…) in vista |
+| 8 | 4K, 24 e 30 fps | Passo 3: `4K` e `24 / 30 fps` in vista |
+| 9 | Finisce su DaVinci | Passo 3: ProRes 422 HQ / 4444 XQ, sequenza PNG/TIFF 16 bit, `.json` |
+| 10 | Niente suono | Nessuna traccia audio |
+| 12 | Solo motori locali gratuiti | Nessuna voce a pagamento |
+| 13 | Timeline "un po'" | Passo 2: striscia del tempo semplice sotto l'anteprima; chiavi in `Avanzato` |
+| 14 | Tempo reale se lo sceglie | Passo 2: interruttore `Anteprima dal vivo` in vista |
+| 15 | App separata | MOVIOLA resta un'app a sé |
+| 16 | Stessa grafica di ATELIER | Stessi token, componenti e percorso |
+| 17 | iPhone e Mac | Verifica in fondo |
+| 18 | Claude critico come in ATELIER | Passo 2: riga `Claude:` + `Discuti` (4b) |
+| 19 | Cronologia e rami | `Parti da questa`, `Confronta`, `Dettagli › Cronologia` |
+| 20 | MacBook Pro M2 Pro | Render 4K locale tarato su M2 Pro |
+
+(La risposta 11 non è nell'elenco di ninni: chiedere al thread MOVIOLA a cosa si
+riferiva la domanda prima di decidere.)
+
+Verifica aggiuntiva: per ogni riga di queste due tabelle, aprire l'app e raggiungere la
+funzione in al massimo un tocco dal passo indicato. Se una riga non si raggiunge, è un
+errore da correggere.
