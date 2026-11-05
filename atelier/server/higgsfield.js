@@ -37,7 +37,7 @@ function run(args, { timeout = 60_000 } = {}) {
     let out = '', err = '';
     let child;
     try {
-      child = spawn(BIN, args, { env: { ...process.env, NO_COLOR: '1' } });
+      child = spawn(BIN, args, { env: { ...process.env, NO_COLOR: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) {
       return resolve({ code: -1, out: '', err: e.message, missing: true });
     }

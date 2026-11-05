@@ -37,7 +37,7 @@ export async function claudeAvailable() {
   if (process.env.ANTHROPIC_API_KEY) return { available: true, via: 'api' };
   if (claudeCli !== null) return claudeCli;
   claudeCli = await new Promise((resolve) => {
-    const c = spawn(CLAUDE_BIN, ['--version']);
+    const c = spawn(CLAUDE_BIN, ['--version'], { stdio: ['ignore', 'pipe', 'pipe'] });
     c.on('error', () => resolve({ available: false, via: 'nessuno' }));
     c.on('close', (code) => resolve(code === 0 ? { available: true, via: 'cli' } : { available: false, via: 'nessuno' }));
   });
@@ -60,7 +60,8 @@ function extractJson(text) {
 function runCli(prompt, timeout = 240_000) {
   return new Promise((resolve, reject) => {
     const args = ['-p', prompt, '--output-format', 'json', '--allowedTools', 'Read', '--append-system-prompt', SYSTEM];
-    const c = spawn(CLAUDE_BIN, args, { cwd: DIRS.temp, env: process.env });
+    // stdin chiuso: altrimenti la CLI aspetta 3 secondi un input che non arriva.
+    const c = spawn(CLAUDE_BIN, args, { cwd: DIRS.temp, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
     const t = setTimeout(() => { c.kill('SIGTERM'); reject(new Error('Claude non ha risposto in tempo.')); }, timeout);
     c.stdout.on('data', (d) => (out += d));
@@ -68,12 +69,22 @@ function runCli(prompt, timeout = 240_000) {
     c.on('error', (e) => { clearTimeout(t); reject(e); });
     c.on('close', (code) => {
       clearTimeout(t);
-      if (code !== 0) return reject(new Error(err.trim().split('\n').pop() || `claude è uscito con codice ${code}`));
-      let text = out;
-      try { const j = JSON.parse(out); text = j.result ?? out; if (j.is_error) return reject(new Error(text)); } catch {}
-      resolve(text);
+      let j = null;
+      try { j = JSON.parse(out); } catch { /* non JSON */ }
+      if (code !== 0 || j?.is_error) return reject(new Error(cliError(j?.result, err, code)));
+      resolve(j ? (j.result ?? out) : out);
     });
   });
+}
+
+// Il primo messaggio utile della CLI, in italiano; mai i semplici avvisi.
+export function cliError(result, stderr, code) {
+  const lines = [String(result || ''), ...String(stderr || '').split('\n')].map((l) => l.trim()).filter((l) => l && !/^warning\b/i.test(l));
+  const msg = lines[0] || '';
+  if (/log ?in|logged|auth|api key|credential|unauthori[sz]ed|401|subscription/i.test(msg)) return 'Claude non è collegato: apri il Terminale, scrivi claude e accedi, poi riprova.';
+  if (/rate|limit|quota|429|overloaded/i.test(msg)) return 'Claude è occupato o hai raggiunto il limite di utilizzo: riprova tra qualche minuto.';
+  if (/ENOTFOUND|ECONN|network|fetch failed/i.test(msg)) return 'Claude non è raggiungibile: controlla la connessione a Internet.';
+  return msg ? `Claude ha risposto con un errore: ${msg.slice(0, 200)}` : `Claude si è fermato (codice ${code}). Apri il Terminale e scrivi claude per controllare che funzioni.`;
 }
 
 async function runApi(prompt, imageFiles = []) {
@@ -121,7 +132,7 @@ export async function critiqueAsset(file, ctx = {}) {
     if (!j) return { ...local, metrics, fonte: 'locale', avviso: 'Claude ha risposto in un formato inatteso: mostro l\'analisi locale.', testo: text };
     return { fonte: 'claude', ...j, metrics };
   } catch (e) {
-    return { ...local, metrics, fonte: 'locale', avviso: `Claude non disponibile (${e.message}). Mostro l'analisi locale.` };
+    return { ...local, metrics, fonte: 'locale', avviso: `${e.message} Intanto ti mostro l'analisi locale.` };
   } finally { fs.rmSync(prev, { force: true }); }
 }
 
@@ -136,7 +147,7 @@ export async function discuss({ message, file, ctx = {}, conversation = [] }) {
       const text = await askClaude(prompt, prev ? [prev] : []);
       return { fonte: 'claude', testo: text.trim() };
     } catch (e) {
-      return { fonte: 'locale', testo: localReply(message, ctx), avviso: `Claude non disponibile (${e.message}).` };
+      return { fonte: 'locale', testo: localReply(message, ctx), avviso: `${e.message} Intanto risponde il laboratorio locale.` };
     } finally { if (prev) fs.rmSync(prev, { force: true }); }
   }
   return { fonte: 'locale', testo: localReply(message, ctx) };
@@ -161,6 +172,6 @@ export async function ideas({ idea, provider }) {
     if (!j?.ipotesi) throw new Error('formato inatteso');
     return { fonte: 'claude', ipotesi: j.ipotesi, domanda: j.domanda, dissenso: j.dissenso };
   } catch (e) {
-    return { fonte: 'locale', ipotesi: local, avviso: `Claude non disponibile (${e.message}).` };
+    return { fonte: 'locale', ipotesi: local, avviso: `${e.message} Intanto ti mostro le proposte locali.` };
   }
 }
