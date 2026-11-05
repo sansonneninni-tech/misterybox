@@ -472,7 +472,7 @@ pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; col
   .flow--trasforma .screen { height: min(60vw, 46dvh); }
   .using { padding: 4px var(--s-4); }
   .using__change { min-height: 44px; }
-  .ctl .seg__opt, .seg__opt { min-height: 44px; }
+  .ctl .seg__opt, .seg__opt { min-height: 44px; min-width: 44px; }
   .ctl input[type=range] { height: 44px; margin: 0; }
   .flow__style { display: none; }
   .flow__scroll { overflow: visible; }
