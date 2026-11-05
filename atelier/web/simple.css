@@ -349,3 +349,17 @@
 .s-src__x { top: -14px; right: -14px; }
 .s-src__x::before { inset: -8px; border-radius: 50%; }
 .s-srcs { gap: var(--s-3); padding-top: 14px; }
+
+/* ---------- Archivi: una riga a scorrimento per ogni fonte -------------- */
+.s-row__head { align-items: center; }
+.s-row__nav { margin-left: auto; display: flex; gap: var(--s-2); }
+.s-row__nav .btn { min-width: 44px; min-height: 44px; font-size: 22px; padding: 0; }
+.s-row { display: grid; grid-auto-flow: column; grid-auto-columns: 210px; gap: 0; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; padding: 0 var(--s-5) var(--s-4); scroll-padding: 0 var(--s-5); }
+.s-row .tile { aspect-ratio: 1; scroll-snap-align: start; }
+.s-row__end { width: 210px; display: grid; place-content: center; gap: var(--s-2); padding: var(--s-3); text-align: center; border: var(--hair) solid var(--seam); }
+.s-row__end .meta { margin: 0; }
+@media (max-width: 760px) {
+  .s-row { grid-auto-columns: 46vw; padding: 0 var(--s-4) var(--s-4); scroll-padding: 0 var(--s-4); }
+  .s-row__end { width: 46vw; }
+  .s-row__nav { display: none; }
+}

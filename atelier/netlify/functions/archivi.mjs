@@ -14,7 +14,7 @@ export default async (req) => {
     const q = (u.searchParams.get('q') || '').trim().slice(0, 200);
     if (!q) return json({ error: 'Scrivi cosa cercare.' }, 400);
     const ids = (u.searchParams.get('archives') || 'openverse,wikimedia,cleveland').split(',').filter(Boolean).slice(0, 9);
-    const page = Math.max(1, Math.min(50, Number(u.searchParams.get('page')) || 1));
+    const page = Math.max(1, Math.min(500, Number(u.searchParams.get('page')) || 1));
     const results = await Promise.all(ids.map((id) => searchArchive(id, q, page).catch((e) => ({ archive: id, ok: false, error: e.message, items: [] }))));
     return json({ q, results });
   } catch (e) {

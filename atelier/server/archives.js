@@ -11,10 +11,14 @@
 const UA = 'ATELIER/0.1 (laboratorio locale di ricerca artistica; uso personale)';
 const PER_PAGE = 24;
 
+// Gli archivi a volte rispondono 5xx o 429 per un attimo: riprovo due volte.
 async function getJson(url, opts = {}) {
-  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json', ...(opts.headers || {}) }, signal: AbortSignal.timeout(opts.timeout || 20_000) });
-  if (!res.ok) throw new Error(`risposta ${res.status}`);
-  return res.json();
+  for (let i = 0; ; i++) {
+    const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json', ...(opts.headers || {}) }, signal: AbortSignal.timeout(opts.timeout || 20_000) });
+    if (res.ok) return res.json();
+    if (i >= 2 || !(res.status >= 500 || res.status === 429)) throw new Error(`risposta ${res.status}`);
+    await new Promise((ok) => setTimeout(ok, 600 * (i + 1)));
+  }
 }
 const first = (v) => (Array.isArray(v) ? v[0] : v) ?? '';
 const strip = (s) => String(s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
@@ -34,6 +38,7 @@ const openverse = {
   async search(q, page = 1) {
     const d = await getJson(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(q)}&page=${page}&page_size=20`);
     return {
+      pages: d.page_count,
       total: d.result_count,
       items: (d.results || []).map((r) => ({
         archive: 'openverse', id: r.id, title: r.title || 'Senza titolo', author: r.creator || '', date: '',
@@ -232,7 +237,7 @@ export async function searchArchive(id, q, page = 1) {
   if (!a) throw new Error(`Archivio sconosciuto: ${id}`);
   try {
     const r = await a.search(q, page);
-    return { archive: id, name: a.name, ok: true, total: r.total ?? r.items.length, items: r.items };
+    return { archive: id, name: a.name, ok: true, total: r.total ?? r.items.length, pages: r.pages, items: r.items };
   } catch (e) {
     return { archive: id, name: a.name, ok: false, error: `${a.name} non risponde (${e.message}).`, items: [] };
   }

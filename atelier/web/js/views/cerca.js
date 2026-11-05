@@ -3,7 +3,7 @@
 import { h, clear, toast, dialog, spinner, stateBox, code } from '../ui.js';
 import { sourceTabs } from './foto.js';
 
-let last = { q: '', results: [], page: 1 };
+let last = { q: '', results: [] };
 const RIGHT_LABEL = { libero: 'libero', 'con attribuzione': 'attribuzione', 'da verificare': 'da verificare' };
 const SUGGEST = ['nebbia', 'radiografia', 'erbario', 'eclissi', 'manichino', 'cristalli al microscopio', 'rovine', 'specchio', 'spiritismo', 'superficie lunare', 'anatomia', 'cianotipia'];
 
@@ -12,7 +12,7 @@ export default {
     const s = app.state.search;
     let archives = [];
     try { archives = (await app.api.archives()).archives; } catch (e) { toast(e.message); }
-    const input = h('input', { class: 'field field--search', type: 'search', placeholder: 'Cerca: un soggetto, una materia, un\'epoca…', value: last.q || s.q, enterkeyhint: 'search', onkeydown: (e) => { if (e.key === 'Enter') run(1); } });
+    const input = h('input', { class: 'field field--search', type: 'search', placeholder: 'Cerca: un soggetto, una materia, un\'epoca…', value: last.q || s.q, enterkeyhint: 'search', onkeydown: (e) => { if (e.key === 'Enter') run(); } });
     const toggles = h('div', { class: 'tags' }, archives.map((a) => h('button', { class: 'tag', title: a.description, 'aria-pressed': String(s.archives.includes(a.id)), onclick: (e) => {
       s.archives = s.archives.includes(a.id) ? s.archives.filter((x) => x !== a.id) : [...s.archives, a.id];
       e.currentTarget.setAttribute('aria-pressed', String(s.archives.includes(a.id)));
@@ -24,34 +24,86 @@ export default {
         h('h1', { class: 's-title' }, 'Cerca negli archivi del mondo'),
         h('p', { class: 's-hint' }, 'Musei e archivi aperti, senza uscire da qui. Tocca un risultato per vedere autore e licenza, poi aggiungilo alle tue foto.')),
       h('div', { class: 'search' },
-        h('div', { class: 'field-row' }, input, h('button', { class: 'btn btn--solid', onclick: () => run(1) }, 'Cerca')),
+        h('div', { class: 'field-row' }, input, h('button', { class: 'btn btn--solid', onclick: () => run() }, 'Cerca')),
         h('div', { class: 's-label' }, 'In quali archivi'), toggles,
-        h('div', { class: 'row meta' }, 'Prova: ', SUGGEST.map((w) => h('button', { class: 'link meta', onclick: () => { input.value = w; run(1); } }, w)))),
+        h('div', { class: 'row meta' }, 'Prova: ', SUGGEST.map((w) => h('button', { class: 'link meta', onclick: () => { input.value = w; run(); } }, w)))),
       results);
     root.append(view);
     if (last.results.length) draw(); else clear(results, stateBox('?', 'Cosa cerchi?', 'Fotografie storiche, tavole scientifiche, opere di musei, immagini della NASA, fondi d\'archivio. Scegli gli archivi qui sopra: Openverse da solo ne raccoglie centinaia di milioni.'));
 
-    async function run(page) {
+    // Una ricerca chiede la prima pagina a ogni archivio; poi ogni riga si
+    // allunga da sola, una pagina alla volta, mentre la scorri.
+    async function run() {
       const q = input.value.trim();
       if (!q) return toast('Scrivi cosa cercare.');
       if (!s.archives.length) return toast('Scegli almeno un archivio.');
       s.q = q;
       clear(results, spinner(`Cerco «${q}» in ${s.archives.length} archivi…`));
       try {
-        const r = await app.api.searchArchives(q, s.archives, page);
-        last = { q, results: page > 1 ? mergePages(last.results, r.results) : r.results, page };
+        const r = await app.api.searchArchives(q, s.archives, 1);
+        last = { q, results: r.results.map((x) => ({ ...x, page: 1, done: !x.ok || !x.items.length || x.items.length >= (x.total ?? 0) || x.pages === 1 })) };
         draw();
       } catch (e) { clear(results, h('div', { class: 'notice' }, e.message)); }
     }
 
     function draw() {
-      const blocks = last.results.map((r) => {
-        if (!r.ok) return h('section', { class: 'results__arch' }, h('div', { class: 'results__head' }, h('span', { class: 'label' }, r.name), h('span', { class: 'meta' }, r.error)));
-        return h('section', { class: 'results__arch' },
-          h('div', { class: 'results__head' }, h('span', { class: 'label' }, r.name), h('span', { class: 'meta' }, r.items.length ? `${r.total?.toLocaleString('it-IT') ?? r.items.length} risultati` : 'nessun risultato')),
-          r.items.length ? h('div', { class: 'vgrid', style: { '--cols': 6 } }, r.items.map((it) => tile(it))) : null);
-      });
-      clear(results, blocks, h('div', { class: 'row', style: { padding: '16px' } }, h('button', { class: 'btn', onclick: () => run(last.page + 1) }, 'Altri risultati')));
+      clear(results, last.results.map((r) => block(r)));
+    }
+
+    function block(r) {
+      if (!r.ok) return h('section', { class: 'results__arch' }, h('div', { class: 'results__head' }, h('span', { class: 'label' }, r.name), h('span', { class: 'meta' }, r.error)));
+      if (!r.items.length) return h('section', { class: 'results__arch' }, h('div', { class: 'results__head' }, h('span', { class: 'label' }, r.name), h('span', { class: 'meta' }, 'nessun risultato')));
+      const count = h('span', { class: 'meta' });
+      const row = h('div', { class: 's-row', 'aria-label': `Risultati di ${r.name}` });
+      r.loading = false;
+      const end = h('div', { class: 's-row__end' });
+      const step = (dir) => row.scrollBy({ left: dir * row.clientWidth * 0.85, behavior: 'smooth' });
+      const head = h('div', { class: 'results__head s-row__head' },
+        h('span', { class: 'label' }, r.name), count,
+        h('span', { class: 's-row__nav' },
+          h('button', { class: 'btn btn--quiet', 'aria-label': `Indietro in ${r.name}`, onclick: () => step(-1) }, '‹'),
+          h('button', { class: 'btn btn--quiet', 'aria-label': `Avanti in ${r.name}`, onclick: () => step(1) }, '›')));
+      row.append(...r.items.map((it) => tile(it)), end);
+      const say = () => {
+        const tot = r.total ?? r.items.length;
+        count.textContent = `${tot.toLocaleString('it-IT')} risultati · ne vedi ${r.items.length.toLocaleString('it-IT')}`;
+        if (r.loading) clear(end, spinner('Carico i prossimi…'));
+        else if (r.error2) clear(end, h('p', { class: 'meta' }, r.error2), h('button', { class: 'btn', onclick: () => { r.error2 = null; r.retry = 0; more(); } }, 'Riprova'));
+        else if (r.done) clear(end, h('p', { class: 'meta' }, r.items.length < tot
+          ? `Fine: ${r.name} indica ${tot.toLocaleString('it-IT')} risultati ma ne lascia sfogliare ${r.items.length.toLocaleString('it-IT')}. Prova una parola più precisa.`
+          : 'Fine dei risultati.'));
+        else clear(end, h('button', { class: 'btn', onclick: more }, 'Carica altri'));
+      };
+      async function more() {
+        if (r.loading || r.done || r.error2) return;
+        r.loading = true; say();
+        try {
+          const x = (await app.api.searchArchives(last.q, [r.archive], r.page + 1)).results[0];
+          if (!x?.ok) throw new Error(x?.error || 'l\'archivio non risponde');
+          const seen = new Set(r.items.map((i) => i.id));
+          const fresh = x.items.filter((i) => !seen.has(i.id));
+          r.page += 1;
+          r.items.push(...fresh);
+          if (x.total != null) r.total = x.total;
+          end.before(...fresh.map((it) => tile(it)));
+          // Alcuni archivi ripetono una pagina: si prosegue, e ci si ferma solo
+          // quando non danno più niente o tre pagine di fila sono già viste.
+          r.empty = fresh.length ? 0 : (r.empty || 0) + 1;
+          if (!x.items.length || r.empty >= 3 || r.items.length >= (r.total ?? 0) || (x.pages && r.page >= x.pages)) r.done = true;
+          r.retry = 0;
+        } catch (e) {
+          // Un archivio lento o un intoppo: riprovo da solo una volta, poi chiedo.
+          if (!r.retry) { r.retry = 1; r.loading = false; return setTimeout(more, 1500); }
+          r.error2 = `Non riesco a caricarne altri: ${e.message.replace(/\.$/, '')}.`;
+        }
+        r.loading = false; say();
+        // Se la pagina era già vista, o la riga è ancora corta, continua da sola.
+        requestAnimationFrame(() => { if (!r.done && (r.empty > 0 || row.scrollWidth - row.scrollLeft - row.clientWidth < row.clientWidth)) more(); });
+      }
+      say();
+      // Caricamento a scaglioni: la pagina successiva arriva quando ti avvicini alla fine.
+      new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) more(); }, { root: row, rootMargin: '0px 2400px 0px 0px' }).observe(end);
+      return h('section', { class: 'results__arch' }, head, row);
     }
 
     function tile(it) {
@@ -101,12 +153,3 @@ export default {
     }
   },
 };
-
-function mergePages(prev, next) {
-  return next.map((r) => {
-    const p = prev.find((x) => x.archive === r.archive);
-    if (!p || !r.ok) return p || r;
-    const seen = new Set(p.items.map((i) => i.id));
-    return { ...r, items: [...p.items, ...r.items.filter((i) => !seen.has(i.id))] };
-  });
-}
