@@ -239,7 +239,12 @@ export default {
         h('button', { class: 's-src__pick', 'aria-label': `Foto ${i + 1}: tocca per disporla (ribalta, ruota, sposta)`, 'aria-pressed': String(selSrc === x.id) },
           h('img', { src: x.asset.thumbUrl, alt: '', draggable: 'false', style: { transform: thumbCss(t.layout[x.id]) } }),
           n > 1 ? h('span', { class: 's-src__n' }, String(i + 1)) : null),
-        h('button', { class: 's-src__x', 'aria-label': 'Togli questa foto', onclick: () => { t.slots = t.slots.filter((s) => s !== x.id); delete t.layout[x.id]; if (selSrc === x.id) selSrc = null; t.process = null; app.persist(); app.render(); } }, '×'));
+        h('button', { class: 's-src__x', 'aria-label': 'Togli questa foto', onclick: () => {
+          // Togliere è sempre annullabile: la ✕ sta accanto alla miniatura da toccare.
+          const prev = { slots: [...t.slots], layout: t.layout[x.id], process: t.process };
+          t.slots = t.slots.filter((s) => s !== x.id); delete t.layout[x.id]; if (selSrc === x.id) selSrc = null; t.process = null; app.persist(); app.render();
+          toast('Foto tolta da questa combinazione.', { label: 'Annulla', run: () => { t.slots = prev.slots; if (prev.layout) t.layout[x.id] = prev.layout; t.process = prev.process; app.persist(); app.render(); } });
+        } }, '×'));
       // Tocco = seleziona; trascinamento orizzontale = cambia l'ordine.
       const pick = el.firstChild;
       let start = null;

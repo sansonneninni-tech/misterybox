@@ -345,3 +345,7 @@
   .s-disp { order: 2; }
   .s-disp__acts .btn { flex: 1 1 calc(50% - var(--s-2)); }
 }
+/* La ✕ della foto in uso: bersaglio da 44px, staccata dalla miniatura. */
+.s-src__x { top: -14px; right: -14px; }
+.s-src__x::before { inset: -8px; border-radius: 50%; }
+.s-srcs { gap: var(--s-3); padding-top: 14px; }
