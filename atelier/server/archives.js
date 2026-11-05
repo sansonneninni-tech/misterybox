@@ -11,12 +11,14 @@
 const UA = 'ATELIER/0.1 (laboratorio locale di ricerca artistica; uso personale)';
 const PER_PAGE = 24;
 
-// Gli archivi a volte rispondono 5xx o 429 per un attimo: riprovo due volte.
+// Gli archivi a volte rispondono 5xx o 429 per un attimo: riprovo fino a due volte.
+// Il nuovo tentativo parte solo se resta tempo (online la funzione ha ~26 s).
 async function getJson(url, opts = {}) {
+  const t0 = Date.now();
   for (let i = 0; ; i++) {
     const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json', ...(opts.headers || {}) }, signal: AbortSignal.timeout(opts.timeout || 20_000) });
     if (res.ok) return res.json();
-    if (i >= 2 || !(res.status >= 500 || res.status === 429)) throw new Error(`risposta ${res.status}`);
+    if (i >= 2 || Date.now() - t0 > 9_000 || !(res.status >= 500 || res.status === 429)) throw new Error(`risposta ${res.status}`);
     await new Promise((ok) => setTimeout(ok, 600 * (i + 1)));
   }
 }

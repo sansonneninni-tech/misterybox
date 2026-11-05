@@ -101,8 +101,9 @@ export default {
         requestAnimationFrame(() => { if (!r.done && (r.empty > 0 || row.scrollWidth - row.scrollLeft - row.clientWidth < row.clientWidth)) more(); });
       }
       say();
-      // Caricamento a scaglioni: la pagina successiva arriva quando ti avvicini alla fine.
-      new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) more(); }, { root: row, rootMargin: '0px 2400px 0px 0px' }).observe(end);
+      // Caricamento a scaglioni: la pagina successiva parte con una pagina di anticipo,
+      // perché alcuni archivi (Openverse) impiegano più di 10 secondi a rispondere.
+      new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) more(); }, { root: row, rootMargin: '0px 6000px 0px 0px' }).observe(end);
       return h('section', { class: 'results__arch' }, head, row);
     }
 
