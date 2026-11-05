@@ -35,26 +35,50 @@ cucitura del loop) e propone ipotesi da provare come rami. Usa, in ordine:
 2. Claude Code (`claude`) installato sul Mac, con il tuo abbonamento;
 3. regole locali, sempre disponibili.
 
-## Come si lavora
+## Come si lavora: tre passi
 
-- **01 Archivio**: immagini e video importati (file, link, trascinamento), con
-  provenienza e diritti. Un esperimento nasce da una delle nove partenze o da
-  zero.
-- **02 Banco**: la catena di processi, il carattere del movimento (fermo,
-  contemplativo, ritmico, caotico), le chiavi ◆ sulla timeline, il seme.
-  «Provino ×6» mostra sei variazioni in movimento: segni quelle che meritano e
-  diventano rami.
-- **03 Laboratorio**: l'albero delle versioni, il confronto A/B dal vivo,
-  affiancate o a tendina. Solo tu dichiari finita una versione (tieni premuto),
-  e puoi sempre riaprirla.
-- **04 Dal vivo**: la clip come strumento. Il quadro è un pad XY, i tasti 1–9
-  accendono i processi, R registra un giro che diventa chiavi.
-- **05 Esporta**: ProRes 422 HQ, ProRes 4444 XQ, sequenze PNG o TIFF a 16 bit,
-  H.264 per vedere al volo. Accanto a ogni file un `.json` con tutti i parametri
-  per rifare esattamente la stessa clip. Colore Rec.709.
+In alto, sempre: **1 Scegli · 2 Trasforma · 3 Salva**. Su iPhone una riga sola
+(«Passo 2 di 3 · Trasforma», con ‹ per tornare) e il pulsante principale in basso.
 
-Tasti: `1`–`5` schermate, `I` interlocutore, `spazio` riproduci, `←` `→`
-fotogrammi, `S` salva versione.
+1. **Scegli**: «Aggiungi foto o video» (rullino, file o trascinando sulla finestra),
+   fino a 4. Oppure «parti da zero, senza foto».
+2. **Trasforma**: l'anteprima usa subito le tue foto e lo dice («Sta usando: 2 foto»).
+   Sotto, gli stili come miniature delle tue foto già trasformate, ognuno con il
+   riferimento a cui si ispira. Intensità, Movimento, durata, proporzioni, fps,
+   «Un'altra versione», «Mostrami 6 versioni», «Anteprima dal vivo», la riga di
+   Claude con «Discuti». «Tieni questa» mette da parte la versione; tocca una tenuta
+   per ripartire da lì, «Confronta» per l'A/B.
+3. **Salva**: ProRes 422 HQ o 4444 XQ, sequenze PNG o TIFF 16 bit, 4K, 24 o 30 fps,
+   durata e proporzioni, con la scheda `.json` accanto. «Questa è finita» la spunti
+   solo tu, e puoi sempre toglierla.
+
+**Avanzato** (in alto a destra): regolazioni fini con catena e chiavi sulla timeline,
+versioni e confronto, dal vivo, interlocutore, archivio completo con provenienza e
+diritti, tutte le opzioni di salvataggio.
+
+## Dove sta ogni risposta delle 20 domande
+
+| # | Risposta | Dove sta |
+|---|----------|----------|
+| 1 | Astrazione di ogni tipo | Passo 2: nove stili di famiglie diverse; Avanzato: 16 processi da combinare |
+| 2 | Brakhage, McLaren, Len Lye, Ikeda, Viola, Clipson | Passo 2: ogni miniatura dice a chi si ispira |
+| 3 | Da zero, da immagine o da video | Passo 1: «Aggiungi foto o video» e «parti da zero» |
+| 4 | Il movimento lo sceglie lui | Passo 2: Movimento (Fermo, Lento, A tempo con bpm, Caotico) e Intensità in vista; chiavi in Avanzato |
+| 5 | Pura esperienza visiva | Nessun testo nel video |
+| 6 | Da 1 a 30 secondi | Passo 2 e passo 3: Durata 1, 3, 5, 8, 15, 30 s (in Avanzato qualsiasi valore) |
+| 7 | Più formati | Passo 2 e 3: 16:9, 9:16, 1:1, 4:5, 2.39:1, 4:3 |
+| 8 | 4K, 24 e 30 fps | Passo 3: 4K e 24/30 in vista |
+| 9 | DaVinci | Passo 3: ProRes 422 HQ / 4444 XQ, PNG/TIFF 16 bit, `.json`, Rec.709 |
+| 10–11 | Niente suono | Nessuna traccia audio |
+| 12 | Solo motori locali gratuiti | Tutto sul Mac, nessun servizio a pagamento |
+| 13 | Timeline «un po'» | Passo 2: striscia del tempo sotto l'anteprima; chiavi in Avanzato › Regolazioni fini |
+| 14 | Tempo reale se lo sceglie | Passo 2: «Anteprima dal vivo» |
+| 15 | App separata | Cartella, archivio e porta suoi |
+| 16 | Stessa grafica di ATELIER | Stessi token, componenti e percorso a tre passi |
+| 17 | iPhone e Mac | Tutto il percorso, verificato su entrambi |
+| 18 | Claude critico | Passo 2: riga «Claude:» con «Discuti» |
+| 19 | Cronologia e rami | Passo 2: tenute, «tocca per ripartire», «Confronta»; Avanzato › Versioni |
+| 20 | MacBook Pro M2 Pro | Render 4K locale, fotogramma per fotogramma |
 
 ## Senza Mac
 

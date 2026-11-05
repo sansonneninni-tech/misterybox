@@ -5,7 +5,7 @@
 import { openStore } from './store.js';
 import { defaultClip, normalizeClip, clone, uid, dims } from './engine/clip.js';
 import { Renderer } from './engine/renderer.js';
-import { loadMedia, seekVideo, videoTime } from './media.js';
+import { loadMedia, seekVideo, videoTime, makeThumb } from './media.js';
 import { pref } from './prefs.js';
 
 export const S = {
@@ -19,6 +19,7 @@ export const S = {
   versionId: null,   // versione da cui parte il lavoro attuale
   work: null,        // clip in lavorazione (non ancora salvata)
   dirty: false,
+  pick: [],          // foto e video scelti nel passo 1 (id delle sorgenti)
   listeners: new Set(),
 };
 
@@ -61,6 +62,43 @@ export async function addSource(rec) {
   emit('sources');
   return rec;
 }
+const isMediaFile = (f) => /^(image|video)\//.test(f.type) || /\.(mov|mp4|m4v|heic|heif|jpe?g|png|webp|tiff?)$/i.test(f.name);
+const isVideoFile = (f) => f.type.startsWith('video') || /\.(mov|mp4|m4v)$/i.test(f.name);
+
+/** Importa file dal disco o dal rullino. Restituisce le sorgenti create e,
+ *  per ogni file che non va, una frase che dice cosa fare. */
+export async function importFiles(files, onEach) {
+  const added = [], errors = [];
+  const list = [...files];
+  for (const f of list) {
+    if (!isMediaFile(f)) { errors.push(`${f.name}: non è una foto né un video.`); continue; }
+    onEach && onEach(added.length + errors.length + 1, list.length, f.name);
+    const kind = isVideoFile(f) ? 'video' : 'image';
+    try {
+      const up = await S.store.upload(f, f.name);
+      let url = up.url, media, proxy = null;
+      try { media = await loadMedia(url, kind); }
+      catch (e) {
+        if (kind === 'video' && S.store.mode === 'server') { proxy = await S.store.proxy(up.file); url = proxy.url; media = await loadMedia(url, 'video'); }
+        else throw e;
+      }
+      const rec = {
+        id: uid('s'), kind, name: f.name, file: proxy ? proxy.file : up.file, original: proxy ? up.file : undefined, proxy: !!proxy,
+        url, w: media.w, h: media.h, duration: media.duration, thumb: await makeThumb(media), origin: 'file: ' + f.name,
+        rights: 'da verificare', tags: [], note: '', created: Date.now(),
+      };
+      await addSource(rec);
+      added.push(rec);
+    } catch (e) {
+      console.warn(e);
+      errors.push(/\.hei[cf]$/i.test(f.name)
+        ? `${f.name} è un HEIC che questo browser non legge. Esportalo come JPEG e riprova.`
+        : kind === 'video' ? `${f.name}: questo browser non legge il video. Sul Mac, con MOVIOLA avviata, viene convertito da solo.` : `${f.name}: il browser non riesce ad aprire questa immagine.`);
+    }
+  }
+  return { added, errors };
+}
+
 export async function updateSource(rec) { await S.store.put('sources', rec); emit('sources'); }
 export async function removeSource(id) {
   S.sources = S.sources.filter((s) => s.id !== id);

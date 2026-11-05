@@ -21,16 +21,16 @@
   <div class="shell" id="shell" data-side="closed">
     <header class="bar">
       <div class="logo">Moviola</div>
-      <nav class="nav" id="nav" aria-label="Sezioni">
-        <button class="nav__item" data-go="archivio"><span class="nav__num">01</span>Archivio</button>
-        <button class="nav__item" data-go="banco"><span class="nav__num">02</span>Banco</button>
-        <button class="nav__item" data-go="laboratorio"><span class="nav__num">03</span>Laboratorio</button>
-        <button class="nav__item" data-go="vivo"><span class="nav__num">04</span>Dal vivo</button>
-        <button class="nav__item" data-go="esporta"><span class="nav__num">05</span>Esporta</button>
+      <button class="steps__back only-phone" id="back" aria-label="Indietro">‹</button>
+      <nav class="steps" id="nav" aria-label="Passi">
+        <button class="steps__item" data-go="scegli"><span class="steps__n">1</span>Scegli</button>
+        <button class="steps__item" data-go="trasforma"><span class="steps__n">2</span>Trasforma</button>
+        <button class="steps__item" data-go="salva"><span class="steps__n">3</span>Salva</button>
       </nav>
+      <span class="steps__phone only-phone" id="stepPhone"></span>
       <div class="bar__end">
-        <span class="engine" id="engine" title="Motori"></span>
-        <button class="link" id="sideBtn" title="Interlocutore (I)">Interlocutore</button>
+        <span class="engine only-desk" id="engine" title="Motori"></span>
+        <button class="link" id="advBtn" aria-haspopup="dialog">Avanzato</button>
       </div>
     </header>
     <main class="main" id="main"></main>
