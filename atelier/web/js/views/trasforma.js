@@ -205,19 +205,22 @@ export default {
       }, delay);
     }
 
+    // Ogni miniatura usa le foto che il suo effetto sa usare, non quelle
+    // dell'effetto scelto: così cambiando effetto restano tutte valide.
+    function idsFor(pid) { const p = app.processes.find((x) => x.id === pid); return nodes.slice(0, Math.min(n, p.inputs.max)).map((x) => x.asset.id); }
     // Le miniature già pronte compaiono subito; le altre una alla volta.
     // Una richiesta in corso non si ripete: la si riprende al ridisegno.
     async function fillThumbs() {
       const todo = [];
       for (const b of fx.children) {
         if (!b._fill?.can) continue;
-        const k = JSON.stringify([ids, b._fill.pid]);
+        const k = JSON.stringify([idsFor(b._fill.pid), b._fill.pid]);
         const c = thumbs.get(k);
         if (typeof c === 'string') b._fill.img.src = c; else todo.push([b._fill, k]);
       }
       for (const [{ pid, img }, k] of todo) {
         if (!thumbs.has(k)) {
-          const pr = app.api.preview({ assetIds: ids, process: pid, params: paramsFor(app.processes.find((x) => x.id === pid), 0.55), seed: 7, size: 260 })
+          const pr = app.api.preview({ assetIds: idsFor(pid), process: pid, params: paramsFor(app.processes.find((x) => x.id === pid), 0.55), seed: 7, size: 260 })
             .then((u) => { thumbs.set(k, u); return u; }, (e) => { thumbs.delete(k); throw e; });
           thumbs.set(k, pr);
         }

@@ -315,3 +315,10 @@
 .z-cost { margin-left: 10px; font-family: var(--font-mono); font-size: 11px; opacity: 0.7; }
 .z-q { margin: 0; color: var(--ash); font-size: 14px; }
 .z-out__note { margin: 8px 0; font-size: 13px; color: var(--ash); }
+.s-save__x { min-height: 44px; }
+.s-save__pick input { width: 44px; height: 44px; top: 4px; left: 4px; background: transparent; border: 0; }
+.s-save__pick input::before { content: ""; position: absolute; inset: 8px; border: 1px solid var(--salt); background: rgba(0, 0, 0, 0.45); }
+.s-save__pick input:checked::before { background: var(--salt); }
+.s-save__pick input:checked::after { position: absolute; inset: 8px; }
+.s-save__pick input:checked { background: transparent; }
+.s-save__pick input:checked::after { display: grid; place-items: center; z-index: 1; height: auto; }
