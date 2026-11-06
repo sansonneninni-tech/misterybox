@@ -1,5 +1,5 @@
 // Dialog condivisi: esportazione, opera finita, costo Higgsfield, scelta sorgenti.
-import { h, clear, dialog, toast, holdButton, fmtBytes, spinner, code } from './ui.js';
+import { h, clear, dialog, toast, holdButton, fmtBytes, spinner, code, noticeBox } from './ui.js';
 
 // ---------- Esportazione per Lightroom ----------
 export async function openExport(app, asset) {
@@ -77,10 +77,10 @@ export async function openHiggsfield(app, { expId, parents = [], prompt = '', so
   const st = app.status?.engines?.higgsfield || {};
   if (!st.available) {
     const d = dialog({
-      title: 'Higgsfield non è collegato',
+      title: 'Higgsfield non è disponibile',
       body: [
-        h('p', { class: 'critic__text', style: { margin: 0 } }, 'Non posso chiedere il preventivo: la CLI non è installata o la sessione non è aperta.'),
-        h('div', { class: 'notice' }, h('span', {}, st.message || 'Apri il Terminale ed esegui ', h('span', { class: 'meta' }, h('b', {}, 'higgsfield auth login')), '. I processi locali continuano a funzionare.')),
+        h('p', { class: 'critic__text', style: { margin: 0 } }, 'Non posso chiedere il preventivo, e niente viene addebitato. I processi locali continuano a funzionare.'),
+        st.message ? noticeBox(st.message, st.detail) : h('div', { class: 'notice' }, h('span', {}, 'Apri il Terminale ed esegui ', h('span', { class: 'meta' }, h('b', {}, 'higgsfield auth login')), '.')),
       ],
       foot: [h('button', { class: 'btn btn--quiet', onclick: () => d.close() }, 'Chiudi'), h('span', { class: 'spacer' }), h('button', { class: 'btn', onclick: async () => { d.close(); await app.refreshStatus(); openHiggsfield(app, { expId, parents, prompt, sources }); } }, 'Riprova')],
     });
@@ -119,7 +119,7 @@ export async function openHiggsfield(app, { expId, parents = [], prompt = '', so
       const q = await app.api.hfQuote(expId, { parents, model, prompt: p, aspect: aspectEl.value });
       d.close();
       openCost(app, { expId, q, sources });
-    } catch (e) { clear(out, h('div', { class: 'notice' }, e.message)); btn.disabled = false; }
+    } catch (e) { clear(out, noticeBox(e.message, e.detail)); out.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); btn.disabled = false; }
   }
 }
 
@@ -158,7 +158,7 @@ function openCost(app, { expId, q, sources }) {
       app.refreshStatus();
       if (app.state.view === 'laboratorio' || app.state.view === 'tela') app.render();
     } catch (e) {
-      clear(d.el.querySelector('.dialog__body'), h('div', { class: 'notice' }, e.message));
+      clear(d.el.querySelector('.dialog__body'), noticeBox(e.message, e.detail));
     }
   }
 }

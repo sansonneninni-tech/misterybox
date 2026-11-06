@@ -63,7 +63,7 @@ app.use(express.static(path.join(ROOT, 'web'), { setHeaders: (res, p) => { if (p
 
 const wrap = (fn) => (req, res) => Promise.resolve(fn(req, res)).then((r) => { if (!res.headersSent) res.json(r ?? { ok: true }); }).catch((e) => {
   console.error('✖', req.method, req.path, e.message);
-  res.status(e.status || 400).json({ error: e.message });
+  res.status(e.status || 400).json({ error: e.message, ...(e.detail ? { detail: e.detail } : {}) });
 });
 const notFound = (what) => Object.assign(new Error(`${what} non trovato.`), { status: 404 });
 
@@ -175,7 +175,7 @@ app.post('/api/preview', async (req, res) => {
   try {
     const r = await preview(req.body || {});
     res.set({ 'content-type': 'image/jpeg', 'cache-control': 'no-store', 'x-seed': String(r.seed) }).send(r.jpeg);
-  } catch (e) { res.status(400).json({ error: e.message }); }
+  } catch (e) { res.status(400).json({ error: e.message, ...(e.detail ? { detail: e.detail } : {}) }); }
 });
 app.post('/api/experiments/:id/run', wrap((req) => exp.runLocal(req.params.id, req.body)));
 app.post('/api/experiments/:id/higgsfield/quote', wrap((req) => exp.higgsfieldQuote(req.params.id, req.body)));

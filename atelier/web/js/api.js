@@ -10,7 +10,7 @@ async function call(method, url, body, isForm = false) {
   const res = await fetch(url, opts);
   let data = null;
   try { data = await res.json(); } catch { /* risposta vuota */ }
-  if (!res.ok) throw new Error(data?.error || `Errore ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(data?.error || `Errore ${res.status}`), { detail: data?.detail || '' });
   return data;
 }
 

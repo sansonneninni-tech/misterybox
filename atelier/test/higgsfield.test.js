@@ -12,3 +12,17 @@ test('nessuna generazione senza approvazione esplicita del costo', async () => {
   assert.ok(hf.consumeQuote(q.quoteId, { approved: true, credits: q.credits }));
   assert.throws(() => hf.consumeQuote(q.quoteId, { approved: true, credits: q.credits }), /già stato usato/);
 });
+
+test('errori della CLI Higgsfield: error_type in italiano, riga originale sotto', () => {
+  const trial = hf.hfError('Error: {"error_type":"only_mcp_usage_on_trial_is_available"}');
+  assert.match(trial.message, /in prova/);
+  assert.match(trial.message, /Nessun credito/);
+  assert.equal(trial.detail, 'only_mcp_usage_on_trial_is_available');
+  assert.match(hf.hfError('Error: not authenticated, run higgsfield auth login').message, /auth login/);
+  assert.match(hf.hfError('{"error_type":"insufficient_credits","message":"Not enough credits"}').detail, /insufficient_credits: Not enough credits/);
+  const other = hf.hfError('Error: {"error_type":"something_new"}');
+  assert.equal(other.message, 'Higgsfield ha risposto con un errore.');
+  assert.equal(other.detail, 'something_new');
+  // «login» da solo, dentro un altro errore, non vuol dire sessione chiusa.
+  assert.doesNotMatch(hf.hfError('model not available for this workspace (see login page docs)').message, /auth login/);
+});

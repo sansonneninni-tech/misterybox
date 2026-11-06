@@ -73,12 +73,27 @@ function findNumber(obj, keys) {
   return null;
 }
 
-function explain(err) {
-  const e = String(err || '');
-  if (/not authenticated|session expired|login/i.test(e)) return 'Higgsfield non è collegato. Nel Terminale esegui: higgsfield auth login';
+// Errore della CLI: una frase in italiano più la riga originale, che l'app
+// mostra sempre sotto. Se la CLI risponde con JSON ({"error_type": …}) uso quello.
+export class HfError extends Error {
+  constructor(text, detail) { super(text); this.detail = detail || ''; }
+}
+
+export function hfError(err) {
+  const raw = String(err || '').trim();
+  const j = raw ? parseJson(raw) : null;
+  const type = j?.error_type || j?.error?.type || j?.code || '';
+  const said = j ? [type, j.message || j.error?.message || (typeof j.error === 'string' ? j.error : '')].filter(Boolean).join(': ') : '';
+  const detail = (said || raw.split('\n').map((l) => l.trim()).filter(Boolean).slice(-3).join(' ')).slice(0, 300);
+  return new HfError(explain(`${type} ${raw}`), detail);
+}
+
+function explain(e) {
+  if (/only_mcp_usage_on_trial/i.test(e)) return 'Il tuo piano Higgsfield è in prova: durante la prova Higgsfield non accetta richieste da ATELIER. Attiva il piano su higgsfield.ai e riprova. Nessun credito è stato usato.';
+  if (/not authenticated|session expired|unauthori[sz]ed|please log ?in|auth login/i.test(e)) return 'Higgsfield non è collegato. Nel Terminale esegui: higgsfield auth login';
   if (/no workspace/i.test(e)) return 'Nessuno spazio di lavoro Higgsfield selezionato. Nel Terminale: higgsfield workspace list, poi higgsfield workspace set <id>';
   if (/insufficient|not enough credits|balance/i.test(e)) return 'Crediti Higgsfield insufficienti per questa generazione.';
-  return e.split('\n').filter(Boolean).slice(-3).join(' ').slice(0, 400) || 'Errore sconosciuto della CLI Higgsfield.';
+  return 'Higgsfield ha risposto con un errore.';
 }
 
 export async function status() {
@@ -86,7 +101,7 @@ export async function status() {
   const v = await run(['version'], { timeout: 15_000 });
   if (v.missing) return { available: false, installed: false, message: 'CLI Higgsfield non installata. Nel Terminale: npm i -g @higgsfield/cli' };
   const s = await run(['account', 'status', '--json'], { timeout: 20_000 });
-  if (s.code !== 0) return { available: false, installed: true, message: explain(s.err || s.out) };
+  if (s.code !== 0) { const e = hfError(s.err || s.out); return { available: false, installed: true, message: e.message, detail: e.detail }; }
   const j = parseJson(s.out) || {};
   return {
     available: true, installed: true,
@@ -119,7 +134,7 @@ export async function quote(req) {
   } else {
     const r = await run(['generate', 'cost', ...buildArgs(req), '--json'], { timeout: 120_000 });
     if (r.missing) throw new Error('CLI Higgsfield non installata. Nel Terminale: npm i -g @higgsfield/cli');
-    if (r.code !== 0) throw new Error(explain(r.err || r.out));
+    if (r.code !== 0) throw hfError(r.err || r.out);
     raw = parseJson(r.out) ?? r.out;
     credits = typeof raw === 'number' ? raw : findNumber(raw, [/^credits?$/i, /cost/i, /price/i, /total/i, /amount/i, /credits/i]);
     if (credits == null) {
@@ -159,7 +174,7 @@ function findUrls(obj, acc = []) {
 // Esecuzione reale: chiamata solo dopo consumeQuote().
 export async function generate(q) {
   const r = await run(['generate', 'create', ...buildArgs(q.req), '--wait', '--wait-timeout', '15m', '--json'], { timeout: 16 * 60_000 });
-  if (r.code !== 0) throw new Error(explain(r.err || r.out));
+  if (r.code !== 0) throw hfError(r.err || r.out);
   const j = parseJson(r.out);
   let urls = [...new Set(findUrls(j ?? r.out))];
   if (!urls.length) urls = [...new Set((r.out.match(/https?:\/\/\S+/g) || []).filter((u) => /\.(png|jpe?g|webp)/i.test(u)))];
