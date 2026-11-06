@@ -53,6 +53,10 @@ export default {
           ? 'Proposte del laboratorio: legge le parole della tua idea e le collega a processi e archivi. In questa versione online Claude non c\'è; sul Mac puoi chiederle a lui.'
           : `Proposte del laboratorio: legge le parole della tua idea e le collega a processi e archivi.${claudeOk ? '' : ' Claude non è attivo su questo Mac.'}`;
       clear(list,
+        // La strada diretta: la tua idea, così com'è, a Higgsfield (prima il costo).
+        h('div', { class: 'z-direct' },
+          h('span', { class: 'z-direct__t' }, 'Oppure falla generare così com\'è'),
+          h('button', { class: 'btn btn--paid', disabled: !idea.trim(), onclick: () => ai(idea.trim(), 'Da zero') }, 'Genera dalla tua idea con Higgsfield', h('span', { class: 'btn__cost' }, 'vedi il costo'))),
         ideas.avviso ? noticeBox(ideas.avviso, ideas.dettaglio) : null,
         ideas.dissenso ? h('div', { class: 'critic__msg critic__msg--dissent' }, h('div', { class: 'critic__text' }, ideas.dissenso)) : null,
         ideas.ipotesi.map((hy) => card(hy)),
@@ -65,11 +69,13 @@ export default {
       const btn = kind === 'archivi' ? h('button', { class: 'btn btn--solid', onclick: (e) => fromArchives(hy, e.currentTarget) }, 'Cerca e accosta', h('span', { class: 'z-cost' }, 'gratis'))
         : kind === 'ai' ? h('button', { class: 'btn btn--paid', onclick: () => ai(hy.prompt, hy.titolo) }, 'Vedi il costo', h('span', { class: 'btn__cost' }, 'a pagamento'))
           : h('button', { class: 'btn btn--solid', onclick: (e) => runSteps(hy, e.currentTarget) }, 'Crea questa', h('span', { class: 'z-cost' }, 'gratis'));
+      // Se la proposta ha anche un prompt, la strada AI resta sempre visibile.
+      const paid = kind !== 'ai' && hy.prompt ? h('button', { class: 'btn btn--paid', onclick: () => ai(hy.prompt, hy.titolo) }, 'Genera con Higgsfield', h('span', { class: 'btn__cost' }, 'vedi il costo')) : null;
       return h('div', { class: 'z-card', 'data-kind': kind },
         h('div', { class: 'z-card__t' }, hy.titolo),
         hy.perche ? h('div', { class: 'z-card__why' }, hy.perche) : null,
         h('div', { class: 'z-card__d' }, hy.descrizione),
-        h('div', { class: 'z-card__acts' }, btn));
+        h('div', { class: 'z-card__acts' }, btn, paid));
     }
 
     function drawOut() {

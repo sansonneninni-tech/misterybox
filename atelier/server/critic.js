@@ -224,7 +224,7 @@ export async function ideas({ idea, provider }) {
   const local = proposeFromIdea(idea);
   if (provider !== 'claude') return { fonte: 'locale', ipotesi: local };
   try {
-    const prompt = `L'autore vuole partire da zero, senza immagini. Idea: «${idea}».\nProponi da 3 a 5 ipotesi: alcune con processi di genesi del laboratorio (rumore, flusso, voronoi, automa), almeno una con un prompt in inglese per un modello generativo esterno, che eviti l'estetica AI stereotipata e cerchi ambiguità, incongruenza, astrazione. Ogni ipotesi deve nascere da questa idea precisa: aggiungi a ciascuna un campo "perche" con una frase che dice quale parte dell'idea la genera.\n${SCHEMA}\n${processCatalog()}`;
+    const prompt = `L'autore vuole partire da zero, senza immagini. Idea: «${idea}».\nProponi da 3 a 5 ipotesi: alcune con processi di genesi del laboratorio (rumore, flusso, voronoi, automa), almeno due con un prompt in inglese per un modello generativo esterno (campo "prompt"), che eviti l'estetica AI stereotipata e cerchi ambiguità, incongruenza, astrazione. Ogni ipotesi deve nascere da questa idea precisa: aggiungi a ciascuna un campo "perche" con una frase che dice quale parte dell'idea la genera.\n${SCHEMA}\n${processCatalog()}`;
     const j = extractJson(await askClaude(prompt, []));
     if (!j?.ipotesi) throw new Error('formato inatteso');
     return { fonte: 'claude', ipotesi: j.ipotesi, domanda: j.domanda, dissenso: j.dissenso };

@@ -365,3 +365,8 @@
 }
 .notice__raw { display: block; margin-top: 6px; font-family: var(--mono, ui-monospace, Menlo, monospace); font-size: 12px; line-height: 1.4; color: var(--ash); word-break: break-word; white-space: pre-wrap; }
 .notice--raw { flex-direction: column; align-items: flex-start; gap: 0; }
+.z-direct { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-3); padding: var(--s-3) 0; border-bottom: var(--hair) solid var(--seam); }
+.z-direct__t { font-size: 14px; color: var(--ash); }
+.z-card__acts { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.z-direct .btn, .z-card__acts .btn { max-width: 100%; min-width: 0; white-space: normal; flex-wrap: wrap; row-gap: 2px; }
+@media (max-width: 760px) { .z-direct .btn, .z-card__acts .btn { width: 100%; justify-content: space-between; } }
