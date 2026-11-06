@@ -1,0 +1,149 @@
+/* ATELIER — aggiunte dell'applicazione sopra design/components.css.
+   Stesse regole del design: niente raggi, niente ombre, giunture da 1px. */
+
+button.logo { background: none; border: 0; color: var(--salt); cursor: pointer; padding: 0; }
+.row { display: flex; gap: var(--s-2); flex-wrap: wrap; align-items: center; }
+.stack { display: flex; flex-direction: column; gap: var(--s-3); }
+.spacer { flex: 1; }
+.busy { display: flex; flex-direction: column; gap: 8px; padding: var(--s-4); }
+.busy .progress { width: 100%; }
+code { font-family: var(--font-mono); }
+.field--title { font-family: var(--font-display); font-size: 20px; letter-spacing: -0.02em; }
+.field--inline { width: auto; padding: 4px 0; max-width: 180px; }
+.field--seed { width: 110px; font-family: var(--font-mono); }
+.field--search { font-size: 18px; }
+select.field { appearance: none; -webkit-appearance: none; cursor: pointer; background: transparent; }
+select.field option { background: var(--raise); color: var(--salt); }
+.seg--wrap { flex-wrap: wrap; }
+.seg__opt:disabled { opacity: 0.35; cursor: not-allowed; }
+.param--bool { grid-template-columns: 1fr auto auto; }
+.hold-wrap { display: inline-flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+
+/* Pannello laterale */
+.scheda__img { position: relative; background: var(--tile); outline: var(--hair) solid var(--seam); }
+.scheda__img img { width: 100%; max-height: 42vh; object-fit: contain; margin: 0 auto; }
+.scheda__img[data-marked="true"]::after { content: ""; position: absolute; inset: 12px; border: 2px solid var(--mark); border-radius: 46% 54% 50% 50% / 52% 46% 54% 48%; transform: rotate(-3deg); pointer-events: none; }
+.choices { display: flex; flex-direction: column; gap: 10px; }
+.critic__bar { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.critic__ctx { display: grid; grid-template-columns: 64px 1fr auto; gap: var(--s-3); align-items: center; border: var(--hair) solid var(--seam); padding: var(--s-2); }
+.critic__ctx:has(> p) { display: block; border: 0; padding: 0; }
+.critic__ctx img { width: 64px; height: 64px; object-fit: cover; }
+.critic__ctx .node__name { white-space: normal; }
+.critic__thread { display: flex; flex-direction: column; gap: var(--s-5); }
+.critic__analysis { display: flex; flex-direction: column; gap: var(--s-4); }
+.critic__list ul { margin: 6px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 6px; font-size: var(--t-body); line-height: 1.55; }
+.palette { display: flex; height: 18px; outline: var(--hair) solid var(--seam); }
+.palette span { min-width: 4px; }
+.panel__foot .field-row textarea { min-height: 44px; resize: none; }
+
+/* Ricerca negli archivi */
+.search { padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-4); border-bottom: var(--hair) solid var(--seam); }
+.results__arch { border-bottom: var(--hair) solid var(--seam); }
+.results__head { display: flex; gap: var(--s-4); align-items: baseline; padding: var(--s-4) var(--s-4) var(--s-3); }
+.results .vgrid .tile { aspect-ratio: 1; }
+.dialog--wide { width: min(1040px, 100%); }
+.preview { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--s-5); }
+.preview__img { background: var(--tile); display: grid; place-items: center; min-height: 240px; }
+.preview__img img { max-height: 60vh; object-fit: contain; }
+
+/* Tela */
+.stage__busy { position: absolute; inset: auto 0 0 0; background: var(--scrim); }
+.layer--idle img { opacity: 0.35; }
+.layer__x { display: flex; gap: 2px; }
+.strip { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-4); border-top: var(--hair) solid var(--seam); flex: none; overflow: hidden; }
+.strip__list { display: flex; gap: 1px; overflow-x: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+.strip__item { flex: none; background: none; border: 0; padding: 0; cursor: pointer; display: flex; flex-direction: column; gap: 2px; width: 72px; color: var(--salt); text-align: left; }
+.strip__item img { width: 72px; height: 48px; object-fit: cover; outline: var(--hair) solid var(--seam); }
+.strip__item .meta { font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.thumbs { display: flex; gap: 1px; }
+.thumbs img { width: 64px; height: 64px; object-fit: cover; outline: var(--hair) solid var(--seam); }
+.prompt-box { border: var(--hair) solid var(--seam); padding: var(--s-3); white-space: pre-wrap; max-height: 140px; overflow: auto; }
+
+/* Laboratorio */
+.tree ul { list-style: none; margin: 0; padding: 0; }
+.tree { list-style: none; margin: 0; }
+.exp-meta { padding: var(--s-3) var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); border-bottom: var(--hair) solid var(--seam); }
+.exp-meta textarea { min-height: 60px; font-size: var(--t-ui); }
+.newexp { padding: var(--s-5) var(--s-4); display: flex; flex-direction: column; gap: var(--s-3); max-width: 560px; }
+.rail--tree { padding: 0; gap: 0; }
+.stage__canvas > img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* Esportazione, opera finita */
+.export-head, .finish { display: grid; grid-template-columns: 120px 1fr; gap: var(--s-4); align-items: start; }
+.export-head img, .finish img { outline: var(--hair) solid var(--seam); width: 120px; }
+
+/* Da zero */
+.zero-out { display: flex; flex-direction: column; gap: var(--s-3); align-items: center; max-height: 100%; width: 100%; }
+.zero-out img { max-height: calc(100% - 60px); max-width: 100%; object-fit: contain; }
+.blank > .stage .stage__canvas { height: 100%; }
+
+/* Impostazioni */
+.settings { max-width: 720px; }
+.settings__sec { display: flex; flex-direction: column; gap: var(--s-3); border-top: var(--hair) solid var(--seam); padding-top: var(--s-4); }
+.qr-row { display: grid; grid-template-columns: 200px 1fr; gap: var(--s-5); align-items: start; }
+.qr svg { width: 200px; height: 200px; display: block; }
+
+.status__left { display: flex; gap: var(--s-5); overflow: hidden; }
+
+/* Versione di prova online */
+html[data-demo="true"] .status { color: var(--salt); }
+
+@media (max-width: 760px) {
+  .preview, .export-head, .finish, .qr-row { grid-template-columns: 1fr; }
+  .qr svg { width: 220px; height: 220px; }
+  .search { padding: var(--s-3) var(--s-4); }
+  .results .vgrid { --cols: 3 !important; }
+  .field--search, .field, textarea.field { font-size: 16px; }
+  .strip { padding: var(--s-2) var(--s-3); }
+  .hold-wrap { width: 100%; align-items: stretch; flex: 1 1 100%; order: -1; }
+  .hold-wrap .hold { width: 100%; }
+  .critic__ctx { grid-template-columns: 56px 1fr; }
+  .critic__ctx .btn { grid-column: 1 / -1; }
+  .exp-meta { display: none; }
+  .field--inline { max-width: 46%; }
+  .bar__end .link { font-size: 12px; }
+  .status { display: none; }
+}
+
+/* Correzioni di impaginazione */
+.main:focus, .main:focus-visible { outline: none; }
+.rail .seg { flex-wrap: wrap; }
+.rail .seg__opt { padding: 0 8px; }
+.tela__view { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.tela__view > .stage__canvas { flex: 1; min-height: 0; overflow: hidden; padding: var(--s-4); }
+.tela__view > .stage__canvas > .state { height: auto; padding: 0; }
+.tela .layers { height: 100%; width: 100%; }
+.tela__tools .controls__acts .btn { justify-content: space-between; }
+@media (max-width: 760px) {
+  /* Su iPhone l'immagine resta in alto mentre si muovono i cursori sotto */
+  .tela__view:not(:has(.state)) { position: sticky; }
+  .tela__view { top: 0; z-index: 3; background: var(--void); border-bottom: var(--hair) solid var(--seam); }
+  .tela__view > .stage__canvas { height: 40dvh; flex: none; padding: var(--s-2); }
+  .tela__view > .stage__canvas > img { inset: var(--s-2); width: calc(100% - 2 * var(--s-2)); height: calc(100% - 2 * var(--s-2)); }
+  .tela__view .strip { padding: 4px var(--s-3); }
+  .tela__view .strip .label { display: none; }
+  .tela__view .strip__item img { width: 52px; height: 36px; }
+  .tela__view .strip__item { width: 52px; }
+  .tela__view .strip__item .meta { display: none; }
+}
+.settings__sec > .btn, .settings__sec > .seg { align-self: flex-start; }
+
+/* Visore: l'immagine singola sta sempre dentro il riquadro, mai sopra gli strumenti */
+.stage__canvas { overflow: hidden; }
+.stage__canvas > img { position: absolute; inset: var(--s-4); width: calc(100% - 2 * var(--s-4)); height: calc(100% - 2 * var(--s-4)); max-width: none; max-height: none; object-fit: contain; }
+.stage__tag { position: absolute; left: var(--s-4); bottom: var(--s-2); color: var(--salt); opacity: 0.7; pointer-events: none; }
+.tile__wait { position: absolute; inset: 0; display: grid; place-items: center; }
+.contact .tile__img { position: relative; min-height: 120px; }
+
+/* Guida: quando lo spazio è poco, i passi non correnti restano solo numeri */
+.guide { container-type: inline-size; }
+.guide__step { min-width: 0; }
+.guide__t { overflow: hidden; text-overflow: ellipsis; }
+@container (max-width: 980px) {
+  .guide__step:not([data-state="current"]) .guide__body { display: none; }
+  .guide__step:not([data-state="current"]) { flex: none; }
+  .guide__head { min-width: 0; }
+}
+@container (max-width: 640px) {
+  .guide__title { font-size: 15px; }
+}
