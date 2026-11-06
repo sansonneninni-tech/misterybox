@@ -71,20 +71,36 @@ function runCli(prompt, timeout = 240_000) {
       clearTimeout(t);
       let j = null;
       try { j = JSON.parse(out); } catch { /* non JSON */ }
-      if (code !== 0 || j?.is_error) return reject(new Error(cliError(j?.result, err, code)));
+      if (code !== 0 || j?.is_error) { const e = cliError(j?.result ?? (j ? '' : out), err, code); return reject(new ClaudeError(e.text, e.detail)); }
       resolve(j ? (j.result ?? out) : out);
     });
   });
 }
 
-// Il primo messaggio utile della CLI, in italiano; mai i semplici avvisi.
-export function cliError(result, stderr, code) {
+// Errore di Claude: una frase in italiano più la prima riga originale,
+// che l'app mostra sempre sotto, così si capisce cosa è successo davvero.
+class ClaudeError extends Error {
+  constructor(text, detail) { super(text); this.detail = detail || ''; }
+}
+
+// La prima riga utile (mai i semplici avvisi), tradotta solo quando è certa.
+export function cliError(result, stderr, code, via = 'cli') {
   const lines = [String(result || ''), ...String(stderr || '').split('\n')].map((l) => l.trim()).filter((l) => l && !/^warning\b/i.test(l));
   const msg = lines[0] || '';
-  if (/log ?in|logged|auth|api key|credential|unauthori[sz]ed|401|subscription/i.test(msg)) return 'Claude non è collegato: apri il Terminale, scrivi claude e accedi, poi riprova.';
-  if (/rate|limit|quota|429|overloaded/i.test(msg)) return 'Claude è occupato o hai raggiunto il limite di utilizzo: riprova tra qualche minuto.';
-  if (/ENOTFOUND|ECONN|network|fetch failed/i.test(msg)) return 'Claude non è raggiungibile: controlla la connessione a Internet.';
-  return msg ? `Claude ha risposto con un errore: ${msg.slice(0, 200)}` : `Claude si è fermato (codice ${code}). Apri il Terminale e scrivi claude per controllare che funzioni.`;
+  return { text: explain(msg, code, via), detail: msg.slice(0, 300) };
+}
+
+function explain(msg, code, via) {
+  if (/credit balance|insufficient.?credit/i.test(msg)) return 'Il credito API di Claude è esaurito: ricaricalo su console.anthropic.com, poi riprova.';
+  if (/session expired|could not be refreshed|token.{0,20}expired/i.test(msg)) return 'L\'accesso a Claude è scaduto: nel Terminale scrivi claude, poi /login, e riprova.';
+  if (/invalid api key|invalid x-api-key|authentication_error/i.test(msg)) return via === 'api'
+    ? 'La chiave ANTHROPIC_API_KEY impostata nel Terminale non è valida: correggila o toglila (unset ANTHROPIC_API_KEY), poi riavvia ATELIER.'
+    : 'Claude non accetta l\'accesso: apri il Terminale, scrivi claude, poi /login, e riprova.';
+  if (/failed to authenticate|not logged in|please run \/login|\b401\b/i.test(msg)) return 'Claude non è collegato: apri il Terminale, scrivi claude e accedi (/login), poi riprova.';
+  if (/rate.?limit|usage limit|\b429\b|overloaded|\b529\b/i.test(msg)) return 'Claude è occupato o hai raggiunto il limite di utilizzo: riprova tra qualche minuto.';
+  if (/ENOTFOUND|ECONN|network|fetch failed|getaddrinfo/i.test(msg)) return 'Claude non è raggiungibile: controlla la connessione a Internet.';
+  if (/model/i.test(msg) && /not.?found|not available|does not exist|invalid/i.test(msg)) return 'Il modello di Claude scelto non è disponibile per questo account.';
+  return msg ? 'Claude ha risposto con un errore.' : `Claude si è fermato (codice ${code}). Apri il Terminale e scrivi claude per controllare che funzioni.`;
 }
 
 async function runApi(prompt, imageFiles = []) {
@@ -97,8 +113,8 @@ async function runApi(prompt, imageFiles = []) {
     body: JSON.stringify({ model: API_MODEL, max_tokens: 3000, system: SYSTEM, messages: [{ role: 'user', content }] }),
     signal: AbortSignal.timeout(240_000),
   });
-  const j = await res.json();
-  if (!res.ok) throw new Error(j.error?.message || `API Anthropic: ${res.status}`);
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) { const e = cliError(`${j.error?.message || ''} (${res.status} ${j.error?.type || ''})`.trim(), '', res.status, 'api'); throw new ClaudeError(e.text, e.detail); }
   return (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
 }
 
@@ -132,7 +148,7 @@ export async function critiqueAsset(file, ctx = {}) {
     if (!j) return { ...local, metrics, fonte: 'locale', avviso: 'Claude ha risposto in un formato inatteso: mostro l\'analisi locale.', testo: text };
     return { fonte: 'claude', ...j, metrics };
   } catch (e) {
-    return { ...local, metrics, fonte: 'locale', avviso: `${e.message} Intanto ti mostro l'analisi locale.` };
+    return { ...local, metrics, fonte: 'locale', avviso: `${e.message} Intanto ti mostro l'analisi locale.`, dettaglio: e.detail || '' };
   } finally { fs.rmSync(prev, { force: true }); }
 }
 
@@ -147,7 +163,7 @@ export async function discuss({ message, file, ctx = {}, conversation = [] }) {
       const text = await askClaude(prompt, prev ? [prev] : []);
       return { fonte: 'claude', testo: text.trim() };
     } catch (e) {
-      return { fonte: 'locale', testo: localReply(message, ctx), avviso: `${e.message} Intanto risponde il laboratorio locale.` };
+      return { fonte: 'locale', testo: localReply(message, ctx), avviso: `${e.message} Intanto risponde il laboratorio locale.`, dettaglio: e.detail || '' };
     } finally { if (prev) fs.rmSync(prev, { force: true }); }
   }
   return { fonte: 'locale', testo: localReply(message, ctx) };
@@ -172,6 +188,6 @@ export async function ideas({ idea, provider }) {
     if (!j?.ipotesi) throw new Error('formato inatteso');
     return { fonte: 'claude', ipotesi: j.ipotesi, domanda: j.domanda, dissenso: j.dissenso };
   } catch (e) {
-    return { fonte: 'locale', ipotesi: local, avviso: `${e.message} Intanto ti mostro le proposte locali.` };
+    return { fonte: 'locale', ipotesi: local, avviso: `${e.message} Intanto ti mostro le proposte locali.`, dettaglio: e.detail || '' };
   }
 }

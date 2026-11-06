@@ -1,6 +1,6 @@
 // Parti da zero: un'idea scritta, e proposte che nascono da quell'idea.
 // Ogni proposta dice perché nasce da ciò che hai scritto e ha un solo pulsante.
-import { h, clear, toast, spinner, stateBox } from '../ui.js';
+import { h, clear, toast, spinner, stateBox, noticeBox } from '../ui.js';
 import { openHiggsfield } from '../dialogs.js';
 
 let idea = '';
@@ -53,7 +53,7 @@ export default {
           ? 'Proposte del laboratorio: legge le parole della tua idea e le collega a processi e archivi. In questa versione online Claude non c\'è; sul Mac puoi chiederle a lui.'
           : `Proposte del laboratorio: legge le parole della tua idea e le collega a processi e archivi.${claudeOk ? '' : ' Claude non è attivo su questo Mac.'}`;
       clear(list,
-        ideas.avviso ? h('div', { class: 'notice' }, ideas.avviso) : null,
+        ideas.avviso ? noticeBox(ideas.avviso, ideas.dettaglio) : null,
         ideas.dissenso ? h('div', { class: 'critic__msg critic__msg--dissent' }, h('div', { class: 'critic__text' }, ideas.dissenso)) : null,
         ideas.ipotesi.map((hy) => card(hy)),
         ideas.domanda ? h('p', { class: 'z-q' }, h('em', {}, ideas.domanda)) : null);

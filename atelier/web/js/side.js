@@ -1,5 +1,5 @@
 // Pannello laterale: scheda dell'immagine e interlocutore critico.
-import { h, clear, toast, fmtBytes, fmtDate, spinner } from './ui.js';
+import { h, clear, toast, fmtBytes, fmtDate, spinner, noticeBox } from './ui.js';
 import { openExport, openFinish } from './dialogs.js';
 
 const RIGHTS = ['libero', 'con attribuzione', 'da verificare', 'riservato', 'mio'];
@@ -164,8 +164,8 @@ async function renderCritic(body, foot, app) {
       const r = await app.api.discuss(text, { experimentId: exp?.id, assetId: asset?.id, provider });
       if (exp) { exp.conversation = exp.conversation.filter((m) => !(m.role === 'autore' && m.text === text && !m.id)); exp.conversation.push({ role: 'interlocutore', text: r.testo, fonte: r.fonte }); }
       else msgs.push({ role: 'interlocutore', text: r.testo, fonte: r.fonte });
-      if (r.avviso) toast(r.avviso);
       drawThread();
+      if (r.avviso) thread.append(noticeBox(r.avviso, r.dettaglio));
     } catch (e) { busy.replaceWith(h('div', { class: 'notice' }, e.message)); }
   }
   foot.hidden = false;
@@ -185,7 +185,7 @@ function analysisBlock(r, app, asset, exp) {
   const m = r.metrics || {};
   const cell = (label, v, meter) => h('div', {}, h('span', { class: 'label' }, label), h('span', { class: 'analysis__v' }, v), meter != null ? h('div', { class: 'bar-meter' }, h('i', { style: { width: `${Math.round(meter * 100)}%` } })) : null);
   return h('div', { class: 'critic__analysis' },
-    r.avviso ? h('div', { class: 'notice' }, r.avviso) : null,
+    r.avviso ? noticeBox(r.avviso, r.dettaglio) : null,
     h('div', { class: 'critic__who' }, h('span', { class: 'label' }, `Analisi · ${r.fonte === 'claude' ? 'Claude' : 'locale'}`)),
     m.palette ? h('div', { class: 'palette' }, m.palette.map((p) => h('span', { style: { background: p.hex, flex: p.share }, title: `${p.hex} · ${pct(p.share)}%` }))) : null,
     m.brightness != null ? h('div', { class: 'analysis' },

@@ -139,3 +139,8 @@ export function guide(n, title, steps, next) {
 }
 
 export const labelN = (n, text) => h('div', { class: 'label' }, h('span', { class: 'label__n' }, String(n)), text);
+
+// Avviso con, sotto, la riga originale dell'errore (piccola, in mono).
+export function noticeBox(text, detail) {
+  return h('div', { class: 'notice notice--raw' }, h('span', {}, text), detail ? h('code', { class: 'notice__raw' }, detail) : null);
+}
