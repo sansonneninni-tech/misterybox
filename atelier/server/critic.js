@@ -57,9 +57,29 @@ export function extractJson(text) {
   try { return JSON.parse(s.slice(start, end + 1)); } catch { return null; }
 }
 
+// Sempre: permessi di base (mai la modalità automatica dell'utente) e una lista
+// di strumenti vietati, oltre alla whitelist. Vale per ogni `claude -p` di ATELIER.
+export const ALWAYS_DENIED = ['Bash', 'Write', 'Edit', 'NotebookEdit', 'WebFetch', 'WebSearch',
+  'mcp__higgsfield__cancel_trial_auto_renewal', 'mcp__higgsfield__sandbox_exec',
+  'mcp__higgsfield__delete_folder', 'mcp__higgsfield__delete_project', 'mcp__higgsfield__remove_project_asset',
+  'mcp__higgsfield__deploy_website', 'mcp__higgsfield__publish_playable_game', 'mcp__higgsfield__publish_project',
+  'mcp__higgsfield__publish_website', 'mcp__higgsfield__unpublish_project', 'mcp__higgsfield__cancel_project_publication_review',
+  'mcp__higgsfield__ads_studio_cancel_run', 'mcp__higgsfield__tiktok_connect', 'mcp__higgsfield__tiktok_reconnect',
+  'mcp__higgsfield__tiktok_prepare_publish', 'mcp__higgsfield__generate_image_batch', 'mcp__higgsfield__generate_video',
+  'mcp__higgsfield__generate_video_batch', 'mcp__higgsfield__generate_audio', 'mcp__higgsfield__generate_audio_batch', 'mcp__higgsfield__generate_3d'];
+
+export function claudeArgs(prompt, { allowedTools = [], maxTurns = 0, system = '', model = '' } = {}) {
+  const args = ['-p', prompt, '--output-format', 'json', '--permission-mode', 'default',
+    '--allowedTools', allowedTools.join(','), '--disallowedTools', ALWAYS_DENIED.filter((t) => !allowedTools.includes(t)).join(',')];
+  if (maxTurns) args.push('--max-turns', String(maxTurns));
+  if (system) args.push('--append-system-prompt', system);
+  if (model) args.push('--model', model);
+  return args;
+}
+
 function runCli(prompt, timeout = 240_000) {
   return new Promise((resolve, reject) => {
-    const args = ['-p', prompt, '--output-format', 'json', '--allowedTools', 'Read', '--append-system-prompt', SYSTEM];
+    const args = claudeArgs(prompt, { allowedTools: ['Read'], system: SYSTEM });
     // stdin chiuso: altrimenti la CLI aspetta 3 secondi un input che non arriva.
     const c = spawn(CLAUDE_BIN, args, { cwd: DIRS.temp, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
@@ -81,9 +101,7 @@ function runCli(prompt, timeout = 240_000) {
 // Serve anche a Higgsfield in prova, che accetta solo richieste via MCP.
 export function claudeWithTools(prompt, { allowedTools = [], maxTurns = 4, timeout = 15 * 60_000, system = '', model = '' } = {}) {
   return new Promise((resolve, reject) => {
-    const args = ['-p', prompt, '--output-format', 'json', '--max-turns', String(maxTurns), '--allowedTools', allowedTools.join(',')];
-    if (system) args.push('--append-system-prompt', system);
-    if (model) args.push('--model', model);
+    const args = claudeArgs(prompt, { allowedTools, maxTurns, system, model });
     const c = spawn(CLAUDE_BIN, args, { cwd: DIRS.temp, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
     const t = setTimeout(() => { c.kill('SIGTERM'); reject(new ClaudeError('Claude non ha risposto in tempo.', '')); }, timeout);

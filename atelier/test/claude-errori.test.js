@@ -23,3 +23,16 @@ test('errori di Claude: solo l\'accesso vero diventa «non collegato»', () => {
   assert.equal(t('', 'Warning: no stdin data received in 3s\nError: boom').detail, 'Error: boom');
   assert.match(cliError('', '', 2).text, /codice 2/);
 });
+
+test('ogni claude -p: permessi di base e strumenti vietati', async () => {
+  const { claudeArgs } = await import('../server/critic.js');
+  const { TOOLS } = await import('../server/higgsfield-mcp.js');
+  for (const allowedTools of [['Read'], TOOLS.generate]) {
+    const a = claudeArgs('x', { allowedTools, maxTurns: 6 });
+    const val = (f) => a[a.indexOf(f) + 1];
+    assert.equal(val('--permission-mode'), 'default', 'mai la modalità automatica');
+    const denied = val('--disallowedTools').split(',');
+    for (const t of ['Bash', 'Write', 'Edit', 'mcp__higgsfield__cancel_trial_auto_renewal', 'mcp__higgsfield__sandbox_exec']) assert.ok(denied.includes(t), t);
+    assert.ok(!val('--allowedTools').split(',').some((t) => denied.includes(t)), 'niente in entrambe le liste');
+  }
+});
