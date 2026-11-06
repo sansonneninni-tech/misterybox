@@ -168,6 +168,7 @@ export async function higgsfieldRun(expId, { quoteId, approval }) {
   const q = hf.consumeQuote(quoteId, approval);
   const parents = q.req.parents || [];
   const made = [];
+  let spentReal = null;
   if (q.simulated) {
     // Simulazione: stesso flusso, nessuna chiamata, risultato prodotto in locale.
     const r = await runLocal(expId, { parents: parents.slice(0, 1), process: parents.length ? 'deriva' : 'rumore', params: parents.length ? { zoom: 1.6 } : {}, seed: Date.now() % 1e9 });
@@ -181,6 +182,7 @@ export async function higgsfieldRun(expId, { quoteId, approval }) {
     made.push(n.id);
   } else {
     const result = await hf.generate(q);
+    spentReal = result.spent ?? null;
     for (const f of result.files) {
       const asset = await saveVariantFile(f.file, {
         title: q.req.prompt.slice(0, 120),
@@ -189,14 +191,14 @@ export async function higgsfieldRun(expId, { quoteId, approval }) {
         rights: { status: 'da verificare', license: 'Termini di servizio Higgsfield', notes: 'Generata con Higgsfield: verifica i termini d\'uso commerciale del tuo piano.' },
       });
       fs.rmSync(f.file, { force: true });
-      const node = { id: newId('n'), parents, assetId: asset.id, op: { engine: 'higgsfield', model: q.req.model, modelName: q.modelName, prompt: q.req.prompt, aspect: q.req.aspect, credits: q.credits, label: q.modelName }, createdAt: now(), note: '' };
+      const node = { id: newId('n'), parents, assetId: asset.id, op: { engine: 'higgsfield', via: result.route, model: q.req.model, modelName: q.modelName, prompt: q.req.prompt, aspect: q.req.aspect, credits: result.spent ?? q.credits, creditsQuoted: q.credits, creditsMeasured: result.spent, label: result.route === 'claude' ? `${q.modelName} · via Claude` : q.modelName }, createdAt: now(), note: '' };
       e.nodes.push(node);
       made.push(node.id);
     }
     e.updatedAt = now();
     save();
   }
-  return { nodes: made, experiment: getExperiment(expId) };
+  return { nodes: made, spent: spentReal, experiment: getExperiment(expId) };
 }
 
 export function addMessage(expId, msg) {

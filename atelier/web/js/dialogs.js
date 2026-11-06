@@ -118,12 +118,12 @@ export async function openHiggsfield(app, { expId, parents = [], prompt = '', so
     try {
       const q = await app.api.hfQuote(expId, { parents, model, prompt: p, aspect: aspectEl.value });
       d.close();
-      openCost(app, { expId, q, sources });
+      openCost(app, { expId, q, sources, parents, prompt: promptEl.value.trim() });
     } catch (e) { clear(out, noticeBox(e.message, e.detail)); out.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); btn.disabled = false; }
   }
 }
 
-function openCost(app, { expId, q, sources }) {
+function openCost(app, { expId, q, sources, parents = [], prompt = '' }) {
   const after = q.balance != null ? q.balance - q.credits : null;
   const enough = after == null || after >= 0;
   const d = dialog({
@@ -131,14 +131,16 @@ function openCost(app, { expId, q, sources }) {
     body: [
       q.simulated ? h('div', { class: 'notice' }, 'MODALITÀ SIMULATA: nessuna chiamata reale, nessun credito speso. Il flusso di consenso è identico a quello vero.') : null,
       h('div', { class: 'cost' },
-        h('div', {}, h('span', { class: 'label' }, 'Costo'), h('span', { class: 'hero-num' }, String(q.credits)), h('span', { class: 'meta' }, q.simulated ? 'crediti (simulati)' : 'crediti Higgsfield · letti dalla CLI')),
+        h('div', {}, h('span', { class: 'label' }, q.route === 'claude' ? 'Costo stimato' : 'Costo'), h('span', { class: 'hero-num' }, String(q.credits)), h('span', { class: 'meta' }, q.simulated ? 'crediti (simulati)' : q.route === 'claude' ? 'crediti Higgsfield · stima della CLI' : 'crediti Higgsfield · letti dalla CLI')),
         h('div', { class: 'cost__lines' },
           h('span', { class: 'muted' }, 'Modello'), h('span', {}, q.modelName),
+          q.route === 'claude' ? [h('span', { class: 'muted' }, 'Via'), h('span', {}, 'Claude (prova Higgsfield, MCP)')] : null,
           h('span', { class: 'muted' }, 'Sorgenti'), h('span', {}, sources.length ? sources.map((s) => code(s.title)).join(' × ') : 'nessuna'),
           h('span', { class: 'muted' }, 'Formato'), h('span', {}, q.aspect && q.aspect !== 'auto' ? q.aspect : 'automatico'),
           h('span', { class: 'muted cost__total' }, 'Saldo attuale'), h('span', { class: 'cost__total' }, q.balance != null ? `${q.balance} cr` : 'non letto'),
           h('span', { class: 'muted' }, 'Saldo dopo'), h('span', { style: { color: enough ? 'var(--salt)' : 'var(--mark)' } }, after != null ? `${after} cr` : '—'))),
       h('div', { class: 'meta prompt-box' }, q.prompt),
+      q.route === 'claude' ? h('div', { class: 'notice' }, 'Piano in prova: la generazione passa da Claude, che usa l\'MCP di Higgsfield con un solo strumento di generazione e una sola chiamata. Il costo qui è stimato; il costo reale si vede solo dopo, confrontando il saldo prima e dopo, e resta scritto nella cronologia. In più c\'è il costo di Claude sul tuo account: con la fatturazione API di solito pochi centesimi per generazione, perché uso il modello più piccolo (è una stima).') : null,
       h('div', { class: 'notice' }, 'Niente parte finché non tieni premuto il pulsante. Il preventivo vale 10 minuti e solo per questi parametri.'),
     ],
     foot: [
@@ -154,11 +156,14 @@ function openCost(app, { expId, q, sources }) {
       const r = await app.api.hfRun(expId, q.quoteId, { approved: true, credits: q.credits });
       d.close();
       app.state.lab.expId = expId; app.state.lab.current = r.nodes[0];
-      toast(`${r.nodes.length} ${r.nodes.length === 1 ? 'variante pronta' : 'varianti pronte'}${q.simulated ? ' (simulata)' : ''}.`, { label: 'Apri nel laboratorio', run: () => app.go('laboratorio') });
+      toast(`${r.nodes.length} ${r.nodes.length === 1 ? 'variante pronta' : 'varianti pronte'}${q.simulated ? ' (simulata)' : ''}.${r.spent != null ? ` Costo reale: ${r.spent} crediti (stimati ${q.credits}).` : ''}`, { label: 'Apri nel laboratorio', run: () => app.go('laboratorio') });
       app.refreshStatus();
       if (app.state.view === 'laboratorio' || app.state.view === 'tela') app.render();
     } catch (e) {
       clear(d.el.querySelector('.dialog__body'), noticeBox(e.message, e.detail));
+      // Piano in prova: la CLI ha rifiutato senza spendere; si rifà il preventivo, che passerà da Claude.
+      if (/only_mcp_usage_on_trial/.test(e.detail || '')) clear(d.el.querySelector('.dialog__foot'), h('button', { class: 'btn btn--quiet', onclick: () => d.close() }, 'Chiudi'), h('span', { class: 'spacer' }),
+        h('button', { class: 'btn btn--paid', onclick: () => { d.close(); openHiggsfield(app, { expId, parents, prompt, sources }); } }, 'Nuovo preventivo via Claude', h('span', { class: 'btn__cost' }, 'gratis')));
     }
   }
 }

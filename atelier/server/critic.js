@@ -50,7 +50,7 @@ async function previewJpeg(file) {
   return out;
 }
 
-function extractJson(text) {
+export function extractJson(text) {
   const s = String(text);
   const start = s.indexOf('{'), end = s.lastIndexOf('}');
   if (start < 0 || end < start) return null;
@@ -77,9 +77,32 @@ function runCli(prompt, timeout = 240_000) {
   });
 }
 
+// Claude con un elenco preciso di strumenti consentiti (e nient'altro).
+// Serve anche a Higgsfield in prova, che accetta solo richieste via MCP.
+export function claudeWithTools(prompt, { allowedTools = [], maxTurns = 4, timeout = 15 * 60_000, system = '', model = '' } = {}) {
+  return new Promise((resolve, reject) => {
+    const args = ['-p', prompt, '--output-format', 'json', '--max-turns', String(maxTurns), '--allowedTools', allowedTools.join(',')];
+    if (system) args.push('--append-system-prompt', system);
+    if (model) args.push('--model', model);
+    const c = spawn(CLAUDE_BIN, args, { cwd: DIRS.temp, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = '', err = '';
+    const t = setTimeout(() => { c.kill('SIGTERM'); reject(new ClaudeError('Claude non ha risposto in tempo.', '')); }, timeout);
+    c.stdout.on('data', (d) => (out += d));
+    c.stderr.on('data', (d) => (err += d));
+    c.on('error', (e) => { clearTimeout(t); reject(new ClaudeError('Claude non è installato su questo Mac.', e.message)); });
+    c.on('close', (code) => {
+      clearTimeout(t);
+      let j = null;
+      try { j = JSON.parse(out); } catch { /* non JSON */ }
+      if (code !== 0 || j?.is_error) { const e = cliError(j?.result ?? (j ? '' : out), err, code); return reject(new ClaudeError(e.text, e.detail)); }
+      resolve(String(j ? (j.result ?? '') : out));
+    });
+  });
+}
+
 // Errore di Claude: una frase in italiano più la prima riga originale,
 // che l'app mostra sempre sotto, così si capisce cosa è successo davvero.
-class ClaudeError extends Error {
+export class ClaudeError extends Error {
   constructor(text, detail) { super(text); this.detail = detail || ''; }
 }
 

@@ -12,6 +12,8 @@ import path from 'node:path';
 import { DIRS } from './store.js';
 import { UA } from './library.js';
 
+import * as viaMcp from './higgsfield-mcp.js';
+
 const BIN = process.env.HIGGSFIELD_BIN || 'higgsfield';
 const QUOTE_TTL = 10 * 60 * 1000;
 const quotes = new Map();
@@ -85,11 +87,13 @@ export function hfError(err) {
   const type = j?.error_type || j?.error?.type || j?.code || '';
   const said = j ? [type, j.message || j.error?.message || (typeof j.error === 'string' ? j.error : '')].filter(Boolean).join(': ') : '';
   const detail = (said || raw.split('\n').map((l) => l.trim()).filter(Boolean).slice(-3).join(' ')).slice(0, 300);
-  return new HfError(explain(`${type} ${raw}`), detail);
+  const e = new HfError(explain(`${type} ${raw}`), detail);
+  e.trial = /only_mcp_usage_on_trial/i.test(`${type} ${raw}`);
+  return e;
 }
 
 function explain(e) {
-  if (/only_mcp_usage_on_trial/i.test(e)) return 'Il tuo piano Higgsfield è in prova: durante la prova Higgsfield non accetta richieste da ATELIER. Attiva il piano su higgsfield.ai e riprova. Nessun credito è stato usato.';
+  if (/only_mcp_usage_on_trial/i.test(e)) return 'Il tuo piano Higgsfield è in prova: durante la prova la CLI di Higgsfield non genera, accetta solo il collegamento MCP. Nessun credito è stato usato. Chiedi un nuovo preventivo: passerà da Claude, che ha l\'MCP di Higgsfield collegato.';
   if (/not authenticated|session expired|unauthori[sz]ed|please log ?in|auth login/i.test(e)) return 'Higgsfield non è collegato. Nel Terminale esegui: higgsfield auth login';
   if (/no workspace/i.test(e)) return 'Nessuno spazio di lavoro Higgsfield selezionato. Nel Terminale: higgsfield workspace list, poi higgsfield workspace set <id>';
   if (/insufficient|not enough credits|balance/i.test(e)) return 'Crediti Higgsfield insufficienti per questa generazione.';
@@ -146,10 +150,17 @@ export async function quote(req) {
     throw new Error('Non riesco a leggere il costo dalla CLI Higgsfield: per sicurezza la generazione resta bloccata.');
   }
   const st = isSimulated() ? { credits: 100 } : await status().catch(() => ({}));
+  // In prova la generazione passa da Claude (MCP): lo dico prima, nel preventivo.
+  const route = !isSimulated() && viaMcp.trialMode() ? 'claude' : 'cli';
+  // Nessuna chiamata a Claude qui: il preventivo resta gratuito.
+  if (route === 'claude') {
+    if (req.refs?.length) throw new HfError('Con il piano Higgsfield in prova, per ora ATELIER genera via Claude solo da testo: togli le foto di partenza, oppure attiva il piano.', 'only_mcp_usage_on_trial_is_available');
+    if (!viaMcp.MCP_MODEL[req.model]) throw new HfError(`«${model.name}» non è disponibile via MCP durante la prova: scegli Nano Banana 2, GPT Image, Seedream 5.0 Pro o FLUX.2.`, req.model);
+  }
   const id = crypto.randomUUID();
-  const q = { id, req, hash: hashReq(req), credits, balance: st.credits ?? null, createdAt: Date.now(), used: false, simulated: isSimulated(), modelName: model.name };
+  const q = { id, req, hash: hashReq(req), credits, balance: st.credits ?? null, createdAt: Date.now(), used: false, simulated: isSimulated(), modelName: model.name, route };
   quotes.set(id, q);
-  return { quoteId: id, credits, balance: q.balance, model: model.id, modelName: model.name, prompt: req.prompt, aspect: req.aspect, refs: (req.refs || []).length, simulated: q.simulated, expiresAt: q.createdAt + QUOTE_TTL, raw };
+  return { quoteId: id, credits, balance: q.balance, model: model.id, modelName: model.name, prompt: req.prompt, aspect: req.aspect, refs: (req.refs || []).length, simulated: q.simulated, route, expiresAt: q.createdAt + QUOTE_TTL, raw };
 }
 
 // Verifica l'approvazione: lancia un errore se qualcosa non torna.
@@ -173,11 +184,22 @@ function findUrls(obj, acc = []) {
 
 // Esecuzione reale: chiamata solo dopo consumeQuote().
 export async function generate(q) {
-  const r = await run(['generate', 'create', ...buildArgs(q.req), '--wait', '--wait-timeout', '15m', '--json'], { timeout: 16 * 60_000 });
-  if (r.code !== 0) throw hfError(r.err || r.out);
-  const j = parseJson(r.out);
-  let urls = [...new Set(findUrls(j ?? r.out))];
-  if (!urls.length) urls = [...new Set((r.out.match(/https?:\/\/\S+/g) || []).filter((u) => /\.(png|jpe?g|webp)/i.test(u)))];
+  let urls, j = null, spent = null;
+  if (q.route === 'claude') {
+    const r = await viaMcp.generateViaClaude(q, async () => (await status()).credits ?? null);
+    urls = r.urls; spent = r.spent; j = r;
+  } else {
+    const r = await run(['generate', 'create', ...buildArgs(q.req), '--wait', '--wait-timeout', '15m', '--json'], { timeout: 16 * 60_000 });
+    if (r.code !== 0) {
+      const e = hfError(r.err || r.out);
+      // La CLI ha rifiutato prima di generare: dal prossimo preventivo si passa da Claude.
+      if (e.trial) viaMcp.setTrialMode(true);
+      throw e;
+    }
+    j = parseJson(r.out);
+    urls = [...new Set(findUrls(j ?? r.out))];
+    if (!urls.length) urls = [...new Set((r.out.match(/https?:\/\/\S+/g) || []).filter((u) => /\.(png|jpe?g|webp)/i.test(u)))];
+  }
   if (!urls.length) throw new Error('La generazione è terminata ma non trovo il file del risultato.');
   const files = [];
   for (const u of urls.slice(0, 4)) {
@@ -188,5 +210,5 @@ export async function generate(q) {
     files.push({ file: f, url: u });
   }
   if (!files.length) throw new Error('Non riesco a scaricare il risultato della generazione.');
-  return { files, raw: j };
+  return { files, raw: j, spent, route: q.route || 'cli' };
 }

@@ -104,7 +104,7 @@ async function renderCritic(body, foot, app) {
   const head = h('div', { class: 'critic__bar' },
     h('div', { class: 'seg' }, [['locale', 'Locale'], ['claude', 'Claude']].map(([id, name]) =>
       h('button', { class: 'seg__opt', 'aria-pressed': String(provider === id), onclick: () => { app.state.provider = id; app.persist(); app.renderSide(); app.renderChrome(); } }, name))),
-    h('span', { class: 'meta' }, provider === 'claude' ? (claudeOk ? `via ${app.status.critic.claude.via === 'api' ? 'API' : 'Claude Code'}` : 'non disponibile qui') : 'offline, misurabile'));
+    h('span', { class: 'meta' }, provider === 'claude' ? (claudeOk ? `via ${app.status.critic.claude.via === 'api' ? 'API' : 'Claude Code'} · ogni richiesta usa il tuo account Claude (con la fatturazione API fino a circa mezzo dollaro)` : 'non disponibile qui') : 'offline, misurabile'));
 
   const ctx = h('div', { class: 'critic__ctx' });
   const thread = h('div', { class: 'critic__thread' });

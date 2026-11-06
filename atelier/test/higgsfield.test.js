@@ -26,3 +26,15 @@ test('errori della CLI Higgsfield: error_type in italiano, riga originale sotto'
   // «login» da solo, dentro un altro errore, non vuol dire sessione chiusa.
   assert.doesNotMatch(hf.hfError('model not available for this workspace (see login page docs)').message, /auth login/);
 });
+
+test('via Claude (prova): whitelist esatta, niente strumenti pericolosi', async () => {
+  const m = await import('../server/higgsfield-mcp.js');
+  assert.deepEqual(m.TOOLS.generate, ['ToolSearch', 'mcp__higgsfield__generate_image', 'mcp__higgsfield__jobs_wait']);
+  for (const t of m.TOOLS.generate) {
+    assert.ok(!t.endsWith('__') && !t.includes('*'), 'mai un prefisso intero');
+    assert.doesNotMatch(t, /cancel|delete|publish|deploy|sandbox|tiktok|batch/);
+  }
+  // Ogni modello della CLI o ha un id MCP o viene rifiutato prima di chiamare Claude.
+  await assert.rejects(m.generateViaClaude({ req: { model: 'soul_cinematic', prompt: 'x' } }), /non è disponibile via MCP/);
+  await assert.rejects(m.generateViaClaude({ req: { model: 'gpt_image_2_5', prompt: 'x', refs: ['/a.jpg'] } }), /solo da testo/);
+});

@@ -27,7 +27,7 @@ export default {
           h('div', { class: 's-label' }, 'La tua idea'),
           ta,
           h('div', { class: 'z-who' }, src,
-            claudeOk ? h('button', { class: 'btn', onclick: () => propose('claude') }, 'Chiedi a Claude') : null),
+            claudeOk ? h('button', { class: 'btn', title: 'Usa il tuo account Claude: con la fatturazione API ogni richiesta può costare fino a circa mezzo dollaro.', onclick: () => propose('claude') }, 'Chiedi a Claude', h('span', { class: 'z-cost' }, 'usa il tuo account Claude')) : null),
           list),
         h('div', { class: 'stage', 'data-ground': 'void' }, stage))));
     app.currentImage = () => out?.asset.url;
