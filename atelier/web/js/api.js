@@ -56,6 +56,7 @@ export const serverApi = {
   },
 
   hfModels: () => call('GET', '/api/higgsfield/models'),
+  hfRoute: (route) => call('POST', '/api/higgsfield/route', { route }),
   hfQuote: (id, req) => call('POST', `/api/experiments/${id}/higgsfield/quote`, req),
   hfRun: (id, quoteId, approval) => call('POST', `/api/experiments/${id}/higgsfield/run`, { quoteId, approval }),
 

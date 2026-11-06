@@ -82,7 +82,9 @@ app.get('/api/status', wrap(async (req) => {
   };
 }));
 app.get('/api/processes', wrap(() => ({ categories: CATEGORIES, processes: describeProcesses() })));
-app.get('/api/higgsfield/models', wrap(() => ({ models: hf.IMAGE_MODELS, aspects: hf.ASPECTS, simulated: hf.isSimulated() })));
+app.get('/api/higgsfield/models', wrap(() => ({ models: hf.IMAGE_MODELS, aspects: hf.ASPECTS, simulated: hf.isSimulated(), ...hf.currentRoute(), mcpModels: Object.keys(hf.MCP_MODEL) })));
+// Strada della generazione (Avanzato): auto, claude o cli. Non spende nulla.
+app.post('/api/higgsfield/route', wrap((req) => hf.setRoutePref(String(req.body.route || ''))));
 app.get('/api/export/formats', wrap(() => FORMATS));
 
 function lanUrls() {

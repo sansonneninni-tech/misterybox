@@ -142,5 +142,7 @@ export const labelN = (n, text) => h('div', { class: 'label' }, h('span', { clas
 
 // Avviso con, sotto, la riga originale dell'errore (piccola, in mono).
 export function noticeBox(text, detail) {
-  return h('div', { class: 'notice notice--raw' }, h('span', {}, text), detail ? h('code', { class: 'notice__raw' }, detail) : null);
+  // Il messaggio è sempre in italiano; la riga originale resta in Avanzato, chiusa.
+  return h('div', { class: 'notice notice--raw' }, h('span', {}, text),
+    detail ? h('details', { class: 'notice__adv' }, h('summary', {}, 'Avanzato'), h('code', { class: 'notice__raw' }, detail)) : null);
 }

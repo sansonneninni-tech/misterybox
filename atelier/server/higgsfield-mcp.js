@@ -10,6 +10,7 @@
 // - il costo reale in crediti si misura con il saldo della CLI prima e dopo (gratis).
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { claudeWithTools, extractJson, ClaudeError } from './critic.js';
 import { DIRS } from './store.js';
 
@@ -33,12 +34,64 @@ export const MCP_MODEL = {
 };
 
 const STATE = () => path.join(DIRS.temp, '..', 'higgsfield.json');
-export function trialMode() {
-  try { return JSON.parse(fs.readFileSync(STATE(), 'utf8')).trial === true; } catch { return false; }
+function readState() { try { return JSON.parse(fs.readFileSync(STATE(), 'utf8')) || {}; } catch { return {}; } }
+function writeState(patch) { fs.writeFileSync(STATE(), JSON.stringify({ ...readState(), ...patch, at: new Date().toISOString() })); }
+export function trialMode() { return readState().trial === true; }
+export function setTrialMode(on) { writeState({ trial: !!on }); }
+
+// Strada scelta dall'autore in Avanzato: 'auto' (predefinita), 'claude' o 'cli'.
+export const ROUTES = ['auto', 'claude', 'cli'];
+export function routePref() { const r = readState().route; return ROUTES.includes(r) ? r : 'auto'; }
+export function setRoutePref(r) { if (!ROUTES.includes(r)) throw new Error('Strada non valida.'); writeState({ route: r }); }
+
+// L'MCP higgsfield è configurato in Claude Code? Lo leggo da ~/.claude.json
+// (nessuna chiamata a Claude: gratis). Cerco server con "higgsfield" nel nome o nell'URL.
+export function mcpConfigured(home = os.homedir()) {
+  const files = [process.env.CLAUDE_CONFIG_DIR && path.join(process.env.CLAUDE_CONFIG_DIR, '.claude.json'), path.join(home, '.claude.json')].filter(Boolean);
+  const has = (servers) => servers && typeof servers === 'object' && Object.entries(servers).some(([k, v]) => /higgsfield/i.test(k) || /higgsfield/i.test(String(v?.url || '')));
+  for (const f of files) {
+    try {
+      const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+      if (has(j.mcpServers)) return true;
+      if (Object.values(j.projects || {}).some((p) => has(p?.mcpServers))) return true;
+    } catch {}
+  }
+  return false;
 }
-export function setTrialMode(on) {
-  fs.writeFileSync(STATE(), JSON.stringify({ trial: !!on, at: new Date().toISOString() }));
+
+// Il saldo della CLI dice se il piano è in prova? true, false, o null se non si capisce.
+export function trialFromAccount(j) {
+  let found = null;
+  const walk = (o, depth = 0) => {
+    if (!o || typeof o !== 'object' || depth > 5 || found != null) return;
+    for (const [k, v] of Object.entries(o)) {
+      if (/trial/i.test(k) && typeof v === 'boolean') { found = v; return; }
+      if (/^(status|plan|state|subscription|tier|plan_status|subscription_status)$/i.test(k) && typeof v === 'string' && /trial/i.test(v)) { found = true; return; }
+      if (typeof v === 'object') walk(v, depth + 1);
+    }
+  };
+  walk(j);
+  return found;
 }
+
+// Quale strada usa la prossima generazione, e perché (per mostrarlo nell'interfaccia).
+// Nessuna chiamata a pagamento: legge solo file locali e il saldo già letto dalla CLI.
+export function resolveRoute({ accountTrial = null, mcp = mcpConfigured() } = {}) {
+  const pref = routePref();
+  if (pref === 'cli') return { route: 'cli', pref, reason: 'Scelta in Avanzato: CLI di Higgsfield.' };
+  if (pref === 'claude') return { route: 'claude', pref, reason: 'Scelta in Avanzato: via Claude (MCP).' };
+  if (accountTrial === true) return { route: 'claude', pref, reason: 'Il piano Higgsfield è in prova: si genera via Claude (MCP).' };
+  // Un rifiuto fresco della CLI (ultimi 10 minuti) vale più del saldo: resta via Claude.
+  const st = readState();
+  const fresh = st.trial === true && Date.now() - Date.parse(st.at || 0) < 10 * 60_000;
+  if (accountTrial === false && !fresh) { if (st.trial) setTrialMode(false); return { route: 'cli', pref, reason: 'Piano Higgsfield attivo: si genera con la CLI.' }; }
+  if (trialMode()) return { route: 'claude', pref, reason: 'La CLI di Higgsfield ha già rifiutato per la prova: si genera via Claude (MCP).' };
+  if (mcp) return { route: 'claude', pref, reason: 'L\'MCP di Higgsfield è collegato a Claude: si genera via Claude.' };
+  return { route: 'cli', pref, reason: 'Si genera con la CLI di Higgsfield.' };
+}
+
+// Costo di Claude per una generazione via MCP (fatturazione API): stima prudente, in dollari.
+export const CLAUDE_COST_USD = 0.5;
 
 const SYSTEM = `Sei un esecutore per ATELIER. Fai solo ciò che è chiesto, con gli strumenti consentiti, una volta sola.
 Non cambiare mai modello, prompt, formato o numero di immagini. Se qualcosa non torna, fermati senza generare.

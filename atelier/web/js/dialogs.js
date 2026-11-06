@@ -86,27 +86,45 @@ export async function openHiggsfield(app, { expId, parents = [], prompt = '', so
     });
     return;
   }
-  let model = parents.length ? 'nano_banana_flash' : 'gpt_image_2_5';
+  const viaClaude = models.route === 'claude' && !models.simulated;
+  const okModel = (id) => !viaClaude || (models.mcpModels || []).includes(id);
+  // In prova, via Claude, le foto di partenza non si possono ancora mandare: si genera dal testo.
+  const textOnly = viaClaude && parents.length > 0;
+  let model = parents.length && !textOnly ? 'nano_banana_flash' : 'gpt_image_2_5';
+  if (!okModel(model)) model = models.models.find((m) => okModel(m.id))?.id || model;
   const promptEl = h('textarea', { class: 'field', rows: 4, placeholder: 'Descrivi la trasformazione in modo concreto: materia, spazio, luce, incongruenza. Evita aggettivi da catalogo.' }, prompt);
   const aspectEl = h('select', { class: 'field' }, models.aspects.map((a) => h('option', { value: a, selected: a === 'auto' }, a === 'auto' ? 'come la sorgente' : a)));
   const modelEl = h('div', { class: 'choice' }, models.models.map((m) =>
-    h('label', { class: 'choice__opt' }, h('input', { type: 'radio', name: 'hfm', value: m.id, checked: m.id === model, onchange: () => { model = m.id; } }),
-      h('span', {}, h('span', { style: { display: 'block', fontSize: '13px' } }, m.name), h('span', { class: 'muted', style: { fontSize: '12px' } }, m.note)),
+    h('label', { class: 'choice__opt' }, h('input', { type: 'radio', name: 'hfm', value: m.id, checked: m.id === model, disabled: !okModel(m.id), onchange: () => { model = m.id; } }),
+      h('span', {}, h('span', { style: { display: 'block', fontSize: '13px' } }, m.name), h('span', { class: 'muted', style: { fontSize: '12px' } }, okModel(m.id) ? m.note : 'Non disponibile via Claude durante la prova.')),
       h('span', { class: 'meta' }, m.refs ? `fino a ${m.refs} rif.` : 'solo testo'))));
   const antiCliche = h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: true }), h('span', {}, 'Aggiungi le istruzioni anti-cliché del laboratorio (niente estetica AI patinata)'));
   const out = h('div');
+  const ROUTE_LABEL = { auto: 'Automatica (consigliata)', claude: 'Via Claude (MCP)', cli: 'CLI di Higgsfield' };
+  const advanced = models.simulated ? null : h('details', { class: 'hf-adv' }, h('summary', {}, 'Avanzato'),
+    h('div', { class: 'label' }, 'Strada della generazione'),
+    h('div', { class: 'choice' }, Object.entries(ROUTE_LABEL).map(([v, label]) => h('label', { class: 'choice__opt' },
+      h('input', { type: 'radio', name: 'hfr', value: v, checked: (models.pref || 'auto') === v, onchange: async () => {
+        try { await app.api.hfRoute(v); d.close(); openHiggsfield(app, { expId, parents, prompt: promptEl.value, sources }); } catch (e) { toast(e.message); }
+      } }), h('span', {}, label)))),
+    h('div', { class: 'meta' }, models.reason || ''));
+  const routeNote = viaClaude ? h('div', { class: 'notice' }, h('span', {},
+    h('b', {}, 'Via Claude. '), (models.reason || 'Il piano Higgsfield è in prova.') + ' Oltre ai crediti Higgsfield c\'è il costo di Claude sulla tua fatturazione API, circa 0,50 $ a generazione.',
+    textOnly ? ' Le foto di partenza non vengono mandate: durante la prova, via Claude, si genera solo dal testo. Il risultato resta collegato a queste foto nella cronologia.' : '')) : null;
   const d = dialog({
     title: 'Generazione con Higgsfield · prima il preventivo',
     body: [
+      routeNote,
       sources.length ? h('div', { class: 'thumbs' }, sources.map((s) => h('img', { src: s.thumbUrl, alt: '', title: s.title }))) : h('div', { class: 'meta' }, 'Nessuna sorgente: parte dal testo.'),
       h('div', {}, h('div', { class: 'label' }, 'Prompt'), promptEl),
       antiCliche,
       h('div', { class: 'label' }, 'Modello'), modelEl,
       h('div', {}, h('div', { class: 'label' }, 'Formato'), aspectEl),
       h('div', { class: 'notice' }, h('span', { class: 'dot dot--mark', style: { marginTop: '4px' } }), h('span', {}, 'Chiedere il preventivo è gratuito. Niente viene speso senza il tuo consenso esplicito nella schermata successiva.')),
+      advanced,
       out,
     ],
-    foot: [h('button', { class: 'btn btn--quiet', onclick: () => d.close() }, 'Annulla'), h('span', { class: 'spacer' }), h('button', { class: 'btn btn--paid btn--lg', onclick: (e) => quote(e.currentTarget) }, 'Chiedi il preventivo', h('span', { class: 'btn__cost' }, 'gratis'))],
+    foot: [h('button', { class: 'btn btn--quiet', onclick: () => d.close() }, 'Annulla'), h('span', { class: 'spacer' }), h('button', { class: 'btn btn--paid btn--lg', onclick: (e) => quote(e.currentTarget) }, textOnly ? 'Chiedi il preventivo · solo testo' : 'Chiedi il preventivo', h('span', { class: 'btn__cost' }, 'gratis'))],
   });
 
   async function quote(btn) {
@@ -116,7 +134,7 @@ export async function openHiggsfield(app, { expId, parents = [], prompt = '', so
     btn.disabled = true;
     clear(out, spinner('Chiedo il costo a Higgsfield (gratis)…'));
     try {
-      const q = await app.api.hfQuote(expId, { parents, model, prompt: p, aspect: aspectEl.value });
+      const q = await app.api.hfQuote(expId, { parents, model, prompt: p, aspect: aspectEl.value, textOnly });
       d.close();
       openCost(app, { expId, q, sources, parents, prompt: promptEl.value.trim() });
     } catch (e) { clear(out, noticeBox(e.message, e.detail)); out.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); btn.disabled = false; }
@@ -134,13 +152,13 @@ function openCost(app, { expId, q, sources, parents = [], prompt = '' }) {
         h('div', {}, h('span', { class: 'label' }, q.route === 'claude' ? 'Costo stimato' : 'Costo'), h('span', { class: 'hero-num' }, String(q.credits)), h('span', { class: 'meta' }, q.simulated ? 'crediti (simulati)' : q.route === 'claude' ? 'crediti Higgsfield · stima della CLI' : 'crediti Higgsfield · letti dalla CLI')),
         h('div', { class: 'cost__lines' },
           h('span', { class: 'muted' }, 'Modello'), h('span', {}, q.modelName),
-          q.route === 'claude' ? [h('span', { class: 'muted' }, 'Via'), h('span', {}, 'Claude (prova Higgsfield, MCP)')] : null,
-          h('span', { class: 'muted' }, 'Sorgenti'), h('span', {}, sources.length ? sources.map((s) => code(s.title)).join(' × ') : 'nessuna'),
+          q.route === 'claude' ? [h('span', { class: 'muted' }, 'Via'), h('span', {}, 'Claude (prova Higgsfield, MCP)'), h('span', { class: 'muted' }, 'Costo Claude'), h('span', { style: { color: 'var(--mark)' } }, `circa ${(q.claudeUsd || 0.5).toFixed(2).replace('.', ',')} $ · fatturazione API`)] : null,
+          h('span', { class: 'muted' }, 'Sorgenti'), h('span', {}, q.textOnly ? 'nessuna (solo testo)' : sources.length ? sources.map((s) => code(s.title)).join(' × ') : 'nessuna'),
           h('span', { class: 'muted' }, 'Formato'), h('span', {}, q.aspect && q.aspect !== 'auto' ? q.aspect : 'automatico'),
           h('span', { class: 'muted cost__total' }, 'Saldo attuale'), h('span', { class: 'cost__total' }, q.balance != null ? `${q.balance} cr` : 'non letto'),
           h('span', { class: 'muted' }, 'Saldo dopo'), h('span', { style: { color: enough ? 'var(--salt)' : 'var(--mark)' } }, after != null ? `${after} cr` : '—'))),
       h('div', { class: 'meta prompt-box' }, q.prompt),
-      q.route === 'claude' ? h('div', { class: 'notice' }, 'Piano in prova: la generazione passa da Claude, che usa l\'MCP di Higgsfield con un solo strumento di generazione e una sola chiamata. Il costo qui è stimato; il costo reale si vede solo dopo, confrontando il saldo prima e dopo, e resta scritto nella cronologia. In più c\'è il costo di Claude sul tuo account: con la fatturazione API di solito pochi centesimi per generazione, perché uso il modello più piccolo (è una stima).') : null,
+      q.route === 'claude' ? h('div', { class: 'notice' }, 'Piano in prova: la generazione passa da Claude, che usa l\'MCP di Higgsfield con un solo strumento di generazione e una sola chiamata. Il costo qui è stimato; il costo reale si vede solo dopo, confrontando il saldo prima e dopo, e resta scritto nella cronologia. In più c\'è il costo di Claude, separato dai crediti: con la fatturazione API circa 0,50 $ per generazione (una sola chiamata, modello piccolo; è una stima).') : null,
       h('div', { class: 'notice' }, 'Niente parte finché non tieni premuto il pulsante. Il preventivo vale 10 minuti e solo per questi parametri.'),
     ],
     foot: [

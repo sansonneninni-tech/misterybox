@@ -82,8 +82,10 @@ export class HfError extends Error {
 }
 
 export function hfError(err) {
-  const raw = String(err || '').trim();
-  const j = raw ? parseJson(raw) : null;
+  // La CLI scrive spesso «Error: {"error_type": …}»: tolgo il prefisso e cerco l'oggetto con error_type.
+  const raw = String(err || '').split('\n').map((l) => l.replace(/^\s*(error|errore)\s*:\s*/i, '').trim()).filter(Boolean).join('\n');
+  const typed = raw.match(/\{[^{}]*"error_type"[^{}]*\}/);
+  const j = (typed && parseJson(typed[0])) || (raw ? parseJson(raw) : null);
   const type = j?.error_type || j?.error?.type || j?.code || '';
   const said = j ? [type, j.message || j.error?.message || (typeof j.error === 'string' ? j.error : '')].filter(Boolean).join(': ') : '';
   const detail = (said || raw.split('\n').map((l) => l.trim()).filter(Boolean).slice(-3).join(' ')).slice(0, 300);
@@ -100,6 +102,15 @@ function explain(e) {
   return 'Higgsfield ha risposto con un errore.';
 }
 
+export const MCP_MODEL = viaMcp.MCP_MODEL;
+let lastAccountTrial = null;
+// Strada attuale senza rileggere la CLI (usa l'ultimo saldo letto).
+export function currentRoute() {
+  if (isSimulated()) return { route: 'cli', pref: 'auto', reason: 'Modalità simulata.' };
+  return viaMcp.resolveRoute({ accountTrial: lastAccountTrial });
+}
+export const setRoutePref = (r) => { viaMcp.setRoutePref(r); return currentRoute(); };
+
 export async function status() {
   if (isSimulated()) return { available: true, simulated: true, message: 'Modalità simulata: nessuna chiamata reale, nessun credito consumato.' };
   const v = await run(['version'], { timeout: 15_000 });
@@ -107,8 +118,10 @@ export async function status() {
   const s = await run(['account', 'status', '--json'], { timeout: 20_000 });
   if (s.code !== 0) { const e = hfError(s.err || s.out); return { available: false, installed: true, message: e.message, detail: e.detail }; }
   const j = parseJson(s.out) || {};
+  lastAccountTrial = viaMcp.trialFromAccount(j);
+  const r = viaMcp.resolveRoute({ accountTrial: lastAccountTrial });
   return {
-    available: true, installed: true,
+    available: true, installed: true, route: r.route, routePref: r.pref, routeReason: r.reason, trial: lastAccountTrial,
     credits: findNumber(j, [/credit/i, /balance/i]),
     plan: j.plan || j.subscription?.plan || j.subscription || '',
     email: j.email || '',
@@ -131,6 +144,15 @@ export async function quote(req) {
   const model = IMAGE_MODELS.find((m) => m.id === req.model) || { id: req.model, name: req.model, refs: 8 };
   if (!req.prompt || !req.prompt.trim()) throw new Error('Serve un prompt (o un\'ipotesi) per la generazione.');
   if (model.refs === 0 && req.refs?.length) req = { ...req, refs: [] };
+  // In prova la generazione passa da Claude (MCP): lo decido qui, prima di ogni spesa,
+  // così la CLI non deve fallire una volta per scoprirlo. Nessuna chiamata a Claude: il preventivo resta gratuito.
+  const st = isSimulated() ? { credits: 100 } : await status().catch(() => ({}));
+  const route = isSimulated() ? 'cli' : (st.route || currentRoute().route);
+  if (route === 'claude') {
+    if (req.refs?.length && req.textOnly) req = { ...req, refs: [] };
+    if (req.refs?.length) throw new HfError('Con il piano Higgsfield in prova, per ora ATELIER genera via Claude solo da testo: scegli «solo dal testo», oppure attiva il piano.', 'only_mcp_usage_on_trial_is_available');
+    if (!viaMcp.MCP_MODEL[req.model]) throw new HfError(`«${model.name}» non è disponibile via MCP durante la prova: scegli Nano Banana 2, GPT Image, Seedream 5.0 Pro o FLUX.2.`, req.model);
+  }
   let credits = null, raw = null;
   if (isSimulated()) {
     credits = 2 + (req.refs?.length || 0);
@@ -149,18 +171,10 @@ export async function quote(req) {
   if (credits == null || !Number.isFinite(credits)) {
     throw new Error('Non riesco a leggere il costo dalla CLI Higgsfield: per sicurezza la generazione resta bloccata.');
   }
-  const st = isSimulated() ? { credits: 100 } : await status().catch(() => ({}));
-  // In prova la generazione passa da Claude (MCP): lo dico prima, nel preventivo.
-  const route = !isSimulated() && viaMcp.trialMode() ? 'claude' : 'cli';
-  // Nessuna chiamata a Claude qui: il preventivo resta gratuito.
-  if (route === 'claude') {
-    if (req.refs?.length) throw new HfError('Con il piano Higgsfield in prova, per ora ATELIER genera via Claude solo da testo: togli le foto di partenza, oppure attiva il piano.', 'only_mcp_usage_on_trial_is_available');
-    if (!viaMcp.MCP_MODEL[req.model]) throw new HfError(`«${model.name}» non è disponibile via MCP durante la prova: scegli Nano Banana 2, GPT Image, Seedream 5.0 Pro o FLUX.2.`, req.model);
-  }
   const id = crypto.randomUUID();
   const q = { id, req, hash: hashReq(req), credits, balance: st.credits ?? null, createdAt: Date.now(), used: false, simulated: isSimulated(), modelName: model.name, route };
   quotes.set(id, q);
-  return { quoteId: id, credits, balance: q.balance, model: model.id, modelName: model.name, prompt: req.prompt, aspect: req.aspect, refs: (req.refs || []).length, simulated: q.simulated, route, expiresAt: q.createdAt + QUOTE_TTL, raw };
+  return { quoteId: id, credits, balance: q.balance, model: model.id, modelName: model.name, prompt: req.prompt, aspect: req.aspect, refs: (req.refs || []).length, simulated: q.simulated, route, routeReason: st.routeReason || '', claudeUsd: route === 'claude' ? viaMcp.CLAUDE_COST_USD : 0, textOnly: !!(req.textOnly && route === 'claude'), expiresAt: q.createdAt + QUOTE_TTL, raw };
 }
 
 // Verifica l'approvazione: lancia un errore se qualcosa non torna.
@@ -193,7 +207,7 @@ export async function generate(q) {
     if (r.code !== 0) {
       const e = hfError(r.err || r.out);
       // La CLI ha rifiutato prima di generare: dal prossimo preventivo si passa da Claude.
-      if (e.trial) viaMcp.setTrialMode(true);
+      if (e.trial) { viaMcp.setTrialMode(true); if (viaMcp.routePref() === 'cli') viaMcp.setRoutePref('auto'); }
       throw e;
     }
     j = parseJson(r.out);

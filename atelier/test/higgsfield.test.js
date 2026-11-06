@@ -38,3 +38,34 @@ test('via Claude (prova): whitelist esatta, niente strumenti pericolosi', async 
   await assert.rejects(m.generateViaClaude({ req: { model: 'soul_cinematic', prompt: 'x' } }), /non è disponibile via MCP/);
   await assert.rejects(m.generateViaClaude({ req: { model: 'gpt_image_2_5', prompt: 'x', refs: ['/a.jpg'] } }), /solo da testo/);
 });
+
+test('errore della CLI con righe in più: resta in italiano, riga tecnica a parte', () => {
+  const e = hf.hfError('⠋ Generating [1/1]\nError: {"error_type":"only_mcp_usage_on_trial_is_available"}\n    at run (cli.js:12) {code: 1}');
+  assert.ok(e.trial);
+  assert.match(e.message, /in prova/);
+  assert.doesNotMatch(e.message, /error_type|Error:/);
+  assert.equal(e.detail, 'only_mcp_usage_on_trial_is_available');
+});
+
+test('strada: in prova si va via Claude già dal primo preventivo', async () => {
+  const os = await import('node:os'), fs = await import('node:fs'), path = await import('node:path');
+  const mcp = await import('../server/higgsfield-mcp.js');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'home-'));
+  assert.equal(mcp.mcpConfigured(home), false);
+  fs.writeFileSync(path.join(home, '.claude.json'), JSON.stringify({ mcpServers: { higgsfield: { type: 'http', url: 'https://mcp.higgsfield.ai/mcp' } } }));
+  assert.equal(mcp.mcpConfigured(home), true);
+  assert.equal(mcp.trialFromAccount({ plan: 'Plus', subscription: { status: 'trialing' } }), true);
+  assert.equal(mcp.trialFromAccount({ plan: 'Plus', is_trial: false }), false);
+  assert.equal(mcp.trialFromAccount({ credits: 100 }), null);
+  mcp.setRoutePref('auto');
+  assert.equal(mcp.resolveRoute({ accountTrial: null, mcp: true }).route, 'claude');
+  assert.equal(mcp.resolveRoute({ accountTrial: true, mcp: false }).route, 'claude');
+  assert.equal(mcp.resolveRoute({ accountTrial: null, mcp: false }).route, 'cli');
+  assert.equal(mcp.resolveRoute({ accountTrial: false, mcp: true }).route, 'cli');
+  mcp.setRoutePref('cli');
+  assert.equal(mcp.resolveRoute({ accountTrial: true, mcp: true }).route, 'cli');
+  mcp.setRoutePref('claude');
+  assert.equal(mcp.resolveRoute({ accountTrial: false, mcp: false }).route, 'claude');
+  mcp.setRoutePref('auto');
+  assert.throws(() => mcp.setRoutePref('qualsiasi'), /non valida/);
+});

@@ -154,11 +154,11 @@ export async function runLocal(expId, { parents = [], process: pid, params = {},
 }
 
 // Higgsfield: prima il preventivo (gratuito), poi l'esecuzione approvata.
-export async function higgsfieldQuote(expId, { parents = [], model, prompt, aspect }) {
+export async function higgsfieldQuote(expId, { parents = [], model, prompt, aspect, textOnly = false }) {
   const e = db().experiments[expId];
   if (!e) throw new Error('Esperimento non trovato.');
   const refs = parents.map((id) => e.nodes.find((n) => n.id === id)).filter(Boolean).map((n) => assetPath(rawAsset(n.assetId)));
-  const q = await hf.quote({ model, prompt, aspect, refs, expId, parents });
+  const q = await hf.quote({ model, prompt, aspect, refs, expId, parents, textOnly: !!textOnly });
   return q;
 }
 
@@ -191,7 +191,7 @@ export async function higgsfieldRun(expId, { quoteId, approval }) {
         rights: { status: 'da verificare', license: 'Termini di servizio Higgsfield', notes: 'Generata con Higgsfield: verifica i termini d\'uso commerciale del tuo piano.' },
       });
       fs.rmSync(f.file, { force: true });
-      const node = { id: newId('n'), parents, assetId: asset.id, op: { engine: 'higgsfield', via: result.route, model: q.req.model, modelName: q.modelName, prompt: q.req.prompt, aspect: q.req.aspect, credits: result.spent ?? q.credits, creditsQuoted: q.credits, creditsMeasured: result.spent, label: result.route === 'claude' ? `${q.modelName} · via Claude` : q.modelName }, createdAt: now(), note: '' };
+      const node = { id: newId('n'), parents, assetId: asset.id, op: { engine: 'higgsfield', via: result.route, model: q.req.model, modelName: q.modelName, prompt: q.req.prompt, aspect: q.req.aspect, credits: result.spent ?? q.credits, creditsQuoted: q.credits, creditsMeasured: result.spent, ...(q.req.textOnly && parents.length ? { textOnly: true } : {}), label: result.route === 'claude' ? `${q.modelName} · via Claude` : q.modelName }, createdAt: now(), note: '' };
       e.nodes.push(node);
       made.push(node.id);
     }
