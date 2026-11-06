@@ -196,12 +196,62 @@ function findUrls(obj, acc = []) {
   return acc;
 }
 
+// Attesa e recupero di un job con la CLI: comandi di sola lettura, gratuiti.
+async function waitJob(id) {
+  if (!/^[\w-]{4,80}$/.test(id)) return [];
+  const r = await run(['generate', 'wait', id, '--quiet', '--timeout', '12m', '--json'], { timeout: 13 * 60_000 });
+  const g = r.code === 0 ? r : await run(['generate', 'get', id, '--json'], { timeout: 30_000 });
+  if (g.code !== 0) { console.log(`[higgsfield] attesa job ${id} non riuscita: ${(g.err || g.out).slice(0, 300)}`); return []; }
+  return [...new Set(findUrls(parseJson(g.out) ?? g.out))];
+}
+
+// L'ultimo job d'immagine con questo prompt, creato dopo `since`. Solo lettura, gratis.
+// Prendo un job solo se il prompt coincide: mai il risultato di un'altra generazione.
+export function pickRecentJob(list, prompt, since) {
+  const items = [];
+  const walk = (o) => { if (Array.isArray(o)) o.forEach(walk); else if (o && typeof o === 'object') { if (typeof (o.prompt ?? o.params?.prompt ?? o.input?.prompt) === 'string') items.push(o); else Object.values(o).forEach(walk); } };
+  walk(list);
+  const norm = (t) => String(t || '').trim().replace(/\s+/g, ' ');
+  const time = (o) => Date.parse(o.created_at || o.createdAt || o.created || '') || null;
+  const hits = items.filter((o) => norm(o.prompt ?? o.params?.prompt ?? o.input?.prompt) === norm(prompt) && (time(o) == null || time(o) >= since - 120_000));
+  hits.sort((a, b) => (time(b) || 0) - (time(a) || 0));
+  const o = hits[0];
+  return o ? { id: String(o.id || o.job_id || ''), urls: [...new Set(findUrls(o))] } : null;
+}
+// Le ultime generazioni d'immagine su Higgsfield, per importarle senza rigenerare. Gratis.
+export async function recentImages(size = 24) {
+  if (isSimulated()) return { ok: true, items: [] };
+  const r = await run(['generate', 'list', '--image', '--size', String(size), '--json'], { timeout: 30_000 });
+  if (r.code !== 0) { const e = hfError(r.err || r.out); return { ok: false, message: 'Non riesco a leggere l\'elenco da Higgsfield: incolla l\'indirizzo dell\'immagine o scegli il file scaricato.', detail: e.detail }; }
+  const items = [];
+  const walk = (o) => {
+    if (Array.isArray(o)) return o.forEach(walk);
+    if (!o || typeof o !== 'object') return;
+    const urls = [...new Set(findUrls(o))];
+    if ((o.id || o.job_id) && urls.length) items.push({ id: String(o.id || o.job_id), prompt: String(o.prompt ?? o.params?.prompt ?? o.input?.prompt ?? ''), createdAt: o.created_at || o.createdAt || '', urls: urls.slice(0, 4) });
+    else Object.values(o).forEach(walk);
+  };
+  walk(parseJson(r.out));
+  return { ok: true, items: items.slice(0, size) };
+}
+
+async function recentJob(prompt, since) {
+  const r = await run(['generate', 'list', '--image', '--size', '10', '--json'], { timeout: 30_000 });
+  if (r.code !== 0) return null;
+  const found = pickRecentJob(parseJson(r.out), prompt, since);
+  if (found && !found.urls.length && found.id) found.urls = await waitJob(found.id);
+  return found;
+}
+
 // Esecuzione reale: chiamata solo dopo consumeQuote().
 export async function generate(q) {
-  let urls, j = null, spent = null;
+  let urls, j = null, spent = null, claudeUsd = null, recovered = false;
   if (q.route === 'claude') {
-    const r = await viaMcp.generateViaClaude(q, async () => (await status()).credits ?? null);
-    urls = r.urls; spent = r.spent; j = r;
+    const r = await viaMcp.generateViaClaude(q, {
+      readCredits: async () => (await status()).credits ?? null,
+      waitJob, recentJob,
+    });
+    urls = r.urls; spent = r.spent; j = r; claudeUsd = r.claudeUsd ?? null; recovered = !!r.recovered;
   } else {
     const r = await run(['generate', 'create', ...buildArgs(q.req), '--wait', '--wait-timeout', '15m', '--json'], { timeout: 16 * 60_000 });
     if (r.code !== 0) {
@@ -224,5 +274,5 @@ export async function generate(q) {
     files.push({ file: f, url: u });
   }
   if (!files.length) throw new Error('Non riesco a scaricare il risultato della generazione.');
-  return { files, raw: j, spent, route: q.route || 'cli' };
+  return { files, raw: j, spent, claudeUsd, recovered, route: q.route || 'cli' };
 }

@@ -2,8 +2,9 @@
 // Ogni nodo ricorda genitori, processo, parametri e seme: tutto è ripercorribile.
 import { Worker } from 'node:worker_threads';
 import fs from 'node:fs';
-import { getDb, newId, now, save } from './store.js';
-import { rawAsset, getAsset, assetPath, saveVariant, saveVariantFile } from './library.js';
+import path from 'node:path';
+import { getDb, newId, now, save, DIRS } from './store.js';
+import { rawAsset, getAsset, assetPath, saveVariant, saveVariantFile, fetchImage } from './library.js';
 import { decode } from './imaging.js';
 import { getProcess } from '../shared/processes/index.js';
 import * as hf from './higgsfield.js';
@@ -168,7 +169,7 @@ export async function higgsfieldRun(expId, { quoteId, approval }) {
   const q = hf.consumeQuote(quoteId, approval);
   const parents = q.req.parents || [];
   const made = [];
-  let spentReal = null;
+  let spentReal = null, claudeUsdReal = null;
   if (q.simulated) {
     // Simulazione: stesso flusso, nessuna chiamata, risultato prodotto in locale.
     const r = await runLocal(expId, { parents: parents.slice(0, 1), process: parents.length ? 'deriva' : 'rumore', params: parents.length ? { zoom: 1.6 } : {}, seed: Date.now() % 1e9 });
@@ -183,6 +184,7 @@ export async function higgsfieldRun(expId, { quoteId, approval }) {
   } else {
     const result = await hf.generate(q);
     spentReal = result.spent ?? null;
+    claudeUsdReal = result.claudeUsd ?? null;
     for (const f of result.files) {
       const asset = await saveVariantFile(f.file, {
         title: q.req.prompt.slice(0, 120),
@@ -191,14 +193,48 @@ export async function higgsfieldRun(expId, { quoteId, approval }) {
         rights: { status: 'da verificare', license: 'Termini di servizio Higgsfield', notes: 'Generata con Higgsfield: verifica i termini d\'uso commerciale del tuo piano.' },
       });
       fs.rmSync(f.file, { force: true });
-      const node = { id: newId('n'), parents, assetId: asset.id, op: { engine: 'higgsfield', via: result.route, model: q.req.model, modelName: q.modelName, prompt: q.req.prompt, aspect: q.req.aspect, credits: result.spent ?? q.credits, creditsQuoted: q.credits, creditsMeasured: result.spent, ...(q.req.textOnly && parents.length ? { textOnly: true } : {}), label: result.route === 'claude' ? `${q.modelName} · via Claude` : q.modelName }, createdAt: now(), note: '' };
+      const node = { id: newId('n'), parents, assetId: asset.id, op: { engine: 'higgsfield', via: result.route, model: q.req.model, modelName: q.modelName, prompt: q.req.prompt, aspect: q.req.aspect, credits: result.spent ?? q.credits, creditsQuoted: q.credits, creditsMeasured: result.spent, ...(result.claudeUsd != null ? { claudeUsd: result.claudeUsd } : {}), ...(result.recovered ? { recovered: true } : {}), ...(q.req.textOnly && parents.length ? { textOnly: true } : {}), label: result.route === 'claude' ? `${q.modelName} · via Claude` : q.modelName }, createdAt: now(), note: '' };
       e.nodes.push(node);
       made.push(node.id);
     }
     e.updatedAt = now();
     save();
   }
-  return { nodes: made, spent: spentReal, experiment: getExperiment(expId) };
+  return { nodes: made, spent: spentReal, claudeUsd: claudeUsdReal, experiment: getExperiment(expId) };
+}
+
+// Importa immagini già generate su Higgsfield (URL o file scaricati) come varianti,
+// senza rigenerare e senza spendere: utile se la generazione è avvenuta ma non è arrivata.
+export async function higgsfieldImport(expId, { urls = [], files = [], parents = [], prompt = '', jobId = '' }) {
+  const e = db().experiments[expId];
+  if (!e) throw new Error('Esperimento non trovato.');
+  const par = parents.filter((id) => e.nodes.some((n) => n.id === id));
+  const made = [], errors = [];
+  const add = async (file, url) => {
+    const asset = await saveVariantFile(file, {
+      title: (prompt || 'Importata da Higgsfield').slice(0, 120), tags: [],
+      origin: { type: 'generata', engine: 'higgsfield', imported: true, prompt, url: url || '', job: jobId || '', experiment: expId },
+      rights: { status: 'da verificare', license: 'Termini di servizio Higgsfield', notes: 'Generata con Higgsfield e importata in ATELIER: verifica i termini d\'uso commerciale del tuo piano.' },
+    });
+    const node = { id: newId('n'), parents: par, assetId: asset.id, op: { engine: 'higgsfield', via: 'importata', prompt, credits: 0, imported: true, label: 'Importata da Higgsfield' }, createdAt: now(), note: '' };
+    e.nodes.push(node); made.push(node.id);
+  };
+  for (const u of urls.slice(0, 12)) {
+    try {
+      const { buffer } = await fetchImage(String(u).trim());
+      const f = path.join(DIRS.temp, `hfimp_${Date.now()}_${made.length}`);
+      fs.writeFileSync(f, buffer);
+      try { await add(f, u); } finally { fs.rmSync(f, { force: true }); }
+    } catch (err) { errors.push(`${String(u).slice(0, 80)}: ${err.message}`); }
+  }
+  for (const f of files.slice(0, 12)) {
+    const tmp = path.join(DIRS.temp, `hfimp_${Date.now()}_${made.length}`);
+    try { fs.writeFileSync(tmp, f.buffer); await add(tmp, ''); } catch (err) { errors.push(`${f.originalname}: ${err.message}`); } finally { fs.rmSync(tmp, { force: true }); }
+  }
+  e.updatedAt = now();
+  save();
+  if (!made.length) throw new Error(errors[0] || 'Niente da importare.');
+  return { nodes: made, errors, experiment: getExperiment(expId) };
 }
 
 export function addMessage(expId, msg) {

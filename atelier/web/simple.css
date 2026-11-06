@@ -373,3 +373,11 @@
 .z-card__acts { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .z-direct .btn, .z-card__acts .btn { max-width: 100%; min-width: 0; white-space: normal; flex-wrap: wrap; row-gap: 2px; }
 @media (max-width: 760px) { .z-direct .btn, .z-card__acts .btn { width: 100%; justify-content: space-between; } }
+
+/* Importa da Higgsfield */
+.hf-imp__grid .tile { position: relative; padding: 0; }
+.hf-imp__grid .tile img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.hf-imp__grid .tile[data-sel="1"] { outline: 2px solid var(--mark); outline-offset: -2px; }
+.hf-imp__grid .tile__cap { display: block; padding: 4px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hf-imp__open { margin: 12px 0 0; width: 100%; justify-content: center; }
+@media (max-width: 700px) { .hf-imp__grid { --cols: 2 !important; } }

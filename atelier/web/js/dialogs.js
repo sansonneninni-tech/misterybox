@@ -174,15 +174,64 @@ function openCost(app, { expId, q, sources, parents = [], prompt = '' }) {
       const r = await app.api.hfRun(expId, q.quoteId, { approved: true, credits: q.credits });
       d.close();
       app.state.lab.expId = expId; app.state.lab.current = r.nodes[0];
-      toast(`${r.nodes.length} ${r.nodes.length === 1 ? 'variante pronta' : 'varianti pronte'}${q.simulated ? ' (simulata)' : ''}.${r.spent != null ? ` Costo reale: ${r.spent} crediti (stimati ${q.credits}).` : ''}`, { label: 'Apri nel laboratorio', run: () => app.go('laboratorio') });
+      toast(`${r.nodes.length} ${r.nodes.length === 1 ? 'variante pronta' : 'varianti pronte'}${q.simulated ? ' (simulata)' : ''}.${r.spent != null ? ` Costo reale: ${r.spent} crediti (stimati ${q.credits}).` : ''}${r.claudeUsd != null ? ` Claude: ${r.claudeUsd.toFixed(2).replace('.', ',')} $.` : ''}`, { label: 'Apri nel laboratorio', run: () => app.go('laboratorio') });
       app.refreshStatus();
       if (app.state.view === 'laboratorio' || app.state.view === 'tela') app.render();
     } catch (e) {
       clear(d.el.querySelector('.dialog__body'), noticeBox(e.message, e.detail));
       // Piano in prova: la CLI ha rifiutato senza spendere; si rifà il preventivo, che passerà da Claude.
-      if (/only_mcp_usage_on_trial/.test(e.detail || '')) clear(d.el.querySelector('.dialog__foot'), h('button', { class: 'btn btn--quiet', onclick: () => d.close() }, 'Chiudi'), h('span', { class: 'spacer' }),
+      if (q.route === 'claude') clear(d.el.querySelector('.dialog__foot'), h('button', { class: 'btn btn--quiet', onclick: () => d.close() }, 'Chiudi'), h('span', { class: 'spacer' }),
+        h('button', { class: 'btn', onclick: () => { d.close(); openHfImport(app, { expId, parents, prompt: q.prompt }); } }, 'Importa da Higgsfield', h('span', { class: 'btn__cost' }, 'gratis')));
+      else if (/only_mcp_usage_on_trial/.test(e.detail || '')) clear(d.el.querySelector('.dialog__foot'), h('button', { class: 'btn btn--quiet', onclick: () => d.close() }, 'Chiudi'), h('span', { class: 'spacer' }),
         h('button', { class: 'btn btn--paid', onclick: () => { d.close(); openHiggsfield(app, { expId, parents, prompt, sources }); } }, 'Nuovo preventivo via Claude', h('span', { class: 'btn__cost' }, 'gratis')));
     }
+  }
+}
+
+// ---------- Importare da Higgsfield immagini già generate (gratis, niente rigenerazione) ----------
+export async function openHfImport(app, { expId, parents = [], prompt = '' }) {
+  const picked = new Map();
+  const grid = h('div', { class: 'vgrid hf-imp__grid', style: { '--cols': 4 } }, spinner('Leggo le tue ultime generazioni su Higgsfield (gratis)…'));
+  const urlEl = h('textarea', { class: 'field', rows: 2, placeholder: 'https://… (uno per riga: su higgsfield.ai apri l\'immagine, tasto destro → Copia indirizzo immagine)' });
+  const fileEl = h('input', { type: 'file', accept: 'image/*', multiple: true, class: 'field', onchange: sync });
+  const go = h('button', { class: 'btn btn--solid', disabled: true, onclick: run }, 'Importa');
+  const out = h('div');
+  const d = dialog({
+    title: 'Importa da Higgsfield · gratis', wide: true,
+    body: [
+      h('p', { class: 'critic__text', style: { margin: 0 } }, 'Per le immagini già generate su Higgsfield che non sono arrivate qui. Entrano in questo esperimento come varianti, con origine Higgsfield. Niente viene rigenerato, niente viene speso.'),
+      h('div', { class: 'label' }, 'Le tue ultime generazioni'), grid,
+      h('div', { class: 'label' }, 'Oppure incolla l\'indirizzo'), urlEl,
+      h('div', { class: 'label' }, 'Oppure scegli i file scaricati'), fileEl,
+      out,
+    ],
+    foot: [h('button', { class: 'btn btn--quiet', onclick: () => d.close() }, 'Annulla'), h('span', { class: 'spacer' }), go],
+  });
+  urlEl.addEventListener('input', sync);
+  function urls() { return [...picked.values(), ...urlEl.value.split(/\s+/).filter((u) => /^https?:\/\//.test(u))]; }
+  function sync() { const n = urls().length + (fileEl.files?.length || 0); go.disabled = !n; go.textContent = n ? `Importa ${n}` : 'Importa'; }
+  try {
+    const r = await app.api.hfRecent();
+    if (!r.ok) clear(grid, noticeBox(r.message, r.detail));
+    else if (!r.items.length) clear(grid, h('div', { class: 'meta' }, 'Nessuna generazione recente trovata con la CLI. Usa l\'indirizzo o il file.'));
+    else clear(grid, r.items.flatMap((it) => it.urls.map((u) => {
+      const tile = h('button', { class: 'tile', 'aria-pressed': 'false', title: it.prompt, onclick: () => {
+        if (picked.has(u)) picked.delete(u); else picked.set(u, u);
+        tile.setAttribute('aria-pressed', String(picked.has(u))); tile.dataset.sel = picked.has(u) ? '1' : ''; sync();
+      } }, h('img', { src: u, alt: it.prompt || 'generazione Higgsfield', loading: 'lazy' }), h('span', { class: 'meta tile__cap' }, (it.prompt || it.id).slice(0, 60)));
+      return tile;
+    })));
+  } catch (e) { clear(grid, noticeBox(e.message, e.detail)); }
+  async function run() {
+    go.disabled = true;
+    clear(out, spinner('Importo…'));
+    try {
+      const r = await app.api.hfImport(expId, { urls: urls(), parents, prompt }, [...(fileEl.files || [])]);
+      d.close();
+      app.state.lab.expId = expId; app.state.lab.current = r.nodes[0];
+      toast(`${r.nodes.length} ${r.nodes.length === 1 ? 'immagine importata' : 'immagini importate'} da Higgsfield.${r.errors?.length ? ` ${r.errors.length} non riuscite.` : ''}`, { label: 'Apri nel laboratorio', run: () => app.go('laboratorio') });
+      if (app.state.view === 'laboratorio') app.render();
+    } catch (e) { clear(out, noticeBox(e.message, e.detail)); go.disabled = false; }
   }
 }
 

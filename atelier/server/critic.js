@@ -68,12 +68,13 @@ export const ALWAYS_DENIED = ['Bash', 'Write', 'Edit', 'NotebookEdit', 'WebFetch
   'mcp__higgsfield__tiktok_prepare_publish', 'mcp__higgsfield__generate_image_batch', 'mcp__higgsfield__generate_video',
   'mcp__higgsfield__generate_video_batch', 'mcp__higgsfield__generate_audio', 'mcp__higgsfield__generate_audio_batch', 'mcp__higgsfield__generate_3d'];
 
-export function claudeArgs(prompt, { allowedTools = [], maxTurns = 0, system = '', model = '' } = {}) {
+export function claudeArgs(prompt, { allowedTools = [], maxTurns = 0, system = '', model = '', settings = null } = {}) {
   const args = ['-p', prompt, '--output-format', 'json', '--permission-mode', 'default',
     '--allowedTools', allowedTools.join(','), '--disallowedTools', ALWAYS_DENIED.filter((t) => !allowedTools.includes(t)).join(',')];
   if (maxTurns) args.push('--max-turns', String(maxTurns));
   if (system) args.push('--append-system-prompt', system);
   if (model) args.push('--model', model);
+  if (settings) args.push('--settings', JSON.stringify(settings));
   return args;
 }
 
@@ -99,12 +100,14 @@ function runCli(prompt, timeout = 240_000) {
 
 // Claude con un elenco preciso di strumenti consentiti (e nient'altro).
 // Serve anche a Higgsfield in prova, che accetta solo richieste via MCP.
-export function claudeWithTools(prompt, { allowedTools = [], maxTurns = 4, timeout = 15 * 60_000, system = '', model = '' } = {}) {
+// Come claudeWithTools, ma restituisce anche i dati della corsa (turni, costo, esito).
+// L'output completo di claude -p finisce sempre nel log del server, per capire cosa è successo.
+export function claudeRun(prompt, { allowedTools = [], maxTurns = 4, timeout = 15 * 60_000, system = '', model = '', settings = null } = {}) {
   return new Promise((resolve, reject) => {
-    const args = claudeArgs(prompt, { allowedTools, maxTurns, system, model });
+    const args = claudeArgs(prompt, { allowedTools, maxTurns, system, model, settings });
     const c = spawn(CLAUDE_BIN, args, { cwd: DIRS.temp, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
-    const t = setTimeout(() => { c.kill('SIGTERM'); reject(new ClaudeError('Claude non ha risposto in tempo.', '')); }, timeout);
+    const t = setTimeout(() => { c.kill('SIGTERM'); reject(new ClaudeError('Claude non ha risposto in tempo.', `timeout ${Math.round(timeout / 1000)} s`)); }, timeout);
     c.stdout.on('data', (d) => (out += d));
     c.stderr.on('data', (d) => (err += d));
     c.on('error', (e) => { clearTimeout(t); reject(new ClaudeError('Claude non è installato su questo Mac.', e.message)); });
@@ -112,10 +115,28 @@ export function claudeWithTools(prompt, { allowedTools = [], maxTurns = 4, timeo
       clearTimeout(t);
       let j = null;
       try { j = JSON.parse(out); } catch { /* non JSON */ }
-      if (code !== 0 || j?.is_error) { const e = cliError(j?.result ?? (j ? '' : out), err, code); return reject(new ClaudeError(e.text, e.detail)); }
-      resolve(String(j ? (j.result ?? '') : out));
+      const meta = runMeta(j, code);
+      console.log(`[claude -p] codice ${code} · ${meta.summary}\n  stdout: ${out.slice(0, 4000)}${err.trim() ? `\n  stderr: ${err.slice(0, 2000)}` : ''}`);
+      if (code !== 0 || j?.is_error || (j?.subtype && j.subtype !== 'success')) {
+        const e = cliError(j?.result ?? (j ? '' : out), err, code, 'cli', j);
+        const ce = new ClaudeError(e.text, [e.detail, meta.summary].filter(Boolean).join(' · '));
+        ce.meta = meta;
+        return reject(ce);
+      }
+      resolve({ text: String(j ? (j.result ?? '') : out), meta });
     });
   });
+}
+
+// I dati della corsa di claude -p, in chiaro: esito, turni, costo.
+export function runMeta(j, code) {
+  const m = { code, subtype: j?.subtype || '', turns: j?.num_turns ?? null, costUsd: typeof j?.total_cost_usd === 'number' ? j.total_cost_usd : null, errors: Array.isArray(j?.errors) ? j.errors.map(String).join('; ').slice(0, 200) : '' };
+  m.summary = [m.subtype && `esito ${m.subtype}`, m.errors, m.turns != null && `turni ${m.turns}`, m.costUsd != null && `costo Claude ${m.costUsd.toFixed(2)} $`, `codice ${code}`].filter(Boolean).join(' · ');
+  return m;
+}
+
+export async function claudeWithTools(prompt, opts = {}) {
+  return (await claudeRun(prompt, opts)).text;
 }
 
 // Errore di Claude: una frase in italiano più la prima riga originale,
@@ -125,9 +146,11 @@ export class ClaudeError extends Error {
 }
 
 // La prima riga utile (mai i semplici avvisi), tradotta solo quando è certa.
-export function cliError(result, stderr, code, via = 'cli') {
+export function cliError(result, stderr, code, via = 'cli', j = null) {
   const lines = [String(result || ''), ...String(stderr || '').split('\n')].map((l) => l.trim()).filter((l) => l && !/^warning\b/i.test(l));
   const msg = lines[0] || '';
+  if (/error_max_turns/.test(j?.subtype || '') && !msg) return { text: 'Claude ha finito i passaggi consentiti prima di chiudere il lavoro.', detail: '' };
+  if (/error_during_execution/.test(j?.subtype || '') && !msg) return { text: 'Claude si è interrotto durante il lavoro.', detail: '' };
   return { text: explain(msg, code, via), detail: msg.slice(0, 300) };
 }
 
@@ -141,7 +164,7 @@ function explain(msg, code, via) {
   if (/rate.?limit|usage limit|\b429\b|overloaded|\b529\b/i.test(msg)) return 'Claude è occupato o hai raggiunto il limite di utilizzo: riprova tra qualche minuto.';
   if (/ENOTFOUND|ECONN|network|fetch failed|getaddrinfo/i.test(msg)) return 'Claude non è raggiungibile: controlla la connessione a Internet.';
   if (/model/i.test(msg) && /not.?found|not available|does not exist|invalid/i.test(msg)) return 'Il modello di Claude scelto non è disponibile per questo account.';
-  return msg ? 'Claude ha risposto con un errore.' : `Claude si è fermato (codice ${code}). Apri il Terminale e scrivi claude per controllare che funzioni.`;
+  return msg ? 'Claude ha risposto con un errore.' : `Claude si è fermato senza dire perché (codice ${code}). I dettagli sono in Avanzato e nel Terminale dove gira ATELIER.`;
 }
 
 async function runApi(prompt, imageFiles = []) {

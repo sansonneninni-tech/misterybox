@@ -63,7 +63,7 @@ app.use(express.static(path.join(ROOT, 'web'), { setHeaders: (res, p) => { if (p
 
 const wrap = (fn) => (req, res) => Promise.resolve(fn(req, res)).then((r) => { if (!res.headersSent) res.json(r ?? { ok: true }); }).catch((e) => {
   console.error('✖', req.method, req.path, e.message);
-  res.status(e.status || 400).json({ error: e.message, ...(e.detail ? { detail: e.detail } : {}) });
+  res.status(e.status || 400).json({ error: e.message, ...(e.detail ? { detail: e.detail } : {}), ...(e.maybeSpent ? { maybeSpent: true } : {}) });
 });
 const notFound = (what) => Object.assign(new Error(`${what} non trovato.`), { status: 404 });
 
@@ -182,6 +182,12 @@ app.post('/api/preview', async (req, res) => {
 app.post('/api/experiments/:id/run', wrap((req) => exp.runLocal(req.params.id, req.body)));
 app.post('/api/experiments/:id/higgsfield/quote', wrap((req) => exp.higgsfieldQuote(req.params.id, req.body)));
 app.post('/api/experiments/:id/higgsfield/run', wrap((req) => exp.higgsfieldRun(req.params.id, req.body)));
+// Importare immagini già generate su Higgsfield: gratis, nessuna nuova generazione.
+app.get('/api/higgsfield/recent', wrap(() => hf.recentImages()));
+app.post('/api/experiments/:id/higgsfield/import', upload.array('files'), wrap((req) => {
+  const b = req.body.data ? JSON.parse(req.body.data) : req.body;
+  return exp.higgsfieldImport(req.params.id, { urls: b.urls || [], parents: b.parents || [], prompt: b.prompt || '', jobId: b.jobId || '', files: req.files || [] });
+}));
 
 // ---- Interlocutore
 app.post('/api/critic/analyze', wrap(async (req) => {

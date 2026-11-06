@@ -1,6 +1,6 @@
 // 04 · Laboratorio: albero delle varianti, confronto, ramificazioni, decisioni.
 import { h, clear, toast, code, stateBox, spinner, fmtDate, guide } from '../ui.js';
-import { openExport, openFinish, openViewer } from '../dialogs.js';
+import { openExport, openFinish, openViewer, openHfImport } from '../dialogs.js';
 
 let ground = 'void';
 let split = 50;
@@ -18,6 +18,7 @@ export default {
     if (!nodes.length) {
       root.append(h('div', { class: 'view view--full' }, stateBox('∅', exp.title, 'Questo esperimento non ha ancora immagini. Portane qualcuna sulla tela, o parti da zero.',
         h('button', { class: 'btn', onclick: () => { app.state.tela.expId = exp.id; app.state.tela.slots = []; app.persist(); app.go('tela'); } }, 'Vai alla tela'),
+        h('button', { class: 'btn', onclick: () => openHfImport(app, { expId: exp.id, prompt: exp.hypothesis || '' }) }, 'Importa da Higgsfield', h('span', { class: 'btn__cost' }, 'gratis')),
         h('button', { class: 'btn btn--quiet', onclick: () => { L.expId = null; app.render(); } }, 'Tutti gli esperimenti'))));
       return;
     }
@@ -51,7 +52,8 @@ export default {
     const rail = h('div', { class: 'rail rail--tree' },
       h('div', { class: 'panel__head' }, h('button', { class: 'link', onclick: () => { L.expId = null; app.render(); } }, '← Esperimenti'), h('span', { class: 'meta', style: { marginLeft: 'auto' } }, `${nodes.length} nodi`)),
       h('div', { class: 'exp-meta only-desk' }, titleIn, hypoIn),
-      tree);
+      tree,
+      h('button', { class: 'btn btn--quiet hf-imp__open', onclick: () => openHfImport(app, { expId: exp.id, parents: cur ? [cur.id] : [], prompt: exp.hypothesis || '' }) }, 'Importa da Higgsfield', h('span', { class: 'btn__cost' }, 'gratis')));
 
     // ---- Visore
     const A = byId[cmp.a] || nodes[0], B = byId[cmp.b] || cur;
@@ -82,7 +84,7 @@ export default {
 
     const params = cur.op.params ? Object.entries(cur.op.params).map(([k, v]) => (k === 'disponi' && Array.isArray(v) ? `disposizione ${v.map(dispText).join(' / ')}` : `${k} ${v}`)).join(' · ') : '';
     const info = [cur.op.engine === 'sorgente' ? 'sorgente' : cur.op.label, params, `${cur.asset.width}×${cur.asset.height} px`,
-      cur.op.engine === 'higgsfield' ? `Higgsfield ${cur.op.modelName || ''} · ${cur.op.credits ?? '?'} cr${cur.op.simulated ? ' (simulati)' : ''}` : cur.op.engine === 'locale' ? 'locale · 0 crediti' : '',
+      cur.op.engine === 'higgsfield' ? `Higgsfield ${cur.op.modelName || ''} · ${cur.op.credits ?? '?'} cr${cur.op.simulated ? ' (simulati)' : ''}${cur.op.claudeUsd != null ? ` · Claude ${cur.op.claudeUsd.toFixed(2).replace('.', ',')} $` : ''}` : cur.op.engine === 'locale' ? 'locale · 0 crediti' : '',
       fmtDate(cur.createdAt)].filter(Boolean).join(' · ');
     const save = async (patch, msg) => { try { await app.api.updateAsset(cur.asset.id, patch); toast(msg); app.render(); } catch (e) { toast(e.message); } };
     const a = cur.asset;

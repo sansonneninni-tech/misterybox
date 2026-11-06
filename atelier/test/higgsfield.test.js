@@ -69,3 +69,44 @@ test('strada: in prova si va via Claude già dal primo preventivo', async () => 
   mcp.setRoutePref('auto');
   assert.throws(() => mcp.setRoutePref('qualsiasi'), /non valida/);
 });
+
+test('via Claude: se si ferma (max turni) controllo il saldo e non dico «scrivi claude»', async () => {
+  const os = await import('node:os'), fs = await import('node:fs'), path = await import('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-'));
+  const bin = path.join(dir, 'claude');
+  fs.writeFileSync(bin, '#!/bin/sh\necho \'{"type":"result","subtype":"error_max_turns","is_error":true,"num_turns":7,"total_cost_usd":0.083}\'\nexit 1\n');
+  fs.chmodSync(bin, 0o755);
+  process.env.CLAUDE_BIN = bin;
+  const crit = await import('../server/critic.js?bin=' + Date.now());
+  const m = await import('../server/higgsfield-mcp.js');
+  // claudeRun legge CLAUDE_BIN all'avvio del modulo: provo la funzione direttamente
+  await assert.rejects(crit.claudeRun('x'), (e) => /passaggi consentiti/.test(e.message) && /error_max_turns/.test(e.detail) && /turni 7/.test(e.detail) && /0\.08 \$/.test(e.detail) && !/scrivi claude/.test(e.message));
+  assert.doesNotMatch(crit.cliError('', '', 1).text, /scrivi claude/);
+  // pickRecentJob: solo lo stesso prompt, solo dopo l'avvio
+  const hf2 = await import('../server/higgsfield.js');
+  const since = Date.parse('2026-11-06T12:00:00Z');
+  const list = { jobs: [
+    { id: 'old', prompt: 'nebbia di sale', created_at: '2026-11-06T10:00:00Z', result: { url: 'https://x/old.png' } },
+    { id: 'other', prompt: 'altro', created_at: '2026-11-06T12:01:00Z', result: { url: 'https://x/other.png' } },
+    { id: 'mine', prompt: 'nebbia  di sale', created_at: '2026-11-06T12:00:30Z', result: { url: 'https://x/mine.png' } },
+  ] };
+  assert.deepEqual(hf2.pickRecentJob(list, 'nebbia di sale', since), { id: 'mine', urls: ['https://x/mine.png'] });
+  assert.equal(hf2.pickRecentJob(list, 'mai vista', since), null);
+  assert.ok(m.MAX_TURNS >= 10);
+});
+
+test('guardia di generate_image: una sola chiamata, una sola immagine, stessi modello e prompt', async () => {
+  const os = await import('node:os'), fs = await import('node:fs'), path = await import('node:path'), { spawnSync } = await import('node:child_process');
+  const g = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'g-')), 'g.json');
+  const guard = new URL('../server/hf-guard.cjs', import.meta.url).pathname;
+  const call = (params) => spawnSync(process.execPath, [guard, g], { input: JSON.stringify({ tool_input: { params } }) }).status;
+  const fresh = () => fs.writeFileSync(g, JSON.stringify({ model: 'gpt_image_2_6', prompt: 'nebbia di sale', used: false }));
+  fresh(); assert.equal(call({ model: 'gpt_image_2_6', prompt: 'nebbia di sale', count: 3 }), 2);
+  fresh(); assert.equal(call({ model: 'flux_2', prompt: 'nebbia di sale' }), 2);
+  fresh(); assert.equal(call({ model: 'gpt_image_2_6', prompt: 'altro' }), 2);
+  fresh(); assert.equal(call({ model: 'gpt_image_2_6', prompt: 'nebbia di sale', count: 1 }), 0);
+  assert.equal(call({ model: 'gpt_image_2_6', prompt: 'nebbia di sale', count: 1 }), 2);
+  const { claudeArgs } = await import('../server/critic.js');
+  const a = claudeArgs('x', { settings: { hooks: {} } });
+  assert.equal(a[a.indexOf('--settings') + 1], '{"hooks":{}}');
+});

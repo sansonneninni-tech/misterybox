@@ -10,7 +10,7 @@ async function call(method, url, body, isForm = false) {
   const res = await fetch(url, opts);
   let data = null;
   try { data = await res.json(); } catch { /* risposta vuota */ }
-  if (!res.ok) throw Object.assign(new Error(data?.error || `Errore ${res.status}`), { detail: data?.detail || '' });
+  if (!res.ok) throw Object.assign(new Error(data?.error || `Errore ${res.status}`), { detail: data?.detail || '', maybeSpent: !!data?.maybeSpent });
   return data;
 }
 
@@ -57,6 +57,13 @@ export const serverApi = {
 
   hfModels: () => call('GET', '/api/higgsfield/models'),
   hfRoute: (route) => call('POST', '/api/higgsfield/route', { route }),
+  hfRecent: () => call('GET', '/api/higgsfield/recent'),
+  hfImport: (id, data, files = []) => {
+    const fd = new FormData();
+    for (const f of files) fd.append('files', f, f.name);
+    fd.append('data', JSON.stringify(data));
+    return call('POST', `/api/experiments/${id}/higgsfield/import`, fd, true);
+  },
   hfQuote: (id, req) => call('POST', `/api/experiments/${id}/higgsfield/quote`, req),
   hfRun: (id, quoteId, approval) => call('POST', `/api/experiments/${id}/higgsfield/run`, { quoteId, approval }),
 
