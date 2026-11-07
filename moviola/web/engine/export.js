@@ -19,7 +19,10 @@ export async function renderToServer(opts) {
   const start = await fetch('/api/render', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ codec, w, h, fps, frames: total, name, meta: { ...meta, precisione: r.float ? 'virgola mobile 16 bit (half float) per canale, letto a 32 bit e scritto a 16' : '8 bit per canale (il browser non offre buffer in virgola mobile)' } }) });
   if (!start.ok) throw new Error(await start.text());
   const job = await start.json();
-  const buf = new Uint16Array(w * h * 3);
+  // due memorie che si alternano: una parte verso il Mac mentre l'altra si
+  // riempie. Niente copie nuove a ogni fotogramma (a 4K sono 50 MB l'una).
+  const bufs = [new Uint16Array(w * h * 3), new Uint16Array(w * h * 3)];
+  const send = await frameChannel(job.id);
   const t0 = performance.now();
   let pending = null;
   try {
@@ -29,9 +32,7 @@ export async function renderToServer(opts) {
       for (const s of items) if (s.kind === 'video') await seekVideo(s.el, videoTime(s, t));
       r.render(clip, t, i, null, { display: false });
       if (pending) await pending; // il fotogramma prima deve essere arrivato
-      const data = r.readRGB16(buf).slice();
-      pending = fetch(`/api/render/${job.id}/frame`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: data.buffer })
-        .then(async (x) => { if (!x.ok) throw new Error(await x.text()); });
+      pending = send(r.readRGB16(bufs[i % 2]));
       const el = (performance.now() - t0) / 1000;
       onProgress && onProgress(i + 1, total, (el / (i + 1)) * (total - i - 1));
     }
@@ -42,7 +43,47 @@ export async function renderToServer(opts) {
   } catch (e) {
     fetch(`/api/render/${job.id}/abort`, { method: 'POST' }).catch(() => {});
     throw e;
+  } finally {
+    send.close();
   }
+}
+
+/**
+ * Come arrivano i fotogrammi al Mac. Di norma un WebSocket: Chrome libera ogni
+ * fotogramma appena spedito. Con una richiesta HTTP per fotogramma, invece,
+ * ne tiene una copia finché non pulisce la memoria, cosa che durante un render
+ * lungo non succede: a 4K sono 50 MB a fotogramma e la pagina si chiude
+ * («Uffa!», codice 5). Se il WebSocket non si apre si torna all'HTTP.
+ */
+async function frameChannel(id) {
+  const ws = await new Promise((res) => {
+    let s;
+    try { s = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/render/${id}/ws`); } catch { return res(null); }
+    s.binaryType = 'arraybuffer';
+    const timer = setTimeout(() => { s.close(); res(null); }, 4000);
+    s.onopen = () => { clearTimeout(timer); res(s); };
+    s.onerror = () => { clearTimeout(timer); res(null); };
+  });
+  if (!ws) {
+    const send = (data) => fetch(`/api/render/${id}/frame`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: data })
+      .then(async (x) => { if (!x.ok) throw new Error(await x.text()); });
+    send.close = () => {};
+    return send;
+  }
+  const waiting = [];
+  let broken = null;
+  ws.onmessage = (e) => {
+    const w = waiting.shift(); if (!w) return;
+    String(e.data).startsWith('ok') ? w.ok() : w.no(new Error(String(e.data).replace(/^errore: /, '')));
+  };
+  ws.onclose = () => { broken = new Error('collegamento con il Mac interrotto'); while (waiting.length) waiting.shift().no(broken); };
+  const send = (data) => new Promise((ok, no) => {
+    if (broken) return no(broken);
+    waiting.push({ ok, no });
+    ws.send(data);
+  });
+  send.close = () => { try { ws.close(); } catch {} };
+  return send;
 }
 
 // ---------------------------------------------------------------- PNG 16 bit

@@ -356,11 +356,16 @@ export class Renderer {
     const n = w * h;
     const dst = out && out.length === n * 3 ? out : new Uint16Array(n * 3);
     if (this.float) {
-      if (!this._f32 || this._f32.length !== n * 4) this._f32 = new Float32Array(n * 4);
-      gl.readPixels(0, 0, w, h, gl.RGBA, gl.FLOAT, this._f32);
+      // a strisce di 128 righe: a 4K un'unica lettura in float occuperebbe 133 MB
+      const STRIP = 128;
+      if (!this._f32 || this._f32.length !== w * STRIP * 4) this._f32 = new Float32Array(w * STRIP * 4);
       const src = this._f32;
-      for (let y = 0; y < h; y++) {
-        let si = (h - 1 - y) * w * 4, di = y * w * 3;
+      for (let y0 = 0; y0 < h; y0 += STRIP) {
+        const sh = Math.min(STRIP, h - y0);
+        gl.readPixels(0, y0, w, sh, gl.RGBA, gl.FLOAT, src.subarray(0, w * sh * 4));
+        for (let sy = 0; sy < sh; sy++) {
+        const y = h - 1 - (y0 + sy); // riga dall'alto
+        let si = sy * w * 4, di = y * w * 3;
         for (let x = 0; x < w; x++, si += 4, di += 3) {
           let r = src[si], g = src[si + 1], b = src[si + 2];
           // dithering leggerissimo: spezza le bande residue del mezzo float
@@ -369,6 +374,7 @@ export class Renderer {
           dst[di] = r < 0 ? 0 : r > 65535 ? 65535 : r;
           dst[di + 1] = g < 0 ? 0 : g > 65535 ? 65535 : g;
           dst[di + 2] = b < 0 ? 0 : b > 65535 ? 65535 : b;
+        }
         }
       }
     } else {

@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { CODECS, probe, startEncoder, makeProxy } from './ffmpeg.mjs';
 import * as critic from './critic.mjs';
+import { acceptSocket } from './ws.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = process.env.MOVIOLA_DATA || path.join(ROOT, 'dati');
@@ -165,8 +166,10 @@ async function startRender(body) {
 }
 
 async function writeFrame(job, req) {
+  return writeFrameBuf(job, await readBody(req, job.w * job.h * 6 + 16));
+}
+async function writeFrameBuf(job, buf) {
   const expected = job.w * job.h * 6;
-  const buf = await readBody(req, expected + 16);
   if (buf.length !== expected) throw Object.assign(new Error(`fotogramma di ${buf.length} byte, attesi ${expected}`), { status: 400 });
   if (job.status !== 'in corso') throw Object.assign(new Error('render ' + job.status + (job.error ? ': ' + job.error : '')), { status: 409 });
   job.seen = Date.now();
@@ -330,6 +333,20 @@ const server = http.createServer(async (req, res) => {
   }
 });
 server.requestTimeout = 0;
+
+// canale continuo per i fotogrammi di un render: /api/render/<id>/ws
+server.on('upgrade', (req, socket) => {
+  const url = new URL(req.url, 'http://x');
+  const m = /^\/api\/render\/([\w-]+)\/ws$/.exec(url.pathname);
+  const job = m && jobs.get(m[1]);
+  if (!job || !authorized(req, url) || (req.headers.upgrade || '').toLowerCase() !== 'websocket') {
+    socket.end('HTTP/1.1 ' + (job ? '403 Forbidden' : '404 Not Found') + '\r\n\r\n'); return;
+  }
+  acceptSocket(req, socket, {
+    maxSize: job.w * job.h * 6,
+    onMessage: async (buf) => { await writeFrameBuf(job, buf); return 'ok ' + job.written; },
+  });
+});
 
 server.listen(PORT, HOST, () => {
   const ff = probe();
