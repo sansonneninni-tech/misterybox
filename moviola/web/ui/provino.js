@@ -70,7 +70,7 @@ export function openProvino({ onOpen } = {}) {
     const total = Math.round(base.format.duration * fps);
     const n = Math.min(total, fps * 2); // due secondi di movimento
     // senza memoria si campiona tutta la durata; con la memoria servono fotogrammi consecutivi
-    const memory = base.chain.some((p) => p.on && (byId[p.proc]?.feedback || byId[p.proc]?.history));
+    const memory = base.chain.some((p) => p.on && (byId[p.proc]?.feedback || byId[p.proc]?.history || byId[p.proc]?.sim));
     const step = memory ? 1 : Math.max(1, Math.floor(total / n));
     variants = Array.from({ length: 6 }, (_, k) => ({ ...vary(base, k, strength), frames: [], marked: false }));
     fill(grid, variants.map((v, k) => {

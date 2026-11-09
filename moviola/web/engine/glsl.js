@@ -15,6 +15,10 @@ uniform sampler2D u_in;      // flusso: uscita del passaggio precedente
 uniform sampler2D u_fb;      // uscita di questo passaggio al fotogramma prima
 uniform sampler2D u_s0, u_s1, u_s2, u_s3; // sorgenti
 uniform sampler2DArray u_hist; // memoria degli ultimi fotogrammi in ingresso
+uniform sampler2D u_st;      // stato della simulazione (materie che crescono)
+uniform vec2 u_stRes;        // risoluzione dello stato
+uniform float u_init;        // 1 al primo passo dopo un azzeramento
+uniform float u_step;        // indice del passo di simulazione nel fotogramma
 uniform vec4 u_sAsp;         // proporzione sorgente / proporzione uscita
 uniform int u_ns;            // quante sorgenti
 uniform float u_histN;       // fotogrammi disponibili in memoria
@@ -113,6 +117,9 @@ vec3 HIST(float k, vec2 uv) {
   float layer = mod(u_histHead - k + u_histCap, u_histCap);
   return texture(u_hist, vec3(uv, layer)).rgb;
 }
+// Stato della simulazione: rgba liberi, in virgola mobile.
+vec4 ST(vec2 uv) { return texture(u_st, uv); }
+#define SPX (1.0 / u_stRes)
 vec3 HISTF(float k, vec2 uv) { // interpolato tra due fotogrammi
   float a = floor(k);
   return mix(HIST(a, uv), HIST(a + 1.0, uv), fract(k));

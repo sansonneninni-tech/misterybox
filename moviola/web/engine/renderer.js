@@ -3,7 +3,7 @@
 // gradienti arrivano al ProRes senza bande.
 
 import { VERT, PRELUDE, POSTLUDE, COPY_FRAG, BASE_FRAG } from './glsl.js';
-import { byId, fragmentFor, BLENDS } from './processes.js';
+import { byId, fragmentFor, simFragmentFor, BLENDS } from './processes.js';
 import { passValues } from './motion.js';
 
 const BLEND_INDEX = Object.fromEntries(BLENDS.map((b, i) => [b.id, i]));
@@ -16,6 +16,8 @@ export class Renderer {
     this.gl = gl;
     this.histLong = histLong;
     this.float = this._probeFloat();
+    // le simulazioni hanno bisogno di valori fini anche se l'uscita è a 8 bit
+    this.simFloat = this.float;
     this.programs = new Map();
     this.errors = new Map();
     this.passState = new Map(); // id pass -> { fb: [tex, tex], fbo, hist }
@@ -82,6 +84,21 @@ export class Renderer {
       loc[name] = gl.getUniformLocation(p, info.name);
     }
     return { p, loc };
+  }
+
+  simProgram(id) {
+    const key = id + '#sim';
+    if (this.programs.has(key)) return this.programs.get(key);
+    try {
+      const prog = this._program(VERT, simFragmentFor(byId[id], PRELUDE));
+      this.programs.set(key, prog);
+      return prog;
+    } catch (e) {
+      this.errors.set(id, String(e.message || e));
+      console.error('Simulazione', id, e);
+      this.programs.set(key, null);
+      return null;
+    }
   }
 
   procProgram(id) {
@@ -159,6 +176,7 @@ export class Renderer {
     const gl = this.gl;
     if (st.fb) st.fb.forEach((t) => this._freeTarget(t));
     if (st.hist) { gl.deleteTexture(st.hist.tex); gl.deleteFramebuffer(st.hist.fbo); }
+    if (st.sim) st.sim.t.forEach((t) => this._freeTarget(t));
   }
 
   /** Azzera retroazioni e memoria: il prossimo fotogramma riparte da zero. */
@@ -168,6 +186,7 @@ export class Renderer {
     for (const st of this.passState.values()) {
       if (st.fb) st.fb.forEach((t) => { gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); });
       if (st.hist) { st.hist.n = 0; st.hist.head = 0; }
+      if (st.sim) st.sim.init = true;
     }
   }
 
@@ -187,6 +206,13 @@ export class Renderer {
       const hw = Math.max(2, Math.round(this.w * s)), hh = Math.max(2, Math.round(this.h * s));
       const tex = this._texArray(hw, hh, histCap);
       st.hist = { tex, fbo: this.gl.createFramebuffer(), w: hw, h: hh, cap: histCap, n: 0, head: 0 };
+    }
+    if (proc.sim) {
+      // lo stato ha la stessa misura in anteprima e nel render 4K: la materia
+      // cresce allo stesso modo, il 4K aggiunge solo nitidezza al disegno
+      const s = Math.min(1, (proc.simLong || 1024) / Math.max(this.w, this.h));
+      const sw = Math.max(2, Math.round(this.w * s)), sh = Math.max(2, Math.round(this.h * s));
+      st.sim = { t: [this._target(this._tex(sw, sh, this.simFloat)), this._target(this._tex(sw, sh, this.simFloat))], w: sw, h: sh, init: true };
     }
     this.passState.set(pass.id, st);
     return st;
@@ -296,32 +322,68 @@ export class Renderer {
       if (st.fb) out = st.fb[0];
       else out = this.scratch[0] === stream ? this.scratch[1] : this.scratch[0];
 
+      const vals = passValues(clip, pass, t, live);
+      const arr = new Float32Array(8); vals.forEach((v, i) => { arr[i] = v; });
+      const common = (L, w, h) => {
+        this._bind(0, stream.tex); gl.uniform1i(L.u_in, 0);
+        for (let i = 0; i < 4; i++) {
+          const s = this.sources[i];
+          this._bind(2 + i, s?.uploaded ? s.tex : this._empty);
+          if (L['u_s' + i]) gl.uniform1i(L['u_s' + i], 2 + i);
+        }
+        gl.uniform4f(L.u_sAsp, sAsp[0], sAsp[1], sAsp[2], sAsp[3]);
+        gl.uniform1i(L.u_ns, ns);
+        gl.uniform1f(L.u_t, t);
+        gl.uniform1f(L.u_T, clip.format.duration);
+        gl.uniform1f(L.u_loop, clip.format.loop ? 1 : 0);
+        gl.uniform1f(L.u_frame, frame);
+        gl.uniform1f(L.u_fps, clip.format.fps);
+        gl.uniform1f(L.u_seed, clip.seed || 1);
+        gl.uniform2f(L.u_res, w, h);
+        gl.uniform1fv(L.u_p, arr);
+      };
+
+      // simulazione: alcuni passi sullo stato, prima di disegnare
+      if (st.sim) {
+        const sp = this.simProgram(pass.proc);
+        if (sp) {
+          const S = st.sim;
+          // a ogni giro della clip la materia riparte, come nel file salvato
+          const total = Math.max(1, Math.round(clip.format.duration * clip.format.fps));
+          const lap = Math.floor(frame / total);
+          if (S.lap !== undefined && lap !== S.lap) S.init = true;
+          S.lap = lap;
+          // se l'anteprima salta fotogrammi, la materia recupera i passi persi
+          const dF = S.last === undefined || S.init ? 1 : Math.min(3, Math.max(1, frame - S.last));
+          S.last = frame;
+          const steps = Math.max(1, Math.round((proc.steps || 4) * dF));
+          for (let k = 0; k < steps; k++) {
+            gl.useProgram(sp.p);
+            common(sp.loc, S.w, S.h);
+            this._bind(7, S.t[1].tex); gl.uniform1i(sp.loc.u_st, 7);
+            gl.uniform2f(sp.loc.u_stRes, S.w, S.h);
+            gl.uniform1f(sp.loc.u_init, S.init ? 1 : 0);
+            gl.uniform1f(sp.loc.u_step, k);
+            this._bind(6, this._emptyArr, 'TEXTURE_2D_ARRAY'); if (sp.loc.u_hist) gl.uniform1i(sp.loc.u_hist, 6);
+            this._bind(1, this._empty); if (sp.loc.u_fb) gl.uniform1i(sp.loc.u_fb, 1);
+            this._draw(sp, S.t[0], S.w, S.h);
+            S.t.reverse(); // t[1] è lo stato appena scritto
+            S.init = false;
+          }
+        }
+      }
+
       gl.useProgram(prog.p);
       const L = prog.loc;
-      this._bind(0, stream.tex); gl.uniform1i(L.u_in, 0);
+      common(L, this.w, this.h);
+      if (st.sim) { this._bind(7, st.sim.t[1].tex); gl.uniform1i(L.u_st, 7); gl.uniform2f(L.u_stRes, st.sim.w, st.sim.h); }
+      else { this._bind(7, this._empty); gl.uniform1i(L.u_st, 7); gl.uniform2f(L.u_stRes, 1, 1); }
       this._bind(1, st.fb ? st.fb[1].tex : this._empty); gl.uniform1i(L.u_fb, 1);
-      for (let i = 0; i < 4; i++) {
-        const s = this.sources[i];
-        this._bind(2 + i, s?.uploaded ? s.tex : this._empty);
-        if (L['u_s' + i]) gl.uniform1i(L['u_s' + i], 2 + i);
-      }
       this._bind(6, st.hist ? st.hist.tex : this._emptyArr, 'TEXTURE_2D_ARRAY');
       if (L.u_hist) gl.uniform1i(L.u_hist, 6);
-      gl.uniform4f(L.u_sAsp, sAsp[0], sAsp[1], sAsp[2], sAsp[3]);
-      gl.uniform1i(L.u_ns, ns);
       gl.uniform1f(L.u_histN, st.hist ? st.hist.n : 0);
       gl.uniform1f(L.u_histHead, st.hist ? st.hist.head : 0);
       gl.uniform1f(L.u_histCap, st.hist ? st.hist.cap : 1);
-      gl.uniform1f(L.u_t, t);
-      gl.uniform1f(L.u_T, clip.format.duration);
-      gl.uniform1f(L.u_loop, clip.format.loop ? 1 : 0);
-      gl.uniform1f(L.u_frame, frame);
-      gl.uniform1f(L.u_fps, clip.format.fps);
-      gl.uniform1f(L.u_seed, clip.seed || 1);
-      gl.uniform2f(L.u_res, this.w, this.h);
-      const vals = passValues(clip, pass, t, live);
-      const arr = new Float32Array(8); vals.forEach((v, i) => { arr[i] = v; });
-      gl.uniform1fv(L.u_p, arr);
       gl.uniform1f(L.u_mix, pass.mix ?? 1);
       gl.uniform1i(L.u_blend, BLEND_INDEX[pass.blend] ?? 0);
       this._draw(prog, out, this.w, this.h);

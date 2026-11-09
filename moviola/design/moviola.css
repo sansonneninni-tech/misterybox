@@ -396,6 +396,29 @@ pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; col
 .style[aria-selected="true"] .style__img { border-color: var(--salt); }
 .style__name { font-size: 13px; }
 .style__ref { font-family: var(--font-mono); font-size: 10px; color: var(--ash); }
+.mats { border-top: var(--hair) solid var(--seam); padding: var(--s-3) 0 var(--s-4); }
+.mats__head { display: flex; align-items: baseline; gap: var(--s-3); padding: 0 var(--s-4) var(--s-2); flex-wrap: wrap; }
+.mats__row { display: flex; gap: var(--s-5); overflow-x: auto; padding: 0 var(--s-4); scroll-snap-type: x proximity; }
+.mats__fam { flex: none; display: flex; flex-direction: column; gap: 6px; }
+.mats__famname { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ash); }
+.mats__tiles { display: flex; gap: var(--s-2); }
+.mat { width: 132px; }
+.mat .style__img { position: relative; }
+.mat[aria-pressed="true"] .style__img { border-color: var(--salt); }
+.mat__n { position: absolute; top: 4px; left: 4px; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center; background: var(--salt); color: var(--void); font-family: var(--font-mono); font-size: 11px; }
+.layers { display: flex; flex-direction: column; gap: var(--s-2); }
+.layer { border: var(--hair) solid var(--seam); }
+.layer[open] { padding-bottom: var(--s-3); }
+.layer__sum { display: flex; width: 100%; box-sizing: border-box; text-align: left; justify-content: flex-start; align-items: center; gap: var(--s-2); padding: 0 0 0 var(--s-3); min-height: 44px; cursor: pointer; list-style: none; font-size: 13px; }
+.layer__sum::-webkit-details-marker { display: none; }
+.layer__n { font-family: var(--font-mono); font-size: 11px; color: var(--ash); width: 14px; }
+.layer__name { font-size: 14px; }
+.layer__sum .meta { flex: 1; }
+.layer__tools { display: flex; margin-left: auto; }
+.layer__tools .btn { min-width: 44px; min-height: 44px; }
+.layer > .about, .layer > .ctl, .layer > .link { margin: var(--s-2) var(--s-3) 0; }
+.layer__prms { display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-3) var(--s-3) 0; }
+.layer .prm { grid-template-columns: minmax(0, 1fr) auto; }
 .flow__side { display: flex; flex-direction: column; min-height: 0; }
 .flow__scroll { flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; }
 .flow__panel { padding: var(--s-5) var(--s-4); display: flex; flex-direction: column; gap: var(--s-5); }

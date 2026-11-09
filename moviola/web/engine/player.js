@@ -33,7 +33,7 @@ export class Player {
     return d;
   }
 
-  needsHistory() { return (this.clip?.chain || []).some((p) => p.on && (byId[p.proc]?.feedback || byId[p.proc]?.history)); }
+  needsHistory() { return (this.clip?.chain || []).some((p) => p.on && (byId[p.proc]?.feedback || byId[p.proc]?.history || byId[p.proc]?.sim)); }
 
   /** sources: record dell'archivio nell'ordine della clip; urlOf: record -> url */
   async setClip(clip, sources = [], urlOf = (s) => s.url) {

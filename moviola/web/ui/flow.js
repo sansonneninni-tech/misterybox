@@ -8,7 +8,8 @@ import {
   versionsOf, versionById, expById, touch, thumbnail, auxRenderer, auxSources, auxLock, withAux, addRender, clipSources,
 } from '../state.js';
 import { h, fill, toast, seg, isPhone, ago, dialog } from './kit.js';
-import { RECIPES, recipeById, buildClip } from '../engine/recipes.js';
+import { RECIPES, recipeById, buildClip, MAX_MATERIE } from '../engine/recipes.js';
+import { MATERIE, MATERIA_FAMILIES } from '../engine/materie/index.js';
 import { ASPECTS, dims, clone, normalizeClip, newSeed } from '../engine/clip.js';
 import { byId } from '../engine/processes.js';
 import { renderToServer, renderToPreview } from '../engine/export.js';
@@ -19,6 +20,7 @@ import { mainPlayer, syncPlayer } from '../app.js';
 import { qrSvg } from './qr.js';
 
 const MAX = 4;
+const fmtVal = (v, d) => (d.step >= 1 ? String(Math.round(v)) : Math.abs(d.max - d.min) <= 2 ? v.toFixed(2) : v.toFixed(1));
 const MOVES = [
   { id: 'fermo', label: 'Fermo', hint: 'si muove solo la materia dello stile' },
   { id: 'contemplativo', label: 'Lento', hint: 'oscillazioni lunghe e calme' },
@@ -191,6 +193,16 @@ async function styleThumb(style, clip) {
   return url;
 }
 
+// Miniatura di una materia: la stessa foto, senza stile, con solo quella materia.
+async function materiaThumb(proc, clip) {
+  const key = 'm:' + proc + '|' + clip.sources.map((s) => s.id).join(',') + '|' + clip.format.aspect;
+  if (thumbCache.has(key)) return thumbCache.get(key);
+  const c = buildClip({ style: 'nudo', sources: clip.sources.map((s) => sourceById(s.id)).filter(Boolean), format: { ...clip.format, duration: 4 }, seed: 7, materie: [{ proc }] });
+  const url = await thumbnail(c, 280);
+  thumbCache.set(key, url);
+  return url;
+}
+
 export const trasforma = {
   render(root, { app }) {
     syncPickFromWork();
@@ -200,6 +212,7 @@ export const trasforma = {
     const using = h('div.using');
     const screen = h('div.screen.flow__screen', { onclick: () => { player.toggle(); drawUsing(); } }, player.canvas);
     const styles = h('div.styles', { role: 'listbox', 'aria-label': 'Stili' });
+    const mats = h('div.mats');
     const head = h('div.scrub__head');
     const tlFill = h('i.scrub__fill');
     const tl = h('div.scrub', { role: 'slider', 'aria-label': 'Tempo della clip', tabindex: 0 }, tlFill);
@@ -214,7 +227,7 @@ export const trasforma = {
     const more = h('div.flow__panel.flow__panel--more');
     const kept = h('div.kept');
     const action = cta('Tieni questa', () => keep());
-    stage.append(using, screen, timeline, styles);
+    stage.append(using, screen, timeline, styles, mats);
     root.append(h('div.flow.flow--trasforma', null, stage, h('div.flow__side', null, h('div.flow__scroll', null, panel, kept, more), action)));
 
     let ready = false;
@@ -242,12 +255,105 @@ export const trasforma = {
       }));
     }
 
+    // Materie: si aggiungono a strati sopra lo stile. Tocca per aggiungere,
+    // ritocca per togliere; l'ordine è quello in cui le tocchi.
+    let matIO = null;
+    function drawMats() {
+      const c = work();
+      const sel = (c.materie || []).map((m) => m.proc);
+      matIO?.disconnect();
+      matIO = new IntersectionObserver((ents) => ents.forEach((en) => {
+        if (!en.isIntersecting) return;
+        const img = en.target; matIO.unobserve(img);
+        materiaThumb(img.dataset.proc, work()).then((u) => { img.src = u; }).catch(() => {});
+      }), { root: null, rootMargin: '0px 400px' });
+      const row = h('div.mats__row', { role: 'group', 'aria-label': 'Materie' }, MATERIA_FAMILIES.map((f) => {
+        const list = MATERIE.filter((m) => m.family === f.id);
+        if (!list.length) return null;
+        return h('div.mats__fam', null, h('span.mats__famname', null, f.label), h('div.mats__tiles', null, list.map((m) => {
+          const k = sel.indexOf(m.id);
+          const img = h('img', { alt: '', 'data-proc': m.id });
+          matIO.observe(img);
+          return h('button.style.mat', { 'aria-pressed': String(k >= 0), title: m.about, onclick: () => toggleMateria(m.id) },
+            h('span.style__img', null, img, k >= 0 ? h('span.mat__n', null, String(k + 1)) : null),
+            h('span.style__name', null, m.name), h('span.style__ref', null, m.ref || ''));
+        })));
+      }));
+      fill(mats,
+        h('div.mats__head', null, h('span.label', null, 'Materie'),
+          h('span.meta', null, sel.length ? `${sel.length} a strati, nell’ordine in cui le hai toccate · ritocca per togliere` : 'l’immagine diventa il corpo di una sostanza · tocca per aggiungerne una, si sommano a strati')),
+        row);
+    }
+
+    function toggleMateria(proc) {
+      const c = work();
+      const list = (c.materie || []).slice();
+      const k = list.findIndex((m) => m.proc === proc);
+      if (k >= 0) list.splice(k, 1);
+      else {
+        if (list.length >= MAX_MATERIE) { toast(`Al massimo ${MAX_MATERIE} materie a strati: togline una prima.`); return; }
+        list.push({ proc });
+      }
+      rebuild({ materie: list });
+      drawMats(); drawPanel();
+      if (k < 0) toast(`${byId[proc].name}: ${byId[proc].about}`);
+    }
+
+    function moveMateria(i, d) {
+      const list = (work().materie || []).slice();
+      const j = i + d; if (j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]];
+      rebuild({ materie: list }); drawMats(); drawPanel();
+    }
+
+    // passaggio della catena che corrisponde allo strato i
+    const layerPass = (i) => work().chain.find((p) => p.layer === i);
+    let openLayer = -1;
+
+    function materiaPanel(c) {
+      const list = c.materie || [];
+      if (!list.length) return null;
+      return h('div.layers', null,
+        h('span.label', null, 'Materie a strati'),
+        list.map((m, i) => {
+          const proc = byId[m.proc];
+          const cur_ = () => work().materie[i] || m;
+          const set = (id, v) => {
+            cur_().params[id] = v;
+            const p = layerPass(i); if (p) p.params[id] = v;
+            touch('clip'); syncPlayer(); scheduleRead();
+          };
+          const mixIn = h('input.range', { type: 'range', min: 0, max: 1, step: 0.01, value: m.mix ?? 1, 'aria-label': 'Quantità di ' + proc.name,
+            oninput: (e) => { const mm = cur_(); mm.mix = Number(e.target.value); const p = layerPass(i); if (p) { p.baseMix = mm.mix; applyIntensity(S.work); } touch('clip'); syncPlayer(); scheduleRead(); } });
+          const rows = proc.params.map((d) => {
+            const cur = m.params[d.id] ?? d.def;
+            const val = h('span.prm__val', null, d.options ? '' : fmtVal(cur, d));
+            const control = d.options
+              ? h('div.opt-row', null, d.options.map((o, oi) => h('button.tag', { 'aria-pressed': String(Math.round(cur) === oi), onclick: (e) => { set(d.id, oi); e.currentTarget.parentNode.querySelectorAll('.tag').forEach((b, bi) => b.setAttribute('aria-pressed', String(bi === oi))); } }, o)))
+              : h('input.range', { type: 'range', min: d.min, max: d.max, step: d.step || (d.max - d.min) / 400, value: cur, 'aria-label': d.label, oninput: (e) => { const v = Number(e.target.value); val.textContent = fmtVal(v, d); set(d.id, v); } });
+            return h('div.prm', null, h('span.prm__lbl', null, d.label), val, control);
+          });
+          return h('details.layer', { open: openLayer === i, ontoggle: (e) => { if (e.target.open) openLayer = i; else if (openLayer === i) openLayer = -1; } },
+            h('summary.layer__sum', null,
+              h('span.layer__n', null, String(i + 1)),
+              h('span.layer__name', null, proc.name),
+              h('span.meta', null, `${proc.params.length} parametri`),
+              h('span.layer__tools', null,
+                i > 0 ? h('button.btn.btn--quiet', { 'aria-label': 'Porta prima ' + proc.name, title: 'Più in basso negli strati (prima nella catena)', onclick: (e) => { e.preventDefault(); moveMateria(i, -1); } }, '↑') : null,
+                h('button.btn.btn--quiet', { 'aria-label': 'Togli ' + proc.name, onclick: (e) => { e.preventDefault(); toggleMateria(m.proc); } }, 'Togli'))),
+            h('p.about', null, proc.about),
+            h('label.ctl', null, h('span.ctl__lbl', null, 'Quantità', h('span.meta', null, 'quanto questo strato copre quello sotto')), mixIn),
+            h('div.layer__prms', null, rows),
+            h('button.link', { onclick: () => { const mm = cur_(); mm.params = Object.fromEntries(proc.params.map((d) => [d.id, d.def])); mm.mix = 1; rebuild({ materie: work().materie }); drawPanel(); } }, 'Rimetti i valori di partenza'));
+        }));
+    }
+
     function rebuild(patch = {}) {
       const c = work();
       const next = buildClip({
         style: patch.style || c.style, sources: c.sources.map((s) => sourceById(s.id)).filter(Boolean),
         format: { ...c.format, ...(patch.format || {}) }, motion: { ...c.motion, ...(patch.motion || {}) },
-        seed: patch.seed || c.seed,
+        seed: patch.seed || c.seed, materie: patch.materie ?? c.materie,
       });
       next.intensity = patch.intensity ?? c.intensity ?? 0.8;
       applyIntensity(next);
@@ -270,7 +376,8 @@ export const trasforma = {
         h('label.ctl', null, h('span.ctl__lbl', null, 'Intensità', h('span.meta', null, 'quanto lo stile pesa sulle foto')), slider),
         h('div.ctl', null, h('span.ctl__lbl', null, 'Movimento', h('span.meta', null, MOVES.find((m) => m.id === c.motion.mode)?.hint || '')),
           seg(MOVES, c.motion.mode, (v) => { rebuild({ motion: { mode: v } }); drawPanel(); }, { label: 'Movimento' }),
-          c.motion.mode === 'ritmico' ? h('div.row', null, bpm, h('span.meta', null, 'battiti al minuto')) : null));
+          c.motion.mode === 'ritmico' ? h('div.row', null, bpm, h('span.meta', null, 'battiti al minuto')) : null),
+        materiaPanel(c));
       fill(more,
         h('details.fmt', { open: fmtOpen, ontoggle: (e) => { fmtOpen = e.target.open; } },
           h('summary.fmt__sum', null, h('span', null, 'Formato'), h('span.meta', null, `${c.format.duration} s · ${c.format.aspect} · ${c.format.fps} fps`), h('span.fmt__chg', null, fmtOpen ? 'Chiudi' : 'Cambia')),
@@ -282,7 +389,7 @@ export const trasforma = {
             seg([{ id: 24, label: '24' }, { id: 30, label: '30' }], c.format.fps, (v) => { rebuild({ format: { fps: v } }); drawPanel(); }, { label: 'Fotogrammi al secondo' }))),
         h('div.flow__more', null,
           h('button.btn', { onclick: () => { rebuild({ seed: newSeed() }); toast('Un’altra versione dello stesso stile'); } }, 'Un’altra versione'),
-          h('button.btn', { onclick: () => openProvino({ onOpen: () => { syncPlayer().then(() => player.restart()); drawPanel(); drawStyles(); scheduleRead(); } }) }, 'Mostrami 6 versioni')),
+          h('button.btn', { onclick: () => openProvino({ onOpen: () => { syncPlayer().then(() => player.restart()); drawPanel(); drawStyles(); drawMats(); scheduleRead(); } }) }, 'Mostrami 6 versioni')),
         h('button.switch', { role: 'switch', 'aria-checked': 'false', onclick: () => app.go('vivo') },
           h('span.switch__knob'), h('span.stack', null, h('span', null, 'Anteprima dal vivo'), h('span.meta', null, 'la suoni col dito o col mouse, in tempo reale'))),
         claude,
@@ -345,7 +452,7 @@ export const trasforma = {
       S.pick = S.work.sources.map((x) => x.id); S.zero = !S.pick.length;
       if (!S.work.style) S.work.style = 'emulsione';
       await syncPlayer(); player.restart(); player.play();
-      drawUsing(); drawStyles(); drawPanel(); drawKept(); scheduleRead();
+      drawUsing(); drawStyles(); drawMats(); drawPanel(); drawKept(); scheduleRead();
       toast(`Riparti da ${v.label}: quello che tieni da qui nasce come suo ramo.`);
     }
 
@@ -374,7 +481,7 @@ export const trasforma = {
       await syncPlayer();
       player.restart(); player.play();
       // la lettura prende l'ausiliario prima delle miniature, così arriva subito
-      drawUsing(); drawPanel(); readNow(); drawStyles(); drawKept();
+      drawUsing(); drawPanel(); readNow(); drawStyles(); drawMats(); drawKept();
     })().catch((e) => { console.error(e); toast('Non riesco a preparare l’anteprima: ' + e.message); });
 
     const keys = (e) => {
@@ -382,7 +489,7 @@ export const trasforma = {
       if (e.key === ' ') { e.preventDefault(); player.toggle(); drawUsing(); }
     };
     document.addEventListener('keydown', keys);
-    return () => { document.removeEventListener('keydown', keys); player.pause(); };
+    return () => { document.removeEventListener('keydown', keys); matIO?.disconnect(); player.pause(); };
   },
 };
 

@@ -2,7 +2,7 @@
 // genera da sé) e con le foto o i video di ninni, che restano il soggetto e
 // vengono messi in movimento. Con più foto, tutte entrano nella clip.
 
-import { defaultParams } from './processes.js';
+import { defaultParams, byId } from './processes.js';
 import { defaultClip, normalizeClip, newSeed } from './clip.js';
 
 let n = 0;
@@ -173,6 +173,34 @@ export const RECIPES = [
 export function makePass(proc, params) { return pass(proc, params); }
 
 /** Con due o più foto, la clip passa dall'una all'altra: nessuna resta fuori. */
+RECIPES.push({
+  id: 'nudo', ref: 'solo le materie', name: 'Nessuno stile', needs: 'niente',
+  line: 'La foto così com’è: le materie che aggiungi sotto fanno tutto, a strati.',
+  photo: (n) => [...head(n)],
+  make: () => ({
+    motion: { mode: 'contemplativo', amount: 0.55, bpm: 60, division: 1, speed: 0.6 },
+    chain: [pass('campo', { scala: 0.9, torsione: 2.2, velocita: 0.06, contrasto: 1.1, cromia: 0.06, tinta: 0.05, ottave: 4 })],
+  }),
+});
+
+/** Al massimo sei strati di materia, come le sovrimpressioni in macchina di Clipson. */
+export const MAX_MATERIE = 6;
+
+/** Ripulisce l'elenco delle materie di una clip: [{ proc, params, mix }]. */
+export function cleanMaterie(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((m) => m && byId[m.proc]?.materia)
+    .slice(0, MAX_MATERIE)
+    .map((m) => ({ proc: m.proc, mix: Math.min(1, Math.max(0, m.mix ?? 1)), params: { ...defaultParams(m.proc), ...(m.params || {}) } }));
+}
+
+/** Dove entrano le materie: dopo la fusione delle foto e i generatori, prima di tutto il resto. */
+function materiaAt(chain) {
+  let i = 0;
+  while (i < chain.length && (chain[i].proc === 'metamorfosi' || byId[chain[i].proc]?.gen)) i++;
+  return i;
+}
+
 function head(n) {
   return n >= 2 ? [pass('metamorfosi', { cicli: Math.min(4, n), deformazione: 0.12, tenuta: 0.4, granulo: 2.5 })] : [];
 }
@@ -180,7 +208,7 @@ function head(n) {
 export const recipeById = (id) => RECIPES.find((r) => r.id === id);
 
 /** Costruisce la clip di uno stile sulle sorgenti scelte (record dell'archivio). */
-export function buildClip({ style, sources = [], motion, format, seed } = {}) {
+export function buildClip({ style, sources = [], motion, format, seed, materie } = {}) {
   const r = recipeById(style) || RECIPES[0];
   const m = r.make();
   const base = defaultClip();
@@ -194,5 +222,10 @@ export function buildClip({ style, sources = [], motion, format, seed } = {}) {
   clip.sources = sources.slice(0, 4).map((s) => ({ id: s.id, speed: 1, start: 0 }));
   if (n && r.photo) clip.chain = r.photo(n);
   clip.style = r.id;
+  clip.materie = cleanMaterie(materie);
+  if (clip.materie.length) {
+    const layers = clip.materie.map((m, i) => pass(m.proc, m.params, { mix: m.mix, layer: i }));
+    clip.chain.splice(materiaAt(clip.chain), 0, ...layers);
+  }
   return clip;
 }

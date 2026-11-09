@@ -1,0 +1,45 @@
+<!doctype html><meta charset="utf-8"><title>Foglio materie</title>
+<body style="margin:0;background:#111;color:#ccc;font:12px monospace">
+<canvas id="c" style="display:none"></canvas>
+<script type="module">
+// Controllo visivo delle materie: ogni processo su ogni foto, a più istanti.
+// ?p=id1,id2  ?f=url1,url2  ?w=480  ?t=0.5,2,4  (secondi)  ?fps=24
+import { Renderer } from '../web/engine/renderer.js';
+import { byId, defaultParams } from '../web/engine/processes.js';
+import { defaultClip } from '../web/engine/clip.js';
+const q = new URLSearchParams(location.search);
+const ids = (q.get('p') || '').split(',').filter(Boolean);
+const photos = (q.get('f') || '').split(',').filter(Boolean);
+const W = Number(q.get('w') || 480);
+const fps = Number(q.get('fps') || 24);
+const times = (q.get('t') || '0.5,2,4').split(',').map(Number);
+const load = (u) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; });
+const imgs = await Promise.all(photos.map(load));
+const r = new Renderer(document.getElementById('c'));
+r.setSize(W, Math.round(W * 9 / 16 / 2) * 2);
+const out = [];
+for (const id of ids) {
+  const p = byId[id];
+  const row = { id, name: p?.name, err: null, shots: [] };
+  if (!p) { row.err = 'processo sconosciuto'; out.push(row); continue; }
+  for (const im of imgs) {
+    const clip = defaultClip(); clip.seed = 7; clip.format.duration = 8; clip.format.fps = fps;
+    clip.motion.mode = 'contemplativo';
+    clip.chain = [{ id: 'a', proc: id, on: true, mix: 1, blend: p.blend || 'normale', params: defaultParams(id) }];
+    r.setSources([{ el: im, w: im.naturalWidth, h: im.naturalHeight, kind: 'image' }]);
+    r.prune([]); r.reset();
+    const last = Math.round(Math.max(...times) * fps);
+    const want = new Set(times.map((t) => Math.round(t * fps)));
+    const t0 = performance.now();
+    for (let f = 0; f <= last; f++) {
+      r.render(clip, f / fps, f, null, { display: want.has(f) });
+      if (want.has(f)) row.shots.push(r.canvas.toDataURL('image/jpeg', 0.85));
+    }
+    row.ms = Math.round((performance.now() - t0) / (last + 1));
+    row.err = r.errors.get(id) || null;
+    if (row.err) break;
+  }
+  out.push(row);
+}
+window.__out = out;
+</script>

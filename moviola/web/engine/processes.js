@@ -8,6 +8,11 @@
 //   feedback  legge la propria uscita al fotogramma prima (FB)
 //   history   legge gli ultimi fotogrammi in ingresso (HIST)
 //   noloop    non può garantire un loop chiuso
+//   sim       GLSL di `vec4 sim(vec2 uv)`: uno stato in virgola mobile che
+//             evolve da sé (crescita, onde, diffusione). Si legge con ST(uv).
+//             steps = passi per fotogramma, simLong = lato lungo dello stato.
+
+import { MATERIE, MATERIA_FAMILIES } from './materie/index.js';
 
 export const FAMILIES = [
   { id: 'materica', label: 'Materica' },
@@ -17,6 +22,7 @@ export const FAMILIES = [
   { id: 'luce', label: 'Luce' },
   { id: 'tempo', label: 'Tempo' },
   { id: 'colore', label: 'Colore e sorgenti' },
+  ...MATERIA_FAMILIES,
 ];
 
 export const BLENDS = [
@@ -540,6 +546,8 @@ vec3 fx(vec2 uv) {
   },
 ];
 
+PROCESSES.push(...MATERIE);
+
 export const byId = Object.fromEntries(PROCESSES.map((p) => [p.id, p]));
 
 export function defaultParams(procId) {
@@ -552,4 +560,10 @@ export function fragmentFor(proc, prelude, postlude) {
   const defs = proc.params.map((p, i) => `#define ${p.id} u_p[${i}]`).join('\n');
   const undefs = proc.params.map((p) => `#undef ${p.id}`).join('\n');
   return `${prelude}\n${defs}\n${proc.glsl}\n${undefs}\n${postlude}`;
+}
+
+/** GLSL del passo di simulazione: `vec4 sim(vec2 uv)` scrive il nuovo stato. */
+export function simFragmentFor(proc, prelude) {
+  const defs = proc.params.map((p, i) => `#define ${p.id} u_p[${i}]`).join('\n');
+  return `${prelude}\n${defs}\n${proc.sim}\nvoid main() { o_col = sim(v_uv); }`;
 }

@@ -44,7 +44,7 @@ In alto, sempre: **1 Scegli · 2 Trasforma · 3 Salva**. Su iPhone una riga sola
    fino a 4. Oppure «parti da zero, senza foto».
 2. **Trasforma**: l'anteprima usa subito le tue foto e lo dice («Sta usando: 2 foto»).
    Sotto, gli stili come miniature delle tue foto già trasformate, ognuno con il
-   riferimento a cui si ispira. Intensità, Movimento, durata, proporzioni, fps,
+   riferimento a cui si ispira, e sotto le Materie da sommare a strati. Intensità, Movimento, durata, proporzioni, fps,
    «Un'altra versione», «Mostrami 6 versioni», «Anteprima dal vivo», la riga di
    Claude con «Discuti». «Tieni questa» mette da parte la versione; tocca una tenuta
    per ripartire da lì, «Confronta» per l'A/B.
@@ -56,11 +56,70 @@ In alto, sempre: **1 Scegli · 2 Trasforma · 3 Salva**. Su iPhone una riga sola
 versioni e confronto, dal vivo, interlocutore, archivio completo con provenienza e
 diritti, tutte le opzioni di salvataggio.
 
+## Le materie: l'immagine diventa il corpo di una sostanza
+
+Trenta processi nati dalla ricerca su Clipson (strati in macchina, zoom, macro, riflessi), Brakhage, Belson, Youngblood, McLaren, Viola e Turing. Nel passo 2, sotto gli stili, la striscia **Materie**: tocca una materia per aggiungerla, ritoccala per toglierla. Si sommano a strati (fino a sei, nell'ordine in cui le tocchi) sopra lo stile scelto; con **Nessuno stile** resta solo la foto con le sue materie. Ogni strato, nel pannello a destra, ha la sua Quantità e i suoi 7–8 parametri. Niente pellicola, graffi o bagliori: la foto resta riconoscibile, diventa il corpo della materia. Quelle segnate *cresce* si sviluppano da sole dall'inizio della clip (non chiudono il loop esatto).
+
+**Liquidi**
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Mercurio (Hg) | La foto diventa una pozza di metallo pesante: la luce dell’immagine è l’altezza, la superficie si gonfia e trema lenta, e la foto si legge nel metallo, riflessa e piegata. | Youngblood, l’effetto oceanico |
+| Olio (Ol) | Una pellicola d’olio galleggia sulla foto: lo spessore segue l’immagine e una corrente lenta lo trascina; i colori d’interferenza sono ottone, bronzo e petrolio, e sotto la foto si piega. | Belson, “è il colore a definire le forme” |
+| Inchiostro (In) · *cresce* | La foto si scioglie come inchiostro nell’acqua: i bordi rilasciano il pigmento, i vortici lo tirano in filamenti, e l’immagine continua a riaffiorare. | Brakhage, la chimica che crea forme |
+| Miele (Mi) · *cresce* | La foto colata come miele denso: scende lenta in lobi e pieghe, e dove la materia è spessa i colori si scuriscono d’ambra. | Bill Viola, la lentezza |
+| Cera (Cr) · *cresce* | La foto come cera: le zone chiare fondono per prime e colano, poi si riaddensano; la superficie è traslucida, più morbida dove la cera è spessa. | Viola, l’emersione |
+| Ferrofluido (Ff) | Un ferrofluido sotto magneti che si spostano: si raccoglie nei bui più profondi della foto come un corpo scuro che specchia l’immagine, si allunga verso i magneti e lì si alza in un campo di punte strette, piramidi scure che si piegano verso il magnete. | Brakhage, limatura di ferro sotto magneti |
+
+**Acque e vetri**
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Pioggia (Pi) · *cresce* | La foto è il fondo di uno specchio d’acqua su cui cade la pioggia: cerchi concentrici che si allargano e si incrociano piegano l’immagine; dove la foto è scura l’acqua è più profonda e le onde corrono diverse. | Paul Clipson, Bill Viola |
+| Canale (Cn) | Sotto una linea d’orizzonte la foto si specchia capovolta nell’acqua di un canale: onde lunghe la spezzano in bande che tremano, l’acqua la scurisce e la raffredda. | Paul Clipson, riflessi nei canali |
+| Goccia (Go) | Gocce sul vetro davanti alla foto: ognuna è una piccola lente che la mostra capovolta, scivolano a scatti, si fondono e lasciano scie; dietro, la foto respira dentro e fuori fuoco. | Paul Clipson, macro |
+| Condensa (Co) | Un vetro appannato dal respiro: una nebbia di micro-gocce si forma e si ritira a ondate lente, e la foto riaffiora dove la condensa evapora, prima nelle sue zone chiare. | Bill Viola, il respiro |
+| Bolle (Bo) | Una schiuma si raduna e si dirada sulla foto: bolle grandi e piccole negli interstizi, ognuna una lente sottile che ne ingrandisce un pezzo; respirano, scivolano, qualcuna scoppia e rinasce. | Brakhage, Youngblood |
+| Vetro (Ve) | Una finestra di vetro antico colato a costolature irregolari che scorre piano: la foto si rompe in fusi ondulati, appena dispersi nei colori, e il fuoco passa sopra come un’onda. | Paul Clipson, vetro cattedrale |
+
+**Minerali**
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Marmo (Mr) | La foto diventa una lastra di marmo: i suoi contorni e le sue curve di luce sono le vene, che scorrono lente come magma che si raffredda. | Belson, “il colore, non la linea, definisce le forme” |
+| Cristalli (Cs) · *cresce* | Da pochi semi crescono grani di cristallo ad aghi e dendriti; ogni grano è una lastra senza colore proprio che sposta la foto a modo suo, come un quarzo tagliato, e l’immagine si ricompone in un mosaico che avanza. | Brakhage, la chimica sulla pellicola che crea forme |
+| Brina (Br) · *cresce* | Il gelo si forma sulla foto: rami di brina a felce crescono dai bordi scuri, sotto l’immagine si sbianca e si appanna, poi a tratti sgela e torna a ghiacciare. | Viola, la lentezza; il gelo sul vetro |
+| Sabbia (Sb) | La foto è fatta di granelli che scivolano col vento, si raccolgono in increspature e dune, poi a poco a poco tornano a comporre l’immagine e di nuovo si sparpagliano. | Brakhage, “sabbie granulose e cangianti che a poco a poco prendono forma” |
+| Ossido (Ox) · *cresce* | Dalle zone scure della foto avanza la corrosione: un fronte umido e frastagliato lascia ruggine, ferro e verderame che prendono il disegno dell’immagine. | Brakhage, la limatura di ferro; la chimica che lavora da sola |
+| Crettatura (Ct) | La foto è uno strato d’argilla che si ritira in placche: le crepe si aprono e si richiudono come un respiro, i bordi delle zolle si incurvano con ombre morbide. | Turing, la forma che nasce dalla materia; il fango che si secca |
+
+**Organismi**
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Morfogenesi (Mg) · *cresce* | La foto diventa pelle: due sostanze reagiscono sotto la superficie e la luminanza decide la forma, macchie nelle ombre, labirinti nei mezzitoni, coralli nelle luci; il disegno solleva e rifrange l’immagine senza coprirla. | Alan Turing, 1952 |
+| Micelio (Mc) · *cresce* | Da poche spore il micelio si allarga sulla foto preferendo le zone chiare: ife sottili seguono le vie della crescita, si ramificano e si infittiscono in feltro; l’immagine resta sotto, colonizzata, e i filamenti ne prendono il colore sbiancato. | ife fungine, colonie su agar |
+| Lichene (Li) | Il lichene attecchisce solo dove la foto ha grana (roccia, corteccia, erba): tanti piccoli semi si allargano in lobi minuti e si fondono in croste; il colore resta quello della foto, appena velato di grigio-verde e d’ocra. | Rhizocarpon, Lecanora, Parmelia |
+| Cellule (Cl) | La foto diventa un tessuto vivo: ogni cellula è una piccola lente che ingrandisce il suo pezzo d’immagine, le membrane sono morbide, i nuclei appena accennati; le cellule respirano, si spingono e ogni tanto si dividono. | tessuti al microscopio |
+| Vene (Vn) | I contorni della foto diventano vasi che si ramificano sotto la pelle dell’immagine; un battito lento li gonfia e il fluido scorre lungo i canali, mentre la foto resta la carne in cui passano. | tavole anatomiche, reti linfatiche |
+| Stormo (St) · *cresce* | La foto si scompone in migliaia di particelle che volano insieme come uno stormo: onde di densità le attraversano, i vortici le piegano, ognuna porta il colore dell’immagine; quando lo stormo si compatta la foto si ricompone. | storni sul Tevere, banchi di sardine |
+
+**Fumi e corpi**
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Fumo (Fu) · *cresce* | La foto si fa fumo: dalle sue luci (o dalle ombre) si staccano volute che salgono lente e si sciolgono; è il colore, non la linea, a definire le forme. | Jordan Belson |
+| Nuvola (Nu) | La foto come volume di gas: le sue luci si gonfiano in una nuvola spessa, colorata dalla foto, che si rimescola lentamente su sé stessa. | Jordan Belson, immagini gassose |
+| Pelle (Pe) | La foto diventa pelle che respira: una grana di piccoli rilievi e pori si tende e si rilassa, pieghe morbide corrono parallele ai bordi dell’immagine, la foto è il pigmento. | Tessuti, superfici del corpo |
+| Seta (Se) | La foto stampata su un drappo di seta che ondeggia al vento: pieghe di larghezze diverse scorrono in diagonale, la stampa si piega con loro e le valli si fanno ombra. Nessuna luce aggiunta: solo ombra e deformazione. | Drappi al vento |
+| Carta bagnata (Cb) · *cresce* | Carta bagnata che beve la foto: l’acqua avanza nelle fibre con un fronte frastagliato, dove arriva i colori si allargano come acquerello e sul bordo si deposita il pigmento; poi asciuga. | Acquerello, cerchio di caffè |
+| Strati (Sr) · *cresce* | Cinque o sei esposizioni della stessa immagine sovrapposte in macchina, ognuna con il suo zoom che scatta avanti e indietro e il suo ritardo; il fuoco passa da uno strato all’altro come un’onda. Si aggiunge all’immagine invece di togliere. | Paul Clipson; McLaren, Pas de deux |
+
 ## Dove sta ogni risposta delle 20 domande
 
 | # | Risposta | Dove sta |
 |---|----------|----------|
-| 1 | Astrazione di ogni tipo | Passo 2: nove stili di famiglie diverse; Avanzato: 16 processi da combinare |
+| 1 | Astrazione di ogni tipo | Passo 2: nove stili di famiglie diverse, «Nessuno stile» e le 30 materie a strati; Avanzato: 16 processi e le 30 materie da combinare |
 | 2 | Brakhage, McLaren, Len Lye, Ikeda, Viola, Clipson | Passo 2: ogni miniatura dice a chi si ispira |
 | 3 | Da zero, da immagine o da video | Passo 1: «Aggiungi foto o video» e «parti da zero» |
 | 4 | Il movimento lo sceglie lui | Passo 2: Movimento (Fermo, Lento, A tempo con bpm, Caotico) e Intensità in vista; chiavi in Avanzato |
