@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<canvas id="c"></canvas>
+<script type="module">
+// Controllo visivo: ogni stile applicato alle foto passate in ?f=a.jpg,b.jpg
+import { Renderer } from '../web/engine/renderer.js';
+import { RECIPES, buildClip } from '../web/engine/recipes.js';
+const W = 384, H = 216;
+const r = new Renderer(document.getElementById('c'));
+r.setSize(W, H);
+const files = (new URLSearchParams(location.search).get('f') || '').split(',').filter(Boolean);
+const imgs = await Promise.all(files.map((f) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.src = f; })));
+const srcs = imgs.map((el, k) => ({ id: 's' + k, el, w: el.naturalWidth, h: el.naturalHeight, kind: 'image' }));
+r.setSources(srcs);
+const out = [];
+for (const rec of RECIPES) {
+  const clip = buildClip({ style: rec.id, sources: srcs, format: { duration: 6 }, seed: 11 });
+  r.prune([]); r.reset();
+  const fps = clip.format.fps, N = 6 * fps, picks = [0, 1, 2, 3, 4, 5].map((i) => Math.floor(i * N / 6) + 12);
+  const shots = [];
+  for (let f = 0; f <= picks[picks.length - 1]; f++) {
+    r.render(clip, (f % N) / fps, f, null, { display: picks.includes(f) });
+    if (picks.includes(f)) shots.push(r.canvas.toDataURL('image/jpeg', 0.9));
+  }
+  out.push({ id: rec.id, imgs: shots, err: [...r.errors.entries()] });
+}
+window.__out = out;
+</script>

@@ -1,0 +1,168 @@
+# MOVIOLA
+
+Laboratorio locale di video astratti sperimentali, da 1 a 30 secondi, fino a
+4K a 24 o 30 fps, senza suono, per DaVinci Resolve. Gemella di ATELIER ma
+indipendente: archivio, server e porta sono suoi. Tutto gira sul Mac, nessun
+servizio a pagamento.
+
+## Avvio sul Mac
+
+Serve Node 20 o più recente e ffmpeg:
+
+```sh
+brew install node ffmpeg
+cd misterybox/moviola
+npm start
+```
+
+Poi apri **http://localhost:5174**. L'archivio sta in `moviola/dati/`, i video
+finiti in `~/Movies/MOVIOLA/` (si cambia in `dati/config.json`, voce `outDir`).
+
+## Dall'iPhone
+
+iPhone e Mac sulla stessa rete Wi‑Fi. Sul Mac apri **05 Esporta** e inquadra il
+QR con la fotocamera dell'iPhone: il link contiene una chiave, chi non ce l'ha
+non entra. Dall'iPhone si lavora su tutto; il render 4K lo fa il Mac. Con
+«Manda al Mac» il lavoro va in coda, e il Mac lo esegue quando in Esporta è
+accesa «Stazione di render».
+
+## L'interlocutore
+
+Legge la clip (misura movimento, sfarfallio, densità, contrasto, colore, la
+cucitura del loop) e propone ipotesi da provare come rami. Usa, in ordine:
+
+1. `ANTHROPIC_API_KEY` nell'ambiente, se c'è;
+2. Claude Code (`claude`) installato sul Mac, con il tuo abbonamento;
+3. regole locali, sempre disponibili.
+
+## Come si lavora: tre passi
+
+In alto, sempre: **1 Scegli · 2 Trasforma · 3 Salva**. Su iPhone una riga sola
+(«Passo 2 di 3 · Trasforma», con ‹ per tornare) e il pulsante principale in basso.
+
+1. **Scegli**: «Aggiungi foto o video» (rullino, file o trascinando sulla finestra),
+   fino a 4. Oppure «parti da zero, senza foto».
+2. **Trasforma**: l'anteprima usa subito le tue foto e lo dice («Sta usando: 2 foto»).
+   Sotto, gli stili come miniature delle tue foto già trasformate, ognuno con il
+   riferimento a cui si ispira, e sotto le Materie da sommare a strati. Intensità, Movimento, durata, proporzioni, fps,
+   «Un'altra versione», «Mostrami 6 versioni», «Anteprima dal vivo», la riga di
+   Claude con «Discuti». «Tieni questa» mette da parte la versione; tocca una tenuta
+   per ripartire da lì, «Confronta» per l'A/B.
+3. **Salva**: ProRes 422 HQ o 4444 XQ, sequenze PNG o TIFF 16 bit, 4K, 24 o 30 fps,
+   durata e proporzioni, con la scheda `.json` accanto. «Questa è finita» la spunti
+   solo tu, e puoi sempre toglierla.
+
+**Avanzato** (in alto a destra): regolazioni fini con catena e chiavi sulla timeline,
+versioni e confronto, dal vivo, interlocutore, archivio completo con provenienza e
+diritti, tutte le opzioni di salvataggio.
+
+## Le materie: l'immagine diventa il corpo di una sostanza
+
+Trentacinque processi nati dalla ricerca su Clipson (strati in macchina, zoom, macro, riflessi), Brakhage, Belson, Youngblood, McLaren, Viola e Turing. Nel passo 2, sotto gli stili, la striscia **Materie**: tocca una materia per aggiungerla, ritoccala per toglierla. Si sommano a strati (fino a sei, nell'ordine in cui le tocchi) sopra lo stile scelto; con **Nessuno stile** resta solo la foto con le sue materie. Ogni strato, nel pannello a destra, ha la sua Quantità e i suoi 7–8 parametri. Niente pellicola, graffi o bagliori: la foto resta riconoscibile, diventa il corpo della materia. Quelle segnate *cresce* si sviluppano da sole dall'inizio della clip (non chiudono il loop esatto).
+
+**Materie dense** (peso, spessore, superficie in luce radente)
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Impasto (Im) | La foto diventa una lastra di colore a olio ancora fresco: lunghe pennellate spesse seguono le forme dell’immagine, rigate dalle setole, con creste dove il pennello si ferma e piani di spatola nelle zone calme, mentre la pasta viene lentamente ritirata e trascinata. | Auerbach, Kossoff: la pittura materica |
+| Argilla (Ar) · *cresce* | La foto è un bassorilievo in argilla bagnata visto da vicino in luce radente: dita invisibili lo trascinano, lo premono e lo lisciano, il rilievo scivola di lato e si rilassa, le chiazze umide migrano e asciugano. | Il bassorilievo in creta ancora umida, prima della cottura |
+| Bitume (Bt) · *cresce* | Un catrame pesante esce dai bui della foto e la inghiotte piano: avanza con un labbro spesso, la pelle si raggrinza in corde, le bolle si gonfiano e lasciano crateri; dove è sottile macchia la foto di bruno, dove è spesso ne conserva la luce come un ricordo. | Burri, Catrami |
+| Ghiaccio (Gh) | La foto è congelata in fondo a un blocco di ghiaccio spesso visto da vicinissimo: sciami di bolle, veli lattiginosi e piani di frattura a profondità diverse scorrono in parallasse, i piani di frattura avanzano a scatti e sulla superficie a conche cola un velo d’acqua di fusione. | Viola, l’acqua e la lentezza; Clipson, macro |
+| Cenere (Nr) · *cresce* | La foto è un foglio spesso che carbonizza in silenzio: il fronte avanza a dita, la carta imbrunisce e si imbarca, diventa crosta nera a scaglie sollevate e poi cenere chiara che si sfoglia, si sbriciola e scopre il fondo. | Burri, Combustioni |
+
+**Liquidi**
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Mercurio (Hg) | La foto diventa una pozza di metallo pesante: la luce dell’immagine è l’altezza, la superficie si gonfia e trema lenta, e la foto si legge nel metallo, riflessa e piegata. | Youngblood, l’effetto oceanico |
+| Olio (Ol) | Una pellicola d’olio galleggia sulla foto: lo spessore segue l’immagine e una corrente lenta lo trascina; i colori d’interferenza sono ottone, bronzo e petrolio, e sotto la foto si piega. | Belson, “è il colore a definire le forme” |
+| Inchiostro (In) · *cresce* | La foto si scioglie come inchiostro nell’acqua: i bordi rilasciano il pigmento, i vortici lo tirano in filamenti, e l’immagine continua a riaffiorare. | Brakhage, la chimica che crea forme |
+| Miele (Mi) · *cresce* | La foto colata come miele denso: scende lenta in lobi e pieghe, e dove la materia è spessa i colori si scuriscono d’ambra. | Bill Viola, la lentezza |
+| Cera (Cr) · *cresce* | La foto come cera: le zone chiare fondono per prime e colano, poi si riaddensano; la superficie è traslucida, più morbida dove la cera è spessa. | Viola, l’emersione |
+| Ferrofluido (Ff) | Un ferrofluido sotto magneti che si spostano: si raccoglie nei bui più profondi della foto come un corpo scuro che specchia l’immagine, si allunga verso i magneti e lì si alza in un campo di punte strette, piramidi scure che si piegano verso il magnete. | Brakhage, limatura di ferro sotto magneti |
+
+**Acque e vetri**
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Pioggia (Pi) · *cresce* | La foto è il fondo di uno specchio d’acqua su cui cade la pioggia: cerchi concentrici che si allargano e si incrociano piegano l’immagine; dove la foto è scura l’acqua è più profonda e le onde corrono diverse. | Paul Clipson, Bill Viola |
+| Canale (Cn) | Sotto una linea d’orizzonte la foto si specchia capovolta nell’acqua di un canale: onde lunghe la spezzano in bande che tremano, l’acqua la scurisce e la raffredda. | Paul Clipson, riflessi nei canali |
+| Goccia (Go) | Gocce sul vetro davanti alla foto: ognuna è una piccola lente che la mostra capovolta, scivolano a scatti, si fondono e lasciano scie; dietro, la foto respira dentro e fuori fuoco. | Paul Clipson, macro |
+| Condensa (Co) | Un vetro appannato dal respiro: una nebbia di micro-gocce si forma e si ritira a ondate lente, e la foto riaffiora dove la condensa evapora, prima nelle sue zone chiare. | Bill Viola, il respiro |
+| Bolle (Bo) | Una schiuma si raduna e si dirada sulla foto: bolle grandi e piccole negli interstizi, ognuna una lente sottile che ne ingrandisce un pezzo; respirano, scivolano, qualcuna scoppia e rinasce. | Brakhage, Youngblood |
+| Vetro (Ve) | Una finestra di vetro antico colato a costolature irregolari che scorre piano: la foto si rompe in fusi ondulati, appena dispersi nei colori, e il fuoco passa sopra come un’onda. | Paul Clipson, vetro cattedrale |
+
+**Minerali**
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Marmo (Mr) | La foto diventa una lastra di marmo: i suoi contorni e le sue curve di luce sono le vene, che scorrono lente come magma che si raffredda. | Belson, “il colore, non la linea, definisce le forme” |
+| Cristalli (Cs) · *cresce* | Da pochi semi crescono grani di cristallo ad aghi e dendriti; ogni grano è una lastra senza colore proprio che sposta la foto a modo suo, come un quarzo tagliato, e l’immagine si ricompone in un mosaico che avanza. | Brakhage, la chimica sulla pellicola che crea forme |
+| Brina (Br) · *cresce* | Il gelo si forma sulla foto: rami di brina a felce crescono dai bordi scuri, sotto l’immagine si sbianca e si appanna, poi a tratti sgela e torna a ghiacciare. | Viola, la lentezza; il gelo sul vetro |
+| Sabbia (Sb) | La foto è fatta di granelli che scivolano col vento, si raccolgono in increspature e dune, poi a poco a poco tornano a comporre l’immagine e di nuovo si sparpagliano. | Brakhage, “sabbie granulose e cangianti che a poco a poco prendono forma” |
+| Ossido (Ox) · *cresce* | Dalle zone scure della foto avanza la corrosione: un fronte umido e frastagliato lascia ruggine, ferro e verderame che prendono il disegno dell’immagine. | Brakhage, la limatura di ferro; la chimica che lavora da sola |
+| Crettatura (Ct) | La foto è uno strato d’argilla che si ritira in placche: le crepe si aprono e si richiudono come un respiro, i bordi delle zolle si incurvano con ombre morbide. | Turing, la forma che nasce dalla materia; il fango che si secca |
+
+**Organismi**
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Morfogenesi (Mg) · *cresce* | La foto diventa pelle: due sostanze reagiscono sotto la superficie e la luminanza decide la forma, macchie nelle ombre, labirinti nei mezzitoni, coralli nelle luci; il disegno solleva e rifrange l’immagine senza coprirla. | Alan Turing, 1952 |
+| Micelio (Mc) · *cresce* | Da poche spore il micelio si allarga sulla foto preferendo le zone chiare: ife sottili seguono le vie della crescita, si ramificano e si infittiscono in feltro; l’immagine resta sotto, colonizzata, e i filamenti ne prendono il colore sbiancato. | ife fungine, colonie su agar |
+| Lichene (Li) | Il lichene attecchisce solo dove la foto ha grana (roccia, corteccia, erba): tanti piccoli semi si allargano in lobi minuti e si fondono in croste; il colore resta quello della foto, appena velato di grigio-verde e d’ocra. | Rhizocarpon, Lecanora, Parmelia |
+| Cellule (Cl) | La foto diventa un tessuto vivo: ogni cellula è una piccola lente che ingrandisce il suo pezzo d’immagine, le membrane sono morbide, i nuclei appena accennati; le cellule respirano, si spingono e ogni tanto si dividono. | tessuti al microscopio |
+| Vene (Vn) | I contorni della foto diventano vasi che si ramificano sotto la pelle dell’immagine; un battito lento li gonfia e il fluido scorre lungo i canali, mentre la foto resta la carne in cui passano. | tavole anatomiche, reti linfatiche |
+| Stormo (St) · *cresce* | La foto si scompone in migliaia di particelle che volano insieme come uno stormo: onde di densità le attraversano, i vortici le piegano, ognuna porta il colore dell’immagine; quando lo stormo si compatta la foto si ricompone. | storni sul Tevere, banchi di sardine |
+
+**Fumi e corpi**
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Fumo (Fu) · *cresce* | La foto si fa fumo: dalle sue luci (o dalle ombre) si staccano volute che salgono lente e si sciolgono; è il colore, non la linea, a definire le forme. | Jordan Belson |
+| Nuvola (Nu) | La foto come volume di gas: le sue luci si gonfiano in una nuvola spessa, colorata dalla foto, che si rimescola lentamente su sé stessa. | Jordan Belson, immagini gassose |
+| Pelle (Pe) | La foto diventa pelle che respira: una grana di piccoli rilievi e pori si tende e si rilassa, pieghe morbide corrono parallele ai bordi dell’immagine, la foto è il pigmento. | Tessuti, superfici del corpo |
+| Seta (Se) | La foto stampata su un drappo di seta che ondeggia al vento: pieghe di larghezze diverse scorrono in diagonale, la stampa si piega con loro e le valli si fanno ombra. Nessuna luce aggiunta: solo ombra e deformazione. | Drappi al vento |
+| Carta bagnata (Cb) · *cresce* | Carta bagnata che beve la foto: l’acqua avanza nelle fibre con un fronte frastagliato, dove arriva i colori si allargano come acquerello e sul bordo si deposita il pigmento; poi asciuga. | Acquerello, cerchio di caffè |
+| Strati (Sr) · *cresce* | Cinque o sei esposizioni della stessa immagine sovrapposte in macchina, ognuna con il suo zoom che scatta avanti e indietro e il suo ritardo; il fuoco passa da uno strato all’altro come un’onda. Si aggiunge all’immagine invece di togliere. | Paul Clipson; McLaren, Pas de deux |
+
+## Dove sta ogni risposta delle 20 domande
+
+| # | Risposta | Dove sta |
+|---|----------|----------|
+| 1 | Astrazione di ogni tipo | Passo 2: nove stili di famiglie diverse, «Nessuno stile» e le 35 materie a strati; Avanzato: 16 processi e le 35 materie da combinare |
+| 2 | Brakhage, McLaren, Len Lye, Ikeda, Viola, Clipson | Passo 2: ogni miniatura dice a chi si ispira |
+| 3 | Da zero, da immagine o da video | Passo 1: «Aggiungi foto o video» e «parti da zero» |
+| 4 | Il movimento lo sceglie lui | Passo 2: Movimento (Fermo, Lento, A tempo con bpm, Caotico) e Intensità in vista; chiavi in Avanzato |
+| 5 | Pura esperienza visiva | Nessun testo nel video |
+| 6 | Da 1 a 30 secondi | Passo 2 e passo 3: Durata 1, 3, 5, 8, 15, 30 s (in Avanzato qualsiasi valore) |
+| 7 | Più formati | Passo 2 e 3: 16:9, 9:16, 1:1, 4:5, 2.39:1, 4:3 |
+| 8 | 4K, 24 e 30 fps | Passo 3: 4K e 24/30 in vista |
+| 9 | DaVinci | Passo 3: ProRes 422 HQ / 4444 XQ, PNG/TIFF 16 bit, `.json`, Rec.709 |
+| 10–11 | Niente suono | Nessuna traccia audio |
+| 12 | Solo motori locali gratuiti | Tutto sul Mac, nessun servizio a pagamento |
+| 13 | Timeline «un po'» | Passo 2: striscia del tempo sotto l'anteprima; chiavi in Avanzato › Regolazioni fini |
+| 14 | Tempo reale se lo sceglie | Passo 2: «Anteprima dal vivo» |
+| 15 | App separata | Cartella, archivio e porta suoi |
+| 16 | Stessa grafica di ATELIER | Stessi token, componenti e percorso a tre passi |
+| 17 | iPhone e Mac | Tutto il percorso, verificato su entrambi |
+| 18 | Claude critico | Passo 2: riga «Claude:» con «Discuti» |
+| 19 | Cronologia e rami | Passo 2: tenute, «tocca per ripartire», «Confronta»; Avanzato › Versioni |
+| 20 | MacBook Pro M2 Pro | Render 4K locale, fotogramma per fotogramma |
+
+## Senza Mac
+
+Aperta senza server (per esempio la pagina demo), MOVIOLA salva nel browser ed
+esporta PNG 16 bit in uno zip o WebM. Utile per provare; il lavoro vero si fa
+con il server.
+
+## Controllo
+
+```sh
+npm run check
+```
+
+Controlla la sintassi di ogni file, che gli import si risolvano e le parti pure
+del motore. I fogli `tools/engine-sheet.html` e `tools/recipe-sheet.html`
+mostrano tutti i processi e tutte le partenze per il controllo visivo.
+
+Il piano completo è in [PIANO.md](PIANO.md).
