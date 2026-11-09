@@ -13,9 +13,7 @@ import { MATERIA as ghiaccio } from './dense/ghiaccio.js';
 import { MATERIA as cenere } from './dense/cenere.js';
 
 // Le materie dense: peso, spessore, superficie. Una per file.
-// cenere resta fuori finché non è all'altezza
-const dense = [impasto, argilla, bitume, ghiaccio].filter(Boolean);
-void cenere;
+const dense = [impasto, argilla, bitume, ghiaccio, cenere].filter(Boolean);
 
 export const MATERIA_FAMILIES = [
   { id: 'dense', label: 'Materie dense' },

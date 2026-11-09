@@ -58,7 +58,7 @@ diritti, tutte le opzioni di salvataggio.
 
 ## Le materie: l'immagine diventa il corpo di una sostanza
 
-Trentaquattro processi nati dalla ricerca su Clipson (strati in macchina, zoom, macro, riflessi), Brakhage, Belson, Youngblood, McLaren, Viola e Turing. Nel passo 2, sotto gli stili, la striscia **Materie**: tocca una materia per aggiungerla, ritoccala per toglierla. Si sommano a strati (fino a sei, nell'ordine in cui le tocchi) sopra lo stile scelto; con **Nessuno stile** resta solo la foto con le sue materie. Ogni strato, nel pannello a destra, ha la sua Quantità e i suoi 7–8 parametri. Niente pellicola, graffi o bagliori: la foto resta riconoscibile, diventa il corpo della materia. Quelle segnate *cresce* si sviluppano da sole dall'inizio della clip (non chiudono il loop esatto).
+Trentacinque processi nati dalla ricerca su Clipson (strati in macchina, zoom, macro, riflessi), Brakhage, Belson, Youngblood, McLaren, Viola e Turing. Nel passo 2, sotto gli stili, la striscia **Materie**: tocca una materia per aggiungerla, ritoccala per toglierla. Si sommano a strati (fino a sei, nell'ordine in cui le tocchi) sopra lo stile scelto; con **Nessuno stile** resta solo la foto con le sue materie. Ogni strato, nel pannello a destra, ha la sua Quantità e i suoi 7–8 parametri. Niente pellicola, graffi o bagliori: la foto resta riconoscibile, diventa il corpo della materia. Quelle segnate *cresce* si sviluppano da sole dall'inizio della clip (non chiudono il loop esatto).
 
 **Materie dense** (peso, spessore, superficie in luce radente)
 
@@ -68,6 +68,7 @@ Trentaquattro processi nati dalla ricerca su Clipson (strati in macchina, zoom, 
 | Argilla (Ar) · *cresce* | La foto è un bassorilievo in argilla bagnata visto da vicino in luce radente: dita invisibili lo trascinano, lo premono e lo lisciano, il rilievo scivola di lato e si rilassa, le chiazze umide migrano e asciugano. | Il bassorilievo in creta ancora umida, prima della cottura |
 | Bitume (Bt) · *cresce* | Un catrame pesante esce dai bui della foto e la inghiotte piano: avanza con un labbro spesso, la pelle si raggrinza in corde, le bolle si gonfiano e lasciano crateri; dove è sottile macchia la foto di bruno, dove è spesso ne conserva la luce come un ricordo. | Burri, Catrami |
 | Ghiaccio (Gh) | La foto è congelata in fondo a un blocco di ghiaccio spesso visto da vicinissimo: sciami di bolle, veli lattiginosi e piani di frattura a profondità diverse scorrono in parallasse, i piani di frattura avanzano a scatti e sulla superficie a conche cola un velo d’acqua di fusione. | Viola, l’acqua e la lentezza; Clipson, macro |
+| Cenere (Nr) · *cresce* | La foto è un foglio spesso che carbonizza in silenzio: il fronte avanza a dita, la carta imbrunisce e si imbarca, diventa crosta nera a scaglie sollevate e poi cenere chiara che si sfoglia, si sbriciola e scopre il fondo. | Burri, Combustioni |
 
 **Liquidi**
 
@@ -128,7 +129,7 @@ Trentaquattro processi nati dalla ricerca su Clipson (strati in macchina, zoom, 
 
 | # | Risposta | Dove sta |
 |---|----------|----------|
-| 1 | Astrazione di ogni tipo | Passo 2: nove stili di famiglie diverse, «Nessuno stile» e le 34 materie a strati; Avanzato: 16 processi e le 34 materie da combinare |
+| 1 | Astrazione di ogni tipo | Passo 2: nove stili di famiglie diverse, «Nessuno stile» e le 35 materie a strati; Avanzato: 16 processi e le 35 materie da combinare |
 | 2 | Brakhage, McLaren, Len Lye, Ikeda, Viola, Clipson | Passo 2: ogni miniatura dice a chi si ispira |
 | 3 | Da zero, da immagine o da video | Passo 1: «Aggiungi foto o video» e «parti da zero» |
 | 4 | Il movimento lo sceglie lui | Passo 2: Movimento (Fermo, Lento, A tempo con bpm, Caotico) e Intensità in vista; chiavi in Avanzato |
