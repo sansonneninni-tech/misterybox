@@ -140,3 +140,69 @@ finestra del Mac aperta esegue la coda).
 4. Dal vivo: performance registrabile
 5. Esporta: ProRes / sequenze 16 bit / .json, coda di render
 6. Interlocutore
+
+## Il corpo: Scolpire con le dita e Macro (`web/engine/corpo/`)
+
+Valgono per ogni materia, anche per quelle nuove, senza toccarne i file.
+
+- **Campo scolpito** (`corpo/index.js`, classe `Campo`): una texture RGBA16F
+  di 512 px sul lato lungo, sempre la stessa misura in anteprima e in 4K.
+  xy = spostamento (uv), z = altezza (negativa scavata), w = velocità verticale
+  dei fluidi. Avanza a passi fissi di 1/120 s (120 è multiplo di 24 e 30): il
+  fotogramma n è il passo 5n a 24 fps e 4n a 30 fps, quindi stesso gesto =
+  stesso campo a ogni risoluzione e frequenza (verificato con l'impronta
+  numerica del campo a 480, 640, 1920 e 3840 px, 24 e 30 fps). Ogni secondo
+  una copia del campo per tornare indietro in fretta.
+- **Gesti** (`corpo/gesti.js`): `clip.scolpire = { gesti: [{ strumento,
+  dimensione, forza, pts: [[t, x, y, pressione, tenuta]] }], memoria, rilievo,
+  luce }`. Coordinate della superficie, tempo della clip, nessun pixel.
+- **Carattere** (`corpo/tatto.js`): tenuta, ritorno, fluido e microdettaglio
+  per ogni materia; una materia nuova può dichiarare `tatto: { tenuta,
+  ritorno, fluido, micro }`, altrimenti vale la sua famiglia.
+- **Come le materie lo leggono**: la foto arriva già spostata (base e `SRC`),
+  e dopo la catena l'impronta viene resa in luce radente (solidi) o come
+  rifrazione (fluidi). Una materia che vuole rispondere a modo suo legge
+  `SCULPT(uv)` nel suo GLSL.
+- **Macro** (`corpo/macro.js`): con la Macro accesa `fx(uv)` riceve coordinate
+  della superficie e `u_res` è la risoluzione del mondo ingrandito, quindi
+  `K1080` e `PX` restano ancorati alla superficie; `IN`, `FB` e `HIST`
+  leggono i buffer dello schermo passando dalla camera (`CAM_S`), con la
+  parallasse data da un rilievo stimato (`u_rl`). Dopo la catena:
+  microdettaglio procedurale per ottave (entrano quando sono abbastanza grandi
+  sullo schermo) e messa a fuoco a raccolta pesata per area, senza lumi.
+  Una materia che conosce il suo rilievo lo scrive in `FX_H` (0..1) dentro
+  `fx`: la messa a fuoco usa quello invece della stima.
+- **Spento non cambia nulla**: con Scolpire e Macro spenti i fotogrammi sono
+  identici bit per bit a prima (verificato su cinque combinazioni di materie).
+## Ricette di materia e Deriva
+
+File propri, tocchi minimi al resto:
+
+- `web/engine/ricette.js` (puro): una clip «in ricetta» ha `style: 'ricetta'` e
+  `clip.ricetta = { id, name, chain, keys, dur, nsrc, visibili }`. `buildAny`
+  sostituisce `buildClip` in Trasforma: per gli stili delega, per le ricette
+  ricostruisce la catena congelata (gli id dei passaggi restano, perché decidono
+  anche il movimento), adatta le sorgenti (fusione delle foto aggiunta o tolta),
+  allunga le chiavi con la durata, salta le materie che mancano e lo dice, e
+  mette sopra gli strati toccati dopo. `syncRicetta` rilegge la catena prima di
+  ogni gesto: le regolazioni fatte nel Banco restano. Esporta e importa in un
+  pacchetto `.json` (`tipo: moviola-ricette`).
+- `web/engine/mutazioni.js` (puro, tranne le misure): genoma = base + strati +
+  movimento + seme; `mutate` (passi proporzionali alla scala, in rapporto per i
+  parametri da 0,3 a 10, peso dal `mod` o da un `peso` dichiarato; catena:
+  aggiungi, scambia, togli, riordina; movimento; colore; blocchi; pellicola e
+  luce solo in giù), `cross`, `probe` (stesse misure dell'interlocutore più una
+  firma delle scale e del colore), `distance`, `rejectReason`, `thresholds`
+  tarate sul rumore della madre (distanza da sé stessa con un altro seme).
+  Tutto dal seme: `rng(seedOf(seme della deriva, generazione, tentativo))`.
+- `web/ui/ricette.js`: archivio (collezione `ricette`), gruppo nella striscia
+  Materie, salva, per intero, gestione.
+- `web/ui/deriva.js`: un solo `Renderer` per le nove anteprime (`simFull`: le
+  simulazioni alla loro misura piena anche nei provini piccoli), con la memoria
+  di ogni anteprima in una `passState` sua; prove sul motore ausiliario;
+  risoluzione che scende da sola se si perdono fotogrammi.
+- Tocchi al resto: `flow.js` (buildAny, pannello ricetta, pulsanti, gruppo
+  ricette), `renderer.js` (opzione `simFull`), `analysis.js` (esporta
+  `frameStats`), `store.js` e `server/index.mjs` (collezione `ricette`),
+  `index.html` e `tools/demo.mjs` (il foglio `design/ricette-deriva.css`),
+  `tools/check.mjs` (chiama `tools/check-ricette-deriva.mjs`).

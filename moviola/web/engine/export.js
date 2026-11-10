@@ -7,10 +7,21 @@ import { byId } from './processes.js';
 import { seekVideo, videoTime } from '../media.js';
 
 /**
+ * Il video salvato fa sempre tutti i passi della materia (Tempo geologico):
+ * nessun tetto di lavoro come nell'anteprima, nessun passo saltato.
+ */
+async function exactly(r, fn) {
+  const was = r.exact;
+  r.exact = true;
+  try { return await fn(); } finally { r.exact = was; }
+}
+
+/**
  * opts: { renderer, items (sorgenti caricate sul renderer), clip, long,
  *         codec, name, meta, onProgress(i, n, etaS), signal }
  */
-export async function renderToServer(opts) {
+export async function renderToServer(opts) { return exactly(opts.renderer, () => renderToServerNow(opts)); }
+async function renderToServerNow(opts) {
   const { renderer: r, items, clip, long, codec, name, meta, onProgress, signal } = opts;
   const { w, h } = dims(clip.format.aspect, long);
   const fps = clip.format.fps;
@@ -155,7 +166,8 @@ export class ZipWriter {
 /** Prova del render nella pagina demo: ogni fotogramma calcolato davvero alla
  *  risoluzione scelta, tenuto come JPEG leggero e riguardato a tempo esatto.
  *  Niente registratore del browser, che sotto carico perde fotogrammi. */
-export async function renderToPreview(opts) {
+export async function renderToPreview(opts) { return exactly(opts.renderer, () => renderToPreviewNow(opts)); }
+async function renderToPreviewNow(opts) {
   const { renderer: r, items, clip, long, onProgress, signal } = opts;
   const { w, h } = dims(clip.format.aspect, long);
   const fps = clip.format.fps;
@@ -178,7 +190,8 @@ export async function renderToPreview(opts) {
   return { frames, fps, w, h };
 }
 
-export async function renderToZip(opts) {
+export async function renderToZip(opts) { return exactly(opts.renderer, () => renderToZipNow(opts)); }
+async function renderToZipNow(opts) {
   const { renderer: r, items, clip, long, name, meta, onProgress, signal } = opts;
   const { w, h } = dims(clip.format.aspect, long);
   const fps = clip.format.fps;

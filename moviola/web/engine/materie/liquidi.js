@@ -142,7 +142,7 @@ vec3 fx(vec2 uv) {
   // --------------------------------------------------------------- inchiostro
   {
     id: 'inchiostro', code: 'In', name: 'Inchiostro', family: 'liquidi', ref: 'Brakhage, la chimica che crea forme',
-    feedback: true, noloop: true,
+    feedback: true, noloop: true, forze: 'trasporto', peso: 0,
     about: 'La foto si scioglie come inchiostro nell’acqua: i bordi rilasciano il pigmento, i vortici lo tirano in filamenti, e l’immagine continua a riaffiorare.',
     params: [
       P('vortici', 'Vortici', 0, 2, 1, 0.5),
@@ -176,7 +176,7 @@ vec3 fx(vec2 uv) {
   vec3 rl = ringL(uv, 9.0 * K1080);
   float edge = clamp(length(rl.xy) * 5.0, 0.0, 1.0);
   vec2 along = vec2(-rl.y, rl.x) * 5.0;
-  vec2 vel = curl * vortici * 0.45 + along * bordi + vec2(0.0, -caduta * 0.5);
+  vec2 vel = curl * vortici * 0.45 + along * bordi + GIU(vec2(0.0, -1.0)) * caduta * 0.5 * GRAVITA;
   vel *= 0.004 * (24.0 / max(u_fps, 1.0)) * (0.5 + velocita * 0.5);
   vel /= a;
   vec2 src = uv - vel;
@@ -194,7 +194,7 @@ vec3 fx(vec2 uv) {
   // -------------------------------------------------------------------- miele
   {
     id: 'miele', code: 'Mi', name: 'Miele', family: 'liquidi', ref: 'Bill Viola, la lentezza',
-    sim: true, steps: 2, simLong: 640, noloop: true,
+    sim: true, steps: 2, simLong: 640, noloop: true, forze: 'mappa', peso: 0,
     about: 'La foto colata come miele denso: scende lenta in lobi e pieghe, e dove la materia è spessa i colori si scuriscono d’ambra.',
     params: [
       P('colata', 'Colata', 0, 2, 1, 0.4),
@@ -211,7 +211,7 @@ vec4 sim(vec2 uv) {
   if (u_init > 0.5) return vec4(0.0);
   vec2 a = vec2(ASPECT, 1.0);
   float ang = radians(direzione);
-  vec2 dir = vec2(cos(ang), sin(ang));
+  vec2 dir = GIU(vec2(cos(ang), sin(ang)));   // la direzione è rispetto alla gravità
   vec2 perp = vec2(-dir.y, dir.x);
   vec2 p = (uv - 0.5) * a;
   float acr = dot(p, perp), alo = dot(p, dir);
@@ -221,7 +221,7 @@ vec4 sim(vec2 uv) {
   float l = luma(IN(mir(uv + s.xy)));
   float th = length(s.xy * a);
   float sp = colata * 0.0005 * (0.12 + lobe) * (1.0 + guida * (l - 0.5) * 1.4) * (1.0 + th * 15.0);
-  sp *= 24.0 / max(u_fps, 1.0);
+  sp *= 24.0 / max(u_fps, 1.0) * GRAVITA;
   // pieghe: il miele serpeggia di lato, lento e irregolare
   float fold = gnoise(vec3(acr * lobi * 2.5, alo * 5.0, u_t * 0.12 + 1.0), 0.0);
   vec2 v = dir * sp + perp * sp * pieghe * fold * 1.6;
@@ -259,7 +259,7 @@ vec3 fx(vec2 uv) {
   // --------------------------------------------------------------------- cera
   {
     id: 'cera', code: 'Cr', name: 'Cera', family: 'liquidi', ref: 'Viola, l’emersione',
-    sim: true, steps: 2, simLong: 640, noloop: true,
+    sim: true, steps: 2, simLong: 640, noloop: true, forze: 'mappa', peso: 0,
     about: 'La foto come cera: le zone chiare fondono per prime e colano, poi si riaddensano; la superficie è traslucida, più morbida dove la cera è spessa.',
     params: [
       P('calore', 'Calore', 0, 1, 0.6, 0.4),
@@ -293,7 +293,7 @@ vec4 sim(vec2 uv) {
   float lob = smoothstep(-0.35, 0.55, fbm(vec2(p.x * 1.7, p.y * 2.2 + 7.0) + 0.6 * vec2(gnoise(vec3(p * 3.1, 2.0), 0.0), 0.0), u_t * 0.03, 0.0, 3));
   float th = length(s.xy * a);
   float sp = colata * 0.0011 * m * m * (0.25 + lob) * (1.0 + th * 3.0) * (24.0 / max(u_fps, 1.0));
-  vec2 v = vec2(gnoise(vec3(p * 2.2, u_t * 0.05), 0.0) * 0.6, -1.0) * sp / a;
+  vec2 v = GIU(vec2(gnoise(vec3(p * 2.2, u_t * 0.05), 0.0) * 0.6, -1.0)) * sp * GRAVITA / a;
   vec4 o = ST(uv - v);
   // la mappa si ammorbidisce: niente spigoli nei fronti di colata
   vec4 on = (ST(uv - v + vec2(se.x, 0.0)) + ST(uv - v - vec2(se.x, 0.0)) + ST(uv - v + vec2(0.0, se.y)) + ST(uv - v - vec2(0.0, se.y))) * 0.25;

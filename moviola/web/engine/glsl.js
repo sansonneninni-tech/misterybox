@@ -1,6 +1,11 @@
 // Codice GLSL comune a tutti i processi.
 // Ogni processo scrive solo una funzione `vec3 fx(vec2 uv)`; qui ci sono gli
 // ingressi, il rumore periodico (per i loop chiusi) e la fusione finale.
+// `uv` è sulla superficie: con la Macro spenta coincide con lo schermo.
+
+import { PRELUDE_CORPO } from './corpo/glsl.js';
+
+import { TERR_POST } from './territorio-glsl.js';
 
 export const VERT = `#version 300 es
 in vec2 a_pos;
@@ -26,9 +31,15 @@ uniform float u_histHead;    // indice dello strato più recente
 uniform float u_histCap;     // capienza della memoria
 uniform float u_t, u_T, u_loop, u_frame, u_fps, u_seed, u_vmix;
 uniform vec2 u_res;
-uniform float u_p[8];
+uniform float u_p[16];
 uniform float u_mix;
 uniform int u_blend;
+// Respiro, gravità e vento (engine/respiro.js, engine/forze.js)
+uniform float u_respiro;     // respiro di questo passaggio, 0 se spento
+uniform sampler2D u_forze;   // campo di forze: xy velocità (attorno a 0,5), z raffica
+uniform float u_forzeOn, u_presa, u_peso, u_gforza, u_vf;
+uniform vec2 u_g, u_giu, u_wv;
+uniform float u_trST, u_trFB, u_mappa; // trasporto automatico dello stato
 in vec2 v_uv;
 out vec4 o_col;
 
@@ -96,29 +107,46 @@ vec3 pigment(float x, float tint) {
   return clamp(a + b * cos(TAU * (c * x + d)), 0.0, 1.0);
 }
 
+${PRELUDE_CORPO}
 vec2 cover(vec2 uv, float r) {
   uv -= 0.5;
   if (r > 1.0) uv.x /= r; else uv.y *= r;
   return uv + 0.5;
 }
 vec3 SRC(int i, vec2 uv) {
-  if (i >= u_ns) return texture(u_in, uv).rgb;
+  if (i >= u_ns) return texture(u_in, CAM_S(uv)).rgb;
+  uv -= SCD(uv);
   if (i == 0) return texture(u_s0, cover(uv, u_sAsp.x)).rgb;
   if (i == 1) return texture(u_s1, cover(uv, u_sAsp.y)).rgb;
   if (i == 2) return texture(u_s2, cover(uv, u_sAsp.z)).rgb;
   return texture(u_s3, cover(uv, u_sAsp.w)).rgb;
 }
-vec3 IN(vec2 uv) { return texture(u_in, uv).rgb; }
-vec3 FB(vec2 uv) { return texture(u_fb, uv).rgb; }
+// ---- forze: tutto vale zero (o identità) quando Gravità e vento è spento
+#define RESPIRO u_respiro
+#define GRAVITA (u_forzeOn > 0.5 ? u_gforza : 1.0)
+// velocità del campo in uv al secondo: vento e forze locali, più la gravità
+// pesata dal peso della materia, per quanto la materia sente le forze
+vec2 FORZA(vec2 uv) {
+  if (u_forzeOn < 0.5) return vec2(0.0);
+  return ((texture(u_forze, uv).xy - 0.5) + u_peso * u_g / vec2(ASPECT, 1.0)) * u_presa;
+}
+float RAFFICA(vec2 uv) { return u_forzeOn > 0.5 ? texture(u_forze, uv).z : 0.0; }
+// un vettore pensato «verso il basso» girato come la gravità
+vec2 GIU(vec2 d) { vec2 g = u_forzeOn > 0.5 ? u_giu : vec2(0.0, -1.0); return vec2(-g.y * d.x - g.x * d.y, g.x * d.x - g.y * d.y); }
+// il vento disegnato prende il posto di quello proprio della materia, se soffia
+vec2 VERSO_VENTO(vec2 d) { return (u_forzeOn > 0.5 && u_vf > 0.001) ? normalize(u_wv + 1e-7) : d; }
+float SOFFIO(float v) { return (u_forzeOn > 0.5 && u_vf > 0.001) ? v * u_vf * u_presa : v; }
+vec3 IN(vec2 uv) { return texture(u_in, CAM_S(uv)).rgb; }
+vec3 FB(vec2 uv) { return texture(u_fb, CAM_S(uv - u_trFB * FORZA(uv))).rgb; }
 // k fotogrammi fa (0 = adesso). Si ferma al più vecchio disponibile.
 vec3 HIST(float k, vec2 uv) {
   if (u_histN < 1.0) return IN(uv);
   k = clamp(floor(k), 0.0, u_histN - 1.0);
   float layer = mod(u_histHead - k + u_histCap, u_histCap);
-  return texture(u_hist, vec3(uv, layer)).rgb;
+  return texture(u_hist, vec3(CAM_S(uv), layer)).rgb;
 }
 // Stato della simulazione: rgba liberi, in virgola mobile.
-vec4 ST(vec2 uv) { return texture(u_st, uv); }
+vec4 ST(vec2 uv) { return texture(u_st, uv - u_trST * FORZA(uv)); }
 #define SPX (1.0 / u_stRes)
 vec3 HISTF(float k, vec2 uv) { // interpolato tra due fotogrammi
   float a = floor(k);
@@ -137,11 +165,19 @@ vec3 blendc(vec3 a, vec3 b, int m) {
   if (m == 7) return min(a, b);                                 // scurisci
   return b;                                                     // normale
 }
+${TERR_POST}
 void main() {
-  vec3 base = texture(u_in, v_uv).rgb;
-  vec3 fxc = fx(v_uv);
-  vec3 c = mix(base, blendc(base, fxc, u_blend), u_mix);
-  o_col = vec4(max(c, 0.0), 1.0);
+  // territorio: dove sta la materia e come si mescola sul confine (territorio-glsl.js)
+  vec3 tr = u_terr > 0.5 ? trrTerritorio(v_uv) : vec3(1.0, 0.0, 0.0);
+  vec4 b4 = texture(u_in, v_uv - tr.yz * 0.5);
+  vec3 base = b4.rgb;
+  // la materia lavora sulla superficie: con la Macro spenta CAM_W è l'identità
+  vec3 fxc = fx(CAM_W(v_uv + tr.yz));
+  float k = u_mix * tr.x;
+  vec3 c = mix(base, blendc(base, fxc, u_blend), k);
+  // alfa: il rilievo che una materia dichiara (FX_H), altrimenti passa com'è
+  float a = FX_H >= 0.0 ? mix(b4.a, 0.02 + 0.98 * clamp(FX_H, 0.0, 1.0), k) : b4.a;
+  o_col = vec4(max(c, 0.0), a);
 }`;
 
 // Passaggi di servizio
@@ -161,4 +197,4 @@ precision highp float;
 uniform sampler2D u_tex; uniform float u_r; uniform float u_has;
 in vec2 v_uv; out vec4 o;
 vec2 cover(vec2 uv, float r) { uv -= 0.5; if (r > 1.0) uv.x /= r; else uv.y *= r; return uv + 0.5; }
-void main() { o = u_has > 0.5 ? vec4(texture(u_tex, cover(v_uv, u_r)).rgb, 1.0) : vec4(0.0, 0.0, 0.0, 1.0); }`;
+void main() { o = u_has > 0.5 ? vec4(texture(u_tex, cover(v_uv, u_r)).rgb, 0.0) : vec4(0.0); }`;

@@ -1,0 +1,91 @@
+/* ==========================================================================
+   MOVIOLA — Scolpisci con le dita e Macro (passo 2)
+   Stessa camera oscura: giunture da 1px, angoli vivi, testo leggero.
+   L'anteprima dice sempre quando il dito scolpisce invece di fermare il video.
+   ========================================================================== */
+
+.corpo { border-top: var(--hair) solid var(--seam); padding: 6px var(--s-4); display: flex; flex-direction: column; gap: 8px; }
+.corpo__row { display: flex; align-items: center; gap: var(--s-2); min-height: 40px; }
+.corpo__mode { background: none; color: var(--salt); border: var(--hair) solid var(--seam-strong); font-size: 13px; padding: 0 16px; min-height: 36px; cursor: pointer; font-family: inherit; }
+.corpo__mode:hover { border-color: var(--salt); }
+.corpo__mode[aria-pressed="true"] { background: var(--salt); color: var(--void); border-color: var(--salt); }
+.corpo__status { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: var(--s-2); }
+.corpo__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px var(--s-4); padding-bottom: 4px; }
+.flow__stage[data-sculpt="true"] > .styles, .flow__stage[data-sculpt="true"] > .mats { display: none; }
+.corpo__tools[hidden] { display: none; }
+.corpo__tools .seg { display: flex; flex: 1 1 420px; }
+.corpo__tools .seg__opt { flex: 1 1 0; min-height: 38px; }
+.corpo__sliders { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); flex: 1 1 320px; }
+.corpo__sl { display: flex; align-items: center; gap: var(--s-3); font-size: 13px; color: var(--ash); }
+.corpo__sl .range { flex: 1; min-width: 0; accent-color: var(--salt); }
+.corpo__acts { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.corpo__acts .btn { min-height: 38px; }
+.corpo__acts .btn[data-rec="true"] { border-color: var(--mark); color: var(--salt); }
+
+/* sopra l'anteprima */
+.screen[data-sculpt="true"], .screen[data-pick="true"] { touch-action: none; cursor: crosshair; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.corpo__over { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.corpo__tag { position: absolute; left: 8px; top: 8px; display: flex; gap: 8px; align-items: center; }
+.corpo__over[data-on="false"] .corpo__tag { display: none; }
+.corpo__label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.02em; color: var(--salt); background: rgba(0, 0, 0, 0.62); padding: 4px 8px; }
+.corpo__label:empty { display: none; }
+.corpo__rec { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--salt); background: rgba(0, 0, 0, 0.62); padding: 4px 8px; }
+.corpo__rec[hidden] { display: none; }
+.corpo__rec i { width: 8px; height: 8px; border-radius: 50%; background: var(--mark); animation: corpo-rec 1.2s steps(2, jump-none) infinite; }
+@keyframes corpo-rec { 50% { opacity: 0.25; } }
+.corpo__ring { position: absolute; border: 1px solid rgba(248, 248, 248, 0.85); border-radius: 50%; transform: translate(-50%, -50%); box-sizing: border-box; }
+.corpo__ring::after { content: ""; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; background: var(--salt); border-radius: 50%; }
+.corpo__ring--hover { border-color: rgba(248, 248, 248, 0.4); }
+.corpo__ring--ghost { border: 1px dashed rgba(248, 248, 248, 0.5); }
+.corpo__ring--ghost::after { opacity: 0.5; }
+.corpo__ring[hidden] { display: none; }
+.corpo__cross { position: absolute; width: 36px; height: 36px; transform: translate(-50%, -50%); }
+.corpo__cross[hidden] { display: none; }
+.corpo__cross::before, .corpo__cross::after { content: ""; position: absolute; background: var(--salt); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); }
+.corpo__cross::before { left: 50%; top: 0; bottom: 0; width: 1px; }
+.corpo__cross::after { top: 50%; left: 0; right: 0; height: 1px; }
+
+/* nel pannello */
+.corpo__panel { display: flex; flex-direction: column; gap: var(--s-2); }
+.corpo__sec > .about, .corpo__sec > .switch, .corpo__sec > .ctl, .corpo__sec > .corpo__pres, .corpo__sec > .corpo__list, .corpo__sec > .meta, .corpo__sec > .link { margin: var(--s-2) var(--s-3) 0; }
+.corpo__sec > .switch { width: calc(100% - 2 * var(--s-3)); box-sizing: border-box; }
+.corpo__sec .switch[aria-checked="true"] .switch__knob { background: var(--salt); border-color: var(--salt); }
+.corpo__sec .switch[aria-checked="true"] .switch__knob::after { left: 17px; background: var(--void); }
+.corpo__pres { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.corpo__pres .btn { flex: 1 1 auto; min-height: 38px; }
+.corpo__prm { grid-template-columns: minmax(0, 1fr) auto 32px; }
+.corpo__prm .prm__lbl { display: flex; gap: 8px; align-items: baseline; white-space: normal; }
+.corpo__key { width: 32px; height: 28px; background: none; border: var(--hair) solid transparent; color: var(--ash); cursor: pointer; font-size: 12px; padding: 0; }
+.corpo__key:hover { color: var(--salt); border-color: var(--seam); }
+.corpo__key[aria-pressed="true"] { color: var(--salt); border-color: var(--seam-strong); }
+.corpo__keys { font-family: var(--font-mono); font-size: 10px; color: var(--ash); }
+.corpo__hint { grid-column: 1 / -1; font-size: 10px; line-height: 1.4; }
+.corpo__list { display: flex; flex-direction: column; gap: 2px; }
+.corpo__g { display: grid; grid-template-columns: 18px auto minmax(0, 1fr) auto; gap: 8px; align-items: center; border-bottom: var(--hair) solid var(--seam); min-height: 40px; font-size: 13px; }
+.corpo__g .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.corpo__gn { font-family: var(--font-mono); font-size: 11px; color: var(--ash); }
+
+@media (max-width: 760px) {
+  .corpo { padding: 6px var(--s-4); }
+  .corpo__mode, .corpo__acts .btn, .corpo__tools .seg__opt, .corpo__pres .btn { min-height: 44px; }
+  .corpo__tools .seg__opt { padding: 0 2px; font-size: 12px; }
+  .corpo__status { display: none; }
+  .corpo__row .corpo__mode { flex: 1; }
+  .corpo__tools { flex-direction: column; align-items: stretch; gap: 6px; }
+  .corpo__tools .seg, .corpo__sliders { flex: none; }
+  .corpo__sliders { grid-template-columns: 1fr; gap: 0; }
+  /* su iPhone scolpendo restano stili e materie sotto: si scorre la pagina, l'anteprima resta grande */
+  .flow__stage[data-sculpt="true"] > .styles, .flow__stage[data-sculpt="true"] > .mats { display: flex; }
+  .flow__stage[data-sculpt="true"] > .mats { display: block; }
+  .corpo__sl .range { height: 44px; margin: 0; }
+  .corpo__acts .btn { flex: 1 1 auto; }
+  .corpo__key { width: 44px; height: 44px; }
+  .corpo__prm { grid-template-columns: minmax(0, 1fr) auto 44px; }
+}
+
+/* Nel pannello la Macro sta dentro un .layer, che ha due colonne: la chiave ◆
+   torna accanto al valore invece di scendere su una riga sua. */
+.layer .prm.corpo__prm { grid-template-columns: minmax(0, 1fr) auto auto; }
+.corpo__prm .range, .corpo__prm .corpo__hint { grid-column: 1 / -1; }
+/* sei microdettagli: tre per riga, invece di uno solo che va a capo */
+.corpo__sec > .ctl .seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }

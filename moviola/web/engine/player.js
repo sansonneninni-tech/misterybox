@@ -5,6 +5,7 @@ import { Renderer } from './renderer.js';
 import { dims } from './clip.js';
 import { byId } from './processes.js';
 import { loadMedia, seekVideo, videoTime } from '../media.js';
+import { prepareTerritori } from './territorio.js';
 
 export class Player {
   constructor(canvas, { previewLong = 960, onFrame } = {}) {
@@ -16,6 +17,7 @@ export class Player {
     this.frame = 0;
     this.playing = false;
     this.live = null;
+    this.exact = false;   // anteprima esatta: nessun fotogramma saltato, tutti i passi della materia
     this.srcs = [];
     this._srcKey = '';
     this._raf = 0;
@@ -56,6 +58,7 @@ export class Player {
     } else {
       this.srcs.forEach((s, i) => { s.speed = clip.sources[i]?.speed ?? 1; s.start = clip.sources[i]?.start || 0; });
     }
+    await prepareTerritori(clip);
     const { w, h } = this.size();
     this.r.setSize(w, h);
     this.r.prune(clip.chain);
@@ -110,9 +113,13 @@ export class Player {
 
   toggle() { this.playing ? this.pause() : this.play(); }
 
+  setExact(on) { this.exact = !!on; this.r.exact = this.exact; this.restart(); if (!this.playing) this.play(); }
+
   _tick(now) {
     if (!this.playing) return;
-    const target = Math.floor(((now - this._wall) / 1000) * this.fps);
+    let target = Math.floor(((now - this._wall) / 1000) * this.fps);
+    // anteprima esatta: un fotogramma alla volta, anche se il Mac resta indietro
+    if (this.exact && target > this.frame + 1) { target = this.frame + 1; this._wall = now - (target / this.fps) * 1000; }
     if (target > this.frame) {
       // se il computer resta indietro salta fotogrammi invece di rallentare
       const prevLoop = Math.floor(this.frame / this.total);

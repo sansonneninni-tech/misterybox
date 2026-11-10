@@ -1,0 +1,54 @@
+<!doctype html><meta charset="utf-8"><title>Foglio terre</title>
+<body style="margin:0;background:#111;color:#ccc;font:12px monospace">
+<canvas id="c" style="display:none"></canvas>
+<script type="module">
+// Prova delle materie a simulazione: come materia-sheet.html, ma salta il disegno nei
+// fotogrammi che non servono (utile per guardare tempi lunghi). Con ?tempo=1
+// misura invece i millisecondi per fotogramma disegnando tutto.
+// ?p=id ?f=... ?w= ?t= ?set=k:v;k:v ?crop=x,y,w,h (frazioni)
+import { Renderer } from '../web/engine/renderer.js';
+import { byId, defaultParams } from '../web/engine/processes.js';
+import { defaultClip } from '../web/engine/clip.js';
+const q = new URLSearchParams(location.search);
+const ids = (q.get('p') || '').split(',').filter(Boolean);
+const photos = (q.get('f') || '').split(',').filter(Boolean);
+const W = Number(q.get('w') || 480);
+const fps = 24;
+const times = (q.get('t') || '0.5,2,4').split(',').map(Number);
+const set = Object.fromEntries((q.get('set') || '').split(';').filter(Boolean).map((s) => { const [k, v] = s.split(':'); return [k, Number(v)]; }));
+const mode = q.get('mode') || 'fermo';
+const load = (u) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; });
+const imgs = await Promise.all(photos.map(load));
+const r = new Renderer(document.getElementById('c'));
+r.setSize(W, Math.round(W * 9 / 16 / 2) * 2);
+let skip = false;
+const d0 = r._draw.bind(r);
+let cur = null;
+r._draw = (prog, target, w, h) => { if (skip && (target === null || prog === r.programs.get(cur))) return; d0(prog, target, w, h); };
+const out = [];
+for (const id of ids) {
+  const p = byId[id]; cur = id;
+  const row = { id, name: p?.name, err: null, shots: [] };
+  for (const im of imgs) {
+    const clip = defaultClip(); clip.seed = Number(q.get('seed') || 7); clip.format.duration = 30; clip.format.fps = fps;
+    clip.motion.mode = mode;
+    clip.chain = [{ id: 'a', proc: id, on: true, mix: 1, blend: 'normale', params: { ...defaultParams(id), ...set } }];
+    r.setSources([{ el: im, w: im.naturalWidth, h: im.naturalHeight, kind: 'image' }]);
+    r.prune([]); r.reset();
+    const last = Math.round(Math.max(...times) * fps);
+    const want = new Set(times.map((t) => Math.round(t * fps)));
+    const t0 = performance.now();
+    for (let f = 0; f <= last; f++) {
+      skip = !want.has(f) && !q.get('tempo');
+      r.render(clip, f / fps, f, null, { display: want.has(f) });
+      if (want.has(f)) row.shots.push(r.canvas.toDataURL('image/png'));
+    }
+    r.gl.finish();
+    row.ms = Math.round((performance.now() - t0) / (last + 1));
+    row.err = r.errors.get(id) || null;
+    if (row.err) break;
+  }
+  out.push(row);
+}
+window.__out = out;
+</script>

@@ -1,5 +1,5 @@
 // I processi di MOVIOLA. Tutti locali, tutti gratuiti, tutti in GLSL.
-// Ogni processo: codice di due lettere, nome, famiglia, parametri (max 8),
+// Ogni processo: codice di due lettere, nome, famiglia, parametri (max 16),
 // e il corpo GLSL di `vec3 fx(vec2 uv)`. I nomi dei parametri diventano
 // costanti nel GLSL (es. `scala`), lette da u_p[].
 //
@@ -10,7 +10,8 @@
 //   noloop    non può garantire un loop chiuso
 //   sim       GLSL di `vec4 sim(vec2 uv)`: uno stato in virgola mobile che
 //             evolve da sé (crescita, onde, diffusione). Si legge con ST(uv).
-//             steps = passi per fotogramma, simLong = lato lungo dello stato.
+//             steps = passi per fotogramma, simLong = lato lungo dello stato,
+//             simF32 = stato a 32 bit invece di 16.
 
 import { MATERIE, MATERIA_FAMILIES } from './materie/index.js';
 
@@ -565,5 +566,7 @@ export function fragmentFor(proc, prelude, postlude) {
 /** GLSL del passo di simulazione: `vec4 sim(vec2 uv)` scrive il nuovo stato. */
 export function simFragmentFor(proc, prelude) {
   const defs = proc.params.map((p, i) => `#define ${p.id} u_p[${i}]`).join('\n');
-  return `${prelude}\n${defs}\n${proc.sim}\nvoid main() { o_col = sim(v_uv); }`;
+  // forze 'mappa': lo stato xy è uno spostamento verso la foto, e il campo lo
+  // porta: la materia che arriva da monte porta con sé il suo pezzo di foto
+  return `${prelude}\n${defs}\n${proc.sim}\nvoid main() { vec4 s = sim(v_uv); if (u_mappa > 0.5 && u_init < 0.5) s.xy -= FORZA(v_uv) * u_trST; o_col = s; }`;
 }

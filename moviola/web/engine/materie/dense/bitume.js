@@ -12,7 +12,7 @@ vec2 btMir(vec2 q) { return 1.0 - abs(1.0 - mod(q, 2.0)); }
 
 export const MATERIA = {
   id: 'bitume', code: 'Bt', name: 'Bitume', family: 'dense', ref: 'Burri, Catrami',
-  steps: 2, simLong: 480, noloop: true,
+  steps: 2, simLong: 480, noloop: true, forze: 'mappa', peso: 0,
   about: 'Un catrame pesante esce dai bui della foto e la inghiotte piano: avanza con un labbro spesso, la pelle si raggrinza in corde, le bolle si gonfiano e lasciano crateri; dove è sottile macchia la foto di bruno, dove è spesso ne conserva la luce come un ricordo.',
   params: [
     P('colata', 'Colata', 0, 1, 0.5, 0.2),
@@ -70,7 +70,7 @@ vec4 sim(vec2 uv) {
   vec2 v = -gh * 1.5e-5 * body;
   v = v / max(1.0, length(v) / 2.5e-4);
   float sl = 0.5 + gnoise(vec3(p * 2.3, t * 0.05 + 6.0), 0.0);
-  v += vec2(gnoise(vec3(p * 1.9 + 3.0, t * 0.05), 0.0) * 0.6, -1.0) * 6e-5 * body * sl;
+  v += GIU(vec2(gnoise(vec3(p * 1.9 + 3.0, t * 0.05), 0.0) * 0.6, -1.0)) * 6e-5 * body * sl * GRAVITA;
   v *= dt / a;
   vec4 o = ST(uv - v);
   float h = mix(o.z, (hE + hW + hN + hS) * 0.25, 0.22);

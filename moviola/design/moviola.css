@@ -407,9 +407,13 @@ pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; col
 .mat[aria-pressed="true"] .style__img { border-color: var(--salt); }
 .mat__n { position: absolute; top: 4px; left: 4px; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center; background: var(--salt); color: var(--void); font-family: var(--font-mono); font-size: 11px; }
 .layers { display: flex; flex-direction: column; gap: var(--s-2); }
+/* .layers e .layer esistono anche nel confronto di components.css (griglia
+   grigia): qui sono l'elenco degli strati e non devono ereditarne nulla */
+.flow__panel .layers { background: none; width: auto; height: auto; }
+.flow__panel .layer { display: block; background: none; overflow: visible; place-items: initial; }
 .layer { border: var(--hair) solid var(--seam); }
 .layer[open] { padding-bottom: var(--s-3); }
-.layer__sum { display: flex; width: 100%; box-sizing: border-box; text-align: left; justify-content: flex-start; align-items: center; gap: var(--s-2); padding: 0 0 0 var(--s-3); min-height: 44px; cursor: pointer; list-style: none; font-size: 13px; }
+.layer__sum { display: flex; width: 100%; box-sizing: border-box; text-align: left; justify-content: flex-start; align-items: center; gap: var(--s-2); padding: 0 0 0 var(--s-3); min-height: 48px; cursor: pointer; list-style: none; font-size: 13px; }
 .layer__sum::-webkit-details-marker { display: none; }
 .layer__n { font-family: var(--font-mono); font-size: 11px; color: var(--ash); width: 14px; }
 .layer__name { font-size: 14px; }
@@ -435,9 +439,9 @@ pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; col
 .field--num { width: 80px; }
 .flow__more { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 .flow__more .btn { height: 40px; flex: 1 1 auto; }
-.switch { display: flex; align-items: center; gap: var(--s-3); background: none; border: var(--hair) solid var(--seam); color: var(--salt); padding: 10px var(--s-3); text-align: left; cursor: pointer; font-size: 13px; }
+.switch { display: flex; align-items: flex-start; gap: var(--s-3); background: none; border: var(--hair) solid var(--seam); color: var(--salt); padding: 10px var(--s-3); text-align: left; cursor: pointer; font-size: 13px; }
 .switch:hover { border-color: var(--seam-strong); }
-.switch__knob { flex: none; width: 34px; height: 20px; border-radius: 10px; border: var(--hair) solid var(--seam-strong); position: relative; }
+.switch__knob { flex: none; width: 34px; height: 20px; border-radius: 10px; border: var(--hair) solid var(--seam-strong); position: relative; margin-top: 0; }
 .switch__knob::after { content: ""; position: absolute; left: 3px; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--ash); }
 .claude { display: grid; grid-template-columns: auto 1fr; gap: 6px var(--s-3); align-items: start; padding: var(--s-3); border: var(--hair) solid var(--seam); font-size: 13px; line-height: 1.45; }
 .claude__who { color: var(--salt); }
@@ -516,3 +520,15 @@ pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; col
 .fmt__sum::-webkit-details-marker { display: none; }
 .fmt__sum .meta { flex: 1; }
 .fmt__chg { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Pannello del passo 2: gruppi con lo stesso titolo (maiuscoletto e una riga
+   sotto), così stile, materie, gesto e sguardo, tutta la catena e altre strade
+   si leggono come capitoli e non come una lista unica di riquadri. */
+.grp { display: flex; flex-direction: column; gap: var(--s-2); }
+.grp__head { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-bottom: 2px; }
+.grp__head .meta { line-height: 1.4; }
+.grp .flow__more { margin-top: 2px; }
+@media (max-width: 520px) {
+  .claude { grid-template-columns: 1fr; }
+  .flow__more .btn { flex: 1 1 calc(50% - var(--s-2)); }
+}

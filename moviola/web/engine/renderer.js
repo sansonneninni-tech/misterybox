@@ -5,16 +5,24 @@
 import { VERT, PRELUDE, POSTLUDE, COPY_FRAG, BASE_FRAG } from './glsl.js';
 import { byId, fragmentFor, simFragmentFor, BLENDS } from './processes.js';
 import { passValues } from './motion.js';
+import { updateTerritori, bindTerritorio, pruneTerritori, destroyTerritori } from './territorio.js';
+import { Corpo } from './corpo/index.js';
+import { tempoOf, ageFactor, materialTime, materialDuration, stepsBefore } from './tempo.js';
+import { forzeOf, forceUse, forceValue, gravityAt, packLocals, FORZE_FRAG, FIELD_LONG, SCALA, MAX_LOCALI, MAX_SEGMENTI } from './forze.js';
+import { breathUniform } from './respiro.js';
 
 const BLEND_INDEX = Object.fromEntries(BLENDS.map((b, i) => [b.id, i]));
 
 export class Renderer {
-  constructor(canvas, { histLong = 1280 } = {}) {
+  constructor(canvas, { histLong = 1280, simFull = false } = {}) {
     this.canvas = canvas;
     const gl = canvas.getContext('webgl2', { antialias: false, premultipliedAlpha: false, preserveDrawingBuffer: true, alpha: false, powerPreference: 'high-performance' });
     if (!gl) throw new Error('WebGL2 non disponibile in questo browser');
     this.gl = gl;
     this.histLong = histLong;
+    // simFull: lo stato delle simulazioni resta alla sua misura piena anche se
+    // l'uscita è piccola (provini della Deriva): la materia cresce come nel 4K
+    this.simFull = simFull;
     this.float = this._probeFloat();
     // le simulazioni hanno bisogno di valori fini anche se l'uscita è a 8 bit
     this.simFloat = this.float;
@@ -24,11 +32,17 @@ export class Renderer {
     this.sources = [];          // [{ tex, aspect, el, kind }]
     this.w = 0; this.h = 0;
     this.frame = 0;
+    // Tempo geologico: tetto di lavoro dell'anteprima (milioni di pixel per
+    // fotogramma) ed «esatto» per il render, che fa sempre tutti i passi
+    this.budget = 90;
+    this.exact = false;
+    this.stats = null;
     this._initQuad();
     this.copyProg = this._program(VERT, COPY_FRAG);
     this.baseProg = this._program(VERT, BASE_FRAG);
     this._empty = this._tex(1, 1, false);
     this._emptyArr = this._texArray(1, 1, 1);
+    this.corpo = new Corpo(this); // Scolpire con le dita e Macro
     canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.lost = true; });
   }
 
@@ -117,14 +131,17 @@ export class Renderer {
     }
   }
 
-  _tex(w, h, float = this.float) {
+  _tex(w, h, float = this.float, f32 = false) {
     const gl = this.gl;
     const t = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, t);
-    if (float) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    if (float && f32) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, null);
+    else if (float) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
     else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    // a 32 bit il filtro lineare non è garantito (e senza, la texture sarebbe incompleta)
+    const filt = float && f32 ? gl.NEAREST : gl.LINEAR;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     return t;
@@ -168,8 +185,10 @@ export class Renderer {
   _freeAll() {
     (this.scratch || []).forEach((t) => this._freeTarget(t));
     this._freeTarget(this.base);
+    if (this.field) { this._freeTarget(this.field); this.field = null; }
     for (const st of this.passState.values()) this._freePass(st);
     this.passState.clear();
+    this.corpo.free();
   }
 
   _freePass(st) {
@@ -187,7 +206,9 @@ export class Renderer {
       if (st.fb) st.fb.forEach((t) => { gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); });
       if (st.hist) { st.hist.n = 0; st.hist.head = 0; }
       if (st.sim) st.sim.init = true;
+      st.fbDone = undefined; st.fbFresh = undefined;
     }
+    this.corpo.reset();
   }
 
   _ensurePass(pass, proc) {
@@ -210,9 +231,13 @@ export class Renderer {
     if (proc.sim) {
       // lo stato ha la stessa misura in anteprima e nel render 4K: la materia
       // cresce allo stesso modo, il 4K aggiunge solo nitidezza al disegno
-      const s = Math.min(1, (proc.simLong || 1024) / Math.max(this.w, this.h));
+      // (simFixed: la misura non scende nemmeno con un'anteprima più piccola,
+      // per i fluidi che a griglia diversa prenderebbero strade diverse)
+      const s = proc.simFixed ? (proc.simLong || 1024) / Math.max(this.w, this.h) : Math.min(this.simFull ? 16 : 1, (proc.simLong || 1024) / Math.max(this.w, this.h));
       const sw = Math.max(2, Math.round(this.w * s)), sh = Math.max(2, Math.round(this.h * s));
-      st.sim = { t: [this._target(this._tex(sw, sh, this.simFloat)), this._target(this._tex(sw, sh, this.simFloat))], w: sw, h: sh, init: true };
+      // simF32: stato a 32 bit (posizioni, quote), letto con texelFetch
+      const f32 = !!proc.simF32;
+      st.sim = { t: [this._target(this._tex(sw, sh, this.simFloat, f32)), this._target(this._tex(sw, sh, this.simFloat, f32))], w: sw, h: sh, init: true };
     }
     this.passState.set(pass.id, st);
     return st;
@@ -222,6 +247,7 @@ export class Renderer {
   prune(chain) {
     const ids = new Set(chain.map((p) => p.id));
     for (const [id, st] of this.passState) if (!ids.has(id)) { this._freePass(st); this.passState.delete(id); }
+    pruneTerritori(this, chain);
   }
 
   // ------------------------------------------------------------- sorgenti
@@ -278,19 +304,38 @@ export class Renderer {
     for (const s of this.sources) if (s.kind === 'video') this._upload(s);
     const outAsp = this.w / this.h;
 
+    // corpo: campo scolpito, rilievo e camera macro (spento non fa nulla)
+    const corpo = this.corpo.pre(clip, t);
+    const zoom = this.corpo.zoom;
+
     // base: la prima sorgente adattata al quadro, oppure il nero
     const s0 = this.sources[0];
-    const bp = this.baseProg;
-    gl.useProgram(bp.p);
-    this._bind(0, s0?.uploaded ? s0.tex : this._empty);
-    gl.uniform1i(bp.loc.u_tex, 0);
-    gl.uniform1f(bp.loc.u_r, s0 ? (s0.w / s0.h) / outAsp : 1);
-    gl.uniform1f(bp.loc.u_has, s0?.uploaded ? 1 : 0);
-    this._draw(bp, this.base, this.w, this.h);
+    if (!corpo || !this.corpo.base(this.base)) {
+      const bp = this.baseProg;
+      gl.useProgram(bp.p);
+      this._bind(0, s0?.uploaded ? s0.tex : this._empty);
+      gl.uniform1i(bp.loc.u_tex, 0);
+      gl.uniform1f(bp.loc.u_r, s0 ? (s0.w / s0.h) / outAsp : 1);
+      gl.uniform1f(bp.loc.u_has, s0?.uploaded ? 1 : 0);
+      this._draw(bp, this.base, this.w, this.h);
+    }
     let stream = this.base;
 
     const sAsp = [0, 1, 2, 3].map((i) => (this.sources[i] ? (this.sources[i].w / this.sources[i].h) / outAsp : 1));
     const ns = this.sources.filter((s) => s.uploaded).length;
+
+    // dove sta ogni materia e come si muovono i confini (territorio.js)
+    updateTerritori(this, clip, frame);
+
+    // Tempo geologico e Gravità e vento: valgono per tutte le materie insieme
+    const total = Math.max(1, Math.round(clip.format.duration * clip.format.fps));
+    const fl = ((frame % total) + total) % total, lap = Math.floor(frame / total);
+    const tempo = tempoOf(clip);
+    const plan = tempo ? this._tempoPlan(clip, fl, lap) : null;
+    if (!plan) this.stats = null;
+    const forze = forzeOf(clip);
+    const grav = forze ? gravityAt(forze, t) : null;
+    const wind = forze ? this._forceField(clip, forze, t) : null;
 
     for (const pass of clip.chain) {
       if (!pass.on) continue;
@@ -323,8 +368,16 @@ export class Renderer {
       else out = this.scratch[0] === stream ? this.scratch[1] : this.scratch[0];
 
       const vals = passValues(clip, pass, t, live);
-      const arr = new Float32Array(8); vals.forEach((v, i) => { arr[i] = v; });
-      const common = (L, w, h) => {
+      const arr = new Float32Array(16); vals.forEach((v, i) => { arr[i] = v; });
+      // il tempo della materia: con Tempo geologico il suo orologio corre
+      // secondo la curva (e il suo fattore); la durata diventa la sua durata,
+      // così il loop delle materie senza stato resta chiuso
+      const tp = plan && proc.materia ? plan.get(pass.id) : null;
+      const tMat = tp ? tp.k * materialTime(clip, t) : t;
+      const TMat = tp ? tp.k * materialDuration(clip) : clip.format.duration;
+      const fu = forze && proc.materia ? forceUse(clip, pass, proc) : null;
+      const breath = proc.materia ? breathUniform(clip, pass, t) : 0;
+      const common = (L, w, h, tt = tMat, ff = frame, z = zoom) => {
         this._bind(0, stream.tex); gl.uniform1i(L.u_in, 0);
         for (let i = 0; i < 4; i++) {
           const s = this.sources[i];
@@ -333,66 +386,200 @@ export class Renderer {
         }
         gl.uniform4f(L.u_sAsp, sAsp[0], sAsp[1], sAsp[2], sAsp[3]);
         gl.uniform1i(L.u_ns, ns);
-        gl.uniform1f(L.u_t, t);
-        gl.uniform1f(L.u_T, clip.format.duration);
+        gl.uniform1f(L.u_t, tt);
+        gl.uniform1f(L.u_T, TMat);
         gl.uniform1f(L.u_loop, clip.format.loop ? 1 : 0);
-        gl.uniform1f(L.u_frame, frame);
+        gl.uniform1f(L.u_frame, ff);
         gl.uniform1f(L.u_fps, clip.format.fps);
         gl.uniform1f(L.u_seed, clip.seed || 1);
-        gl.uniform2f(L.u_res, w, h);
+        // con la Macro i passaggi vedono un mondo più grande della finestra
+        gl.uniform2f(L.u_res, w * z, h * z);
         gl.uniform1fv(L.u_p, arr);
+        this.corpo.bind(L);
+        gl.uniform1f(L.u_respiro, breath);
+        this._bind(13, wind ? this.field.tex : this._empty); gl.uniform1i(L.u_forze, 13); // 8 e 9 sono del corpo
+        gl.uniform1f(L.u_forzeOn, fu ? 1 : 0);
+        if (fu) {
+          gl.uniform1f(L.u_presa, fu.presa);
+          gl.uniform1f(L.u_peso, fu.peso);
+          gl.uniform2f(L.u_g, grav.v[0], grav.v[1]);
+          gl.uniform2f(L.u_giu, grav.dir[0], grav.dir[1]);
+          gl.uniform1f(L.u_gforza, grav.g / 0.5);
+          gl.uniform2f(L.u_wv, wind.v[0], wind.v[1]);
+          gl.uniform1f(L.u_vf, wind.f / 0.5);
+        }
+        gl.uniform1f(L.u_trST, 0); gl.uniform1f(L.u_trFB, 0); gl.uniform1f(L.u_mappa, 0);
       };
+      const moves = fu && (fu.modo === 'trasporto' || fu.modo === 'mappa');
 
       // simulazione: alcuni passi sullo stato, prima di disegnare
       if (st.sim) {
         const sp = this.simProgram(pass.proc);
         if (sp) {
           const S = st.sim;
-          // a ogni giro della clip la materia riparte, come nel file salvato
-          const total = Math.max(1, Math.round(clip.format.duration * clip.format.fps));
-          const lap = Math.floor(frame / total);
-          if (S.lap !== undefined && lap !== S.lap) S.init = true;
-          S.lap = lap;
-          // se l'anteprima salta fotogrammi, la materia recupera i passi persi
-          const dF = S.last === undefined || S.init ? 1 : Math.min(3, Math.max(1, frame - S.last));
-          S.last = frame;
-          const steps = Math.max(1, Math.round((proc.steps || 4) * dF));
-          for (let k = 0; k < steps; k++) {
+          const base = proc.steps || 4;
+          const step = (tt, ff, k) => {
             gl.useProgram(sp.p);
-            common(sp.loc, S.w, S.h);
+            common(sp.loc, S.w, S.h, tt, ff, 1);
             this._bind(7, S.t[1].tex); gl.uniform1i(sp.loc.u_st, 7);
             gl.uniform2f(sp.loc.u_stRes, S.w, S.h);
             gl.uniform1f(sp.loc.u_init, S.init ? 1 : 0);
             gl.uniform1f(sp.loc.u_step, k);
+            if (moves) {
+              gl.uniform1f(sp.loc.u_trST, 1 / (clip.format.fps * base));
+              gl.uniform1f(sp.loc.u_mappa, fu.modo === 'mappa' ? 1 : 0);
+            }
             this._bind(6, this._emptyArr, 'TEXTURE_2D_ARRAY'); if (sp.loc.u_hist) gl.uniform1i(sp.loc.u_hist, 6);
             this._bind(1, this._empty); if (sp.loc.u_fb) gl.uniform1i(sp.loc.u_fb, 1);
             this._draw(sp, S.t[0], S.w, S.h);
             S.t.reverse(); // t[1] è lo stato appena scritto
             S.init = false;
+          };
+          // a ogni giro della clip la materia riparte, come nel file salvato
+          if (S.lap !== undefined && lap !== S.lap) S.init = true;
+          S.lap = lap;
+          if (tp) {
+            // passi contati dal fotogramma 0: ogni passo ha il suo indice s, e
+            // da lì il suo istante di materia. Gli stessi in anteprima e nel 4K.
+            if (S.init) S.done = 0;
+            const n = Math.max(S.init ? 1 : 0, tp.n);
+            for (let j = 0; j < n; j++) {
+              const s = S.done + j, vf = Math.floor(s / base);
+              step(vf / clip.format.fps, vf, s - vf * base);
+            }
+            S.done = Math.max(S.done + n, tp.target);
+          } else {
+            // se l'anteprima salta fotogrammi, la materia recupera i passi persi
+            const dF = S.last === undefined || S.init ? 1 : Math.min(3, Math.max(1, frame - S.last));
+            const steps = Math.max(1, Math.round(base * dF));
+            for (let k = 0; k < steps; k++) step(t, frame, k);
           }
+          S.last = frame;
         }
       }
 
-      gl.useProgram(prog.p);
-      const L = prog.loc;
-      common(L, this.w, this.h);
-      if (st.sim) { this._bind(7, st.sim.t[1].tex); gl.uniform1i(L.u_st, 7); gl.uniform2f(L.u_stRes, st.sim.w, st.sim.h); }
-      else { this._bind(7, this._empty); gl.uniform1i(L.u_st, 7); gl.uniform2f(L.u_stRes, 1, 1); }
-      this._bind(1, st.fb ? st.fb[1].tex : this._empty); gl.uniform1i(L.u_fb, 1);
-      this._bind(6, st.hist ? st.hist.tex : this._emptyArr, 'TEXTURE_2D_ARRAY');
-      if (L.u_hist) gl.uniform1i(L.u_hist, 6);
-      gl.uniform1f(L.u_histN, st.hist ? st.hist.n : 0);
-      gl.uniform1f(L.u_histHead, st.hist ? st.hist.head : 0);
-      gl.uniform1f(L.u_histCap, st.hist ? st.hist.cap : 1);
-      gl.uniform1f(L.u_mix, pass.mix ?? 1);
-      gl.uniform1i(L.u_blend, BLEND_INDEX[pass.blend] ?? 0);
-      this._draw(prog, out, this.w, this.h);
-      if (st.fb) st.fb.reverse(); // ora fb[1] è l'uscita appena scritta
+      const draw = (tt, ff) => {
+        gl.useProgram(prog.p);
+        const L = prog.loc;
+        common(L, this.w, this.h, tt, ff);
+        if (st.sim) { this._bind(7, st.sim.t[1].tex); gl.uniform1i(L.u_st, 7); gl.uniform2f(L.u_stRes, st.sim.w, st.sim.h); }
+        else { this._bind(7, this._empty); gl.uniform1i(L.u_st, 7); gl.uniform2f(L.u_stRes, 1, 1); }
+        this._bind(1, st.fb ? st.fb[1].tex : this._empty); gl.uniform1i(L.u_fb, 1);
+        if (st.fb && moves) gl.uniform1f(L.u_trFB, 1 / clip.format.fps);
+        this._bind(6, st.hist ? st.hist.tex : this._emptyArr, 'TEXTURE_2D_ARRAY');
+        if (L.u_hist) gl.uniform1i(L.u_hist, 6);
+        gl.uniform1f(L.u_histN, st.hist ? st.hist.n : 0);
+        gl.uniform1f(L.u_histHead, st.hist ? st.hist.head : 0);
+        gl.uniform1f(L.u_histCap, st.hist ? st.hist.cap : 1);
+        gl.uniform1f(L.u_mix, pass.mix ?? 1);
+        gl.uniform1i(L.u_blend, BLEND_INDEX[pass.blend] ?? 0);
+        bindTerritorio(this, L, pass);
+        this._draw(prog, out, this.w, this.h);
+        if (st.fb) { st.fb.reverse(); out = st.fb[0]; } // ora fb[1] è l'uscita appena scritta
+      };
+      if (st.fb && tp) {
+        // retroazione nel tempo della materia: tanti giri quanti fotogrammi di
+        // materia sono passati; nessuno nei quasi arresti (resta com'era)
+        if (st.fbDone === undefined) st.fbDone = tp.fbFrom;
+        const n = Math.max(st.fbFresh === false ? 0 : 1, tp.fbN);
+        for (let j = 0; j < n; j++) { const s = st.fbDone + j; draw(s / clip.format.fps, s); }
+        st.fbDone = Math.max(st.fbDone + n, tp.fbTarget);
+        st.fbFresh = false;
+      } else draw(tMat, frame);
       stream = st.fb ? st.fb[1] : out;
     }
 
+    stream = this.corpo.post(stream, clip, t);
+
     this.final = stream;
     if (display) this.present();
+  }
+
+  /**
+   * Tempo geologico: quanti passi fa ogni materia in questo fotogramma.
+   * Il conto è esatto (dal fotogramma 0); l'anteprima, se non è «esatta»,
+   * tiene un tetto di lavoro per fotogramma e salta il resto, e lo segna in
+   * `this.stats` perché l'interfaccia lo dica.
+   */
+  _tempoPlan(clip, fl, lap) {
+    const plan = new Map();
+    let want = 0;
+    for (const pass of clip.chain) {
+      const proc = byId[pass.proc];
+      if (!pass.on || !proc?.materia) continue;
+      const k = ageFactor(clip, pass);
+      const e = { k, n: 0, target: 0, fbN: 0, fbFrom: 0, fbTarget: 0, cost: 0, want: 0 };
+      if (proc.sim) {
+        const base = proc.steps || 4;
+        const st = this.passState.get(pass.id);
+        const S = st?.sim;
+        const fresh = !S || S.init || (S.lap !== undefined && S.lap !== lap);
+        const done = fresh ? 0 : S.done ?? 0;
+        e.target = stepsBefore(clip, fl + 1, base, k);
+        let n = Math.max(0, e.target - done);
+        // senza «anteprima esatta» si recuperano al massimo tre fotogrammi persi
+        if (!this.exact) n = Math.min(n, 3 * Math.max(1, e.target - stepsBefore(clip, fl, base, k)));
+        e.n = Math.min(n, 20000); // anche nel render: mai un fotogramma senza fine
+        e.cost = (S ? S.w * S.h : 1024 * 576) / 1e6;
+        e.want = n * e.cost;
+      } else if (proc.feedback) {
+        const tau = (f) => Math.floor(k * clip.format.fps * (lap * materialDuration(clip) + materialTime(clip, f / clip.format.fps)) + 1e-6);
+        e.fbTarget = tau(fl + 1);
+        e.fbFrom = tau(fl);
+        const st = this.passState.get(pass.id);
+        const done = st?.fbDone ?? e.fbFrom;
+        let n = Math.max(0, e.fbTarget - done);
+        if (!this.exact) n = Math.min(n, 3 * Math.max(1, e.fbTarget - e.fbFrom));
+        e.fbN = Math.min(n, 600);
+        e.cost = (this.w * this.h) / 1e6;
+        e.want = n * e.cost;
+      }
+      want += e.want;
+      plan.set(pass.id, e);
+    }
+    // tetto dell'anteprima, in milioni di pixel per fotogramma
+    const budget = this.exact ? Infinity : this.budget;
+    const scale = want > budget ? budget / want : 1;
+    let done = 0;
+    if (scale < 1) for (const e of plan.values()) { e.n = Math.floor(e.n * scale); e.fbN = Math.floor(e.fbN * scale); }
+    for (const e of plan.values()) done += (e.n + e.fbN) * e.cost;
+    this.stats = { want, done: Math.min(want, done), scale };
+    return plan;
+  }
+
+  /** Il campo di forze di questo fotogramma, in una texture piccola condivisa. */
+  _forceField(clip, F, t) {
+    const gl = this.gl;
+    const asp = this.w / this.h;
+    const fw = Math.max(2, Math.round(asp >= 1 ? FIELD_LONG : FIELD_LONG * asp)), fh = Math.max(2, Math.round(asp >= 1 ? FIELD_LONG / asp : FIELD_LONG));
+    if (!this.field || this.field.w !== fw || this.field.h !== fh) {
+      if (this.field) this._freeTarget(this.field);
+      this.field = this._target(this._tex(fw, fh));
+      this.field.w = fw; this.field.h = fh;
+    }
+    if (!this.fieldProg) this.fieldProg = this._program(VERT, PRELUDE + FORZE_FRAG);
+    const P = this.fieldProg, L = P.loc;
+    const wf = Math.max(0, forceValue(F, 'vento.forza', t));
+    const wa = (forceValue(F, 'vento.direzione', t) * Math.PI) / 180;
+    const wv = [Math.cos(wa) * wf * SCALA.vento, Math.sin(wa) * wf * SCALA.vento];
+    const pk = packLocals(F, t, asp);
+    gl.useProgram(P.p);
+    gl.uniform1f(L.u_t, t);
+    gl.uniform1f(L.u_T, clip.format.duration);
+    gl.uniform1f(L.u_loop, clip.format.loop ? 1 : 0);
+    gl.uniform1f(L.u_seed, clip.seed || 1);
+    gl.uniform2f(L.u_res, fw, fh);
+    gl.uniform2f(L.u_w, wv[0], wv[1]);
+    gl.uniform1f(L.u_raff, Math.max(0, forceValue(F, 'vento.raffiche', t)));
+    gl.uniform1f(L.u_rmis, F.vento?.misura ?? 0.5);
+    const pt = new Float32Array(MAX_LOCALI * 4), ptk = new Float32Array(MAX_LOCALI);
+    pk.pts.forEach((p, i) => { pt.set(p.slice(0, 4), i * 4); ptk[i] = p[4]; });
+    const sg = new Float32Array(MAX_SEGMENTI * 4), sgf = new Float32Array(MAX_SEGMENTI * 2);
+    pk.seg.forEach((s, i) => { sg.set(s.slice(0, 4), i * 4); sgf[i * 2] = s[4]; sgf[i * 2 + 1] = s[5]; });
+    gl.uniform4fv(L.u_pt, pt); gl.uniform1fv(L.u_ptk, ptk); gl.uniform1i(L.u_npt, pk.pts.length);
+    gl.uniform4fv(L.u_sg, sg); gl.uniform2fv(L.u_sgf, sgf); gl.uniform1i(L.u_nsg, pk.seg.length);
+    this._draw(P, this.field, fw, fh);
+    return { v: wv, f: wf };
   }
 
   present() {
@@ -477,6 +664,7 @@ export class Renderer {
 
   destroy() {
     this._freeAll();
+    destroyTerritori(this);
     const ext = this.gl.getExtension('WEBGL_lose_context');
     if (ext) ext.loseContext();
   }
