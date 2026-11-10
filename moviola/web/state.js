@@ -5,6 +5,7 @@
 import { openStore } from './store.js';
 import { defaultClip, normalizeClip, clone, uid, dims } from './engine/clip.js';
 import { Renderer } from './engine/renderer.js';
+import { prepareTerritori } from './engine/territorio.js';
 import { loadMedia, seekVideo, videoTime, makeThumb } from './media.js';
 import { pref } from './prefs.js';
 
@@ -222,6 +223,7 @@ export async function auxSources(clip) {
     } catch (e) { console.warn(e); }
   }
   r.setSources(items);
+  await prepareTerritori(clip);
   return items;
 }
 

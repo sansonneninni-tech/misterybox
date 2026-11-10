@@ -4,6 +4,7 @@
 
 import { defaultParams, byId } from './processes.js';
 import { defaultClip, normalizeClip, newSeed } from './clip.js';
+import { cleanTerritorio } from './territorio.js';
 
 let n = 0;
 const pass = (proc, params = {}, extra = {}) => ({ id: 'p' + (++n).toString(36) + Math.random().toString(36).slice(2, 5), proc, on: true, mix: 1, blend: 'normale', ...extra, params: { ...defaultParams(proc), ...params } });
@@ -191,7 +192,7 @@ export function cleanMaterie(list) {
   return (Array.isArray(list) ? list : [])
     .filter((m) => m && byId[m.proc]?.materia)
     .slice(0, MAX_MATERIE)
-    .map((m) => ({ proc: m.proc, mix: Math.min(1, Math.max(0, m.mix ?? 1)), params: { ...defaultParams(m.proc), ...(m.params || {}) } }));
+    .map((m) => ({ proc: m.proc, mix: Math.min(1, Math.max(0, m.mix ?? 1)), params: { ...defaultParams(m.proc), ...(m.params || {}) }, ...cleanTerritorio(m) }));
 }
 
 /** Dove entrano le materie: dopo la fusione delle foto e i generatori, prima di tutto il resto. */
