@@ -229,7 +229,7 @@ comandi e la mostrano a tutto schermo, un altro tocco li riporta.
 | Catena | Respiro, Tempo geologico, Gravità e vento: tre righe con il loro interruttore; toccandone una, i suoi comandi prendono il posto dell'elenco, con ‹ per tornare. Le curve e le forze disegnate restano sull'immagine e sotto la linea del tempo. ↺ solo la catena |
 | Altro | Formato (durata, proporzioni, fotogrammi al secondo), Altre strade (Un'altra versione, Mostrami 6 versioni, Deriva · 9 mutazioni, Salva come ricetta), Anteprima dal vivo, Claude con «Discuti», le tenute (Confronta, Tutte le versioni), il link Avanzato |
 
-**Reset** sta nella barra in alto a destra, sempre visibile nel passo 2. Riporta
+**Reset** (il tasto giallo) sta nella barra in alto a destra, sempre visibile nel passo 2. Riporta
 la foto o le foto (tutte insieme) com'erano quando sono state scelte: senza
 stile («Nessuno stile»), senza materie, senza gesti di Scolpisci, Macro spenta,
 Respiro, Tempo geologico e Gravità e vento spenti, Intensità e Movimento ai

@@ -660,8 +660,10 @@ pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; col
 .flow__kept .meta { font-size: 10px; }
 
 /* il tasto Reset nella barra: bordo chiaro, mai rosso */
-.bar__reset { min-height: 30px; padding: 0 12px; background: none; border: var(--hair) solid var(--seam-strong); color: var(--salt); font: inherit; font-size: 12px; letter-spacing: var(--track-ui); cursor: pointer; position: relative; }
-.bar__reset:hover { border-color: var(--salt); }
+/* giallo per scelta di ninni (2026-11-10): l'unico tasto giallo dell'app, testo nero */
+.bar__reset { min-height: 30px; padding: 0 12px; background: #f2c230; border: var(--hair) solid #f2c230; color: #0b0b0b; font-weight: 500; font: inherit; font-size: 12px; letter-spacing: var(--track-ui); cursor: pointer; position: relative; }
+.bar__reset:hover { background: #f7d45c; border-color: #f7d45c; }
+.bar__reset:focus-visible { outline: 2px solid var(--salt); outline-offset: 2px; }
 .bar__reset::after { content: ""; position: absolute; inset: -7px -3px; }
 .bar__reset[hidden] { display: none; }
 
