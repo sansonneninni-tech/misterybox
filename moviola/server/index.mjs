@@ -47,7 +47,7 @@ function lanAddresses() {
 
 // ------------------------------------------------------------------ archivio
 const collections = new Map();
-const COLL = new Set(['sources', 'experiments', 'versions', 'renders', 'queue']);
+const COLL = new Set(['sources', 'experiments', 'versions', 'renders', 'queue', 'ricette']);
 function coll(name) {
   if (!COLL.has(name)) throw Object.assign(new Error('collezione sconosciuta'), { status: 404 });
   if (!collections.has(name)) {

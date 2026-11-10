@@ -18,8 +18,12 @@ import { analyse } from '../engine/analysis.js';
 import { localCritique } from '../engine/critic.js';
 import { mainPlayer, syncPlayer } from '../app.js';
 import { qrSvg } from './qr.js';
+import { buildAny, syncRicetta, styleName } from '../engine/ricette.js';
+import { ricetteGroup, openSalva, openGestione, ricettaBlock, openIntera, clipFromRicetta, warnings } from './ricette.js';
+import { openDeriva } from './deriva.js';
 
 const MAX = 4;
+const nameOf = (clip) => styleName(clip, recipeById);
 const fmtVal = (v, d) => (d.step >= 1 ? String(Math.round(v)) : Math.abs(d.max - d.min) <= 2 ? v.toFixed(2) : v.toFixed(1));
 const MOVES = [
   { id: 'fermo', label: 'Fermo', hint: 'si muove solo la materia dello stile' },
@@ -175,11 +179,14 @@ async function ensureWork() {
   const ids = S.zero ? [] : S.pick.filter((id) => sourceById(id));
   if (S.work && expById(S.expId) && sameSources(S.work, ids) && S.work.style) return;
   const style = S.work?.style || (ids.length ? 'emulsione' : 'emulsione');
-  const clip = applyIntensity(buildClip({ style, sources: ids.map(sourceById), format: S.work?.format, motion: S.work?.motion }));
+  const ric = S.work?.style === 'ricetta' ? syncRicetta(S.work) : null;
+  const clip = buildAny({ style, sources: ids.map(sourceById), format: S.work?.format, motion: S.work?.motion, ricetta: ric, seed: ric ? S.work.seed : undefined });
+  if (ric) clip.intensity = S.work.intensity;
+  applyIntensity(clip);
   const recs = ids.map(sourceById);
   const day = new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
   const name = recs.length ? `${recs[0].name.replace(/\.[^.]+$/, '').slice(0, 24)}${recs.length === 2 ? ' e un’altra' : recs.length > 2 ? ` e altre ${recs.length - 1}` : ''}` : `Da zero ${day}`;
-  await createExperiment(name, clip, { note: `${recipeById(style).name} · partenza` });
+  await createExperiment(name, clip, { note: `${nameOf(clip)} · partenza` });
 }
 
 const thumbCache = new Map();
@@ -267,7 +274,7 @@ export const trasforma = {
         const img = en.target; matIO.unobserve(img);
         materiaThumb(img.dataset.proc, work()).then((u) => { img.src = u; }).catch(() => {});
       }), { root: null, rootMargin: '0px 400px' });
-      const row = h('div.mats__row', { role: 'group', 'aria-label': 'Materie' }, MATERIA_FAMILIES.map((f) => {
+      const row = h('div.mats__row', { role: 'group', 'aria-label': 'Materie' }, ricetteGroup(c, ricetteOn), MATERIA_FAMILIES.map((f) => {
         const list = MATERIE.filter((m) => m.family === f.id);
         if (!list.length) return null;
         return h('div.mats__fam', null, h('span.mats__famname', null, f.label), h('div.mats__tiles', null, list.map((m) => {
@@ -350,13 +357,19 @@ export const trasforma = {
 
     function rebuild(patch = {}) {
       const c = work();
-      const next = buildClip({
+      const next = buildAny({
         style: patch.style || c.style, sources: c.sources.map((s) => sourceById(s.id)).filter(Boolean),
         format: { ...c.format, ...(patch.format || {}) }, motion: { ...c.motion, ...(patch.motion || {}) },
         seed: patch.seed || c.seed, materie: patch.materie ?? c.materie,
+        ricetta: patch.ricetta !== undefined ? patch.ricetta : c.style === 'ricetta' ? syncRicetta(c) : null,
       });
       next.intensity = patch.intensity ?? c.intensity ?? 0.8;
       applyIntensity(next);
+      adopt(next);
+    }
+
+    // Prende una clip già costruita (una ricetta, una scelta della Deriva) come lavoro aperto.
+    function adopt(next) {
       Object.keys(S.work).forEach((k) => delete S.work[k]);
       Object.assign(S.work, next);
       touch('clip');
@@ -364,15 +377,41 @@ export const trasforma = {
       scheduleRead();
     }
 
+    // ---------------------------------------------------- ricette di materia
+    function useRicetta(rec) {
+      const next = clipFromRicetta(rec, work());
+      adopt(next);
+      drawStyles(); drawMats(); drawPanel();
+      const w = warnings(next);
+      toast(w.length ? `«${rec.name}»: ${w.join(' ')}` : `«${rec.name}» sulle tue foto.`);
+    }
+    const ricetteOn = {
+      apply: useRicetta,
+      save: () => openSalva({ clip: work(), onSaved: (rec) => { const c = work(); const next = clipFromRicetta(rec, c); next.format = { ...c.format }; next.seed = c.seed; adopt(next); drawMats(); drawPanel(); } }),
+      manage: () => openGestione({ apply: useRicetta, work: () => work() }),
+    };
+    function tweak() { applyIntensity(S.work); touch('clip'); syncPlayer(); scheduleRead(); }
+    function deriva() {
+      openDeriva({
+        before: () => player.pause(),
+        onOpen: async () => {
+          await syncPlayer(); player.restart(); player.play();
+          drawUsing(); drawStyles(); drawMats(); drawPanel(); drawKept(); scheduleRead();
+        },
+      });
+    }
+
     function setStyle(id) { if (id === work().style) return; rebuild({ style: id }); drawStyles(); drawPanel(); }
 
     function drawPanel() {
       const c = work();
-      const r = recipeById(c.style);
+      const r = recipeById(c.style) || { name: nameOf(c), line: '' };
       const slider = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: c.intensity ?? 0.8, 'aria-label': 'Intensità', oninput: (e) => { S.work.intensity = Number(e.target.value); applyIntensity(S.work); touch('clip'); syncPlayer(); scheduleRead(); } });
       const bpm = h('input.field.field--num', { type: 'number', min: 30, max: 240, value: c.motion.bpm, 'aria-label': 'Battiti al minuto', onchange: (e) => rebuild({ motion: { bpm: Math.min(240, Math.max(30, Number(e.target.value) || 96)) } }) });
       fill(panel,
-        h('div.flow__style', null, h('span.label', null, 'Stile'), h('span.flow__stylename', null, r.name), h('p.about', null, r.line)),
+        c.style === 'ricetta'
+          ? ricettaBlock(c, { tweak, save: ricetteOn.save, full: () => openIntera(work(), { tweak, changed: () => drawPanel(), fine: () => app.go('banco') }) })
+          : h('div.flow__style', null, h('span.label', null, 'Stile'), h('span.flow__stylename', null, r.name), h('p.about', null, r.line)),
         h('label.ctl', null, h('span.ctl__lbl', null, 'Intensità', h('span.meta', null, 'quanto lo stile pesa sulle foto')), slider),
         h('div.ctl', null, h('span.ctl__lbl', null, 'Movimento', h('span.meta', null, MOVES.find((m) => m.id === c.motion.mode)?.hint || '')),
           seg(MOVES, c.motion.mode, (v) => { rebuild({ motion: { mode: v } }); drawPanel(); }, { label: 'Movimento' }),
@@ -389,7 +428,9 @@ export const trasforma = {
             seg([{ id: 24, label: '24' }, { id: 30, label: '30' }], c.format.fps, (v) => { rebuild({ format: { fps: v } }); drawPanel(); }, { label: 'Fotogrammi al secondo' }))),
         h('div.flow__more', null,
           h('button.btn', { onclick: () => { rebuild({ seed: newSeed() }); toast('Un’altra versione dello stesso stile'); } }, 'Un’altra versione'),
-          h('button.btn', { onclick: () => openProvino({ onOpen: () => { syncPlayer().then(() => player.restart()); drawPanel(); drawStyles(); drawMats(); scheduleRead(); } }) }, 'Mostrami 6 versioni')),
+          h('button.btn', { onclick: () => openProvino({ onOpen: () => { syncPlayer().then(() => player.restart()); drawPanel(); drawStyles(); drawMats(); scheduleRead(); } }) }, 'Mostrami 6 versioni'),
+          h('button.btn', { onclick: () => deriva(), title: 'Nove mutazioni vive: ne scegli una e si riparte da lei' }, 'Deriva · 9 mutazioni'),
+          h('button.btn', { onclick: () => ricetteOn.save() }, 'Salva come ricetta')),
         h('button.switch', { role: 'switch', 'aria-checked': 'false', onclick: () => app.go('vivo') },
           h('span.switch__knob'), h('span.stack', null, h('span', null, 'Anteprima dal vivo'), h('span.meta', null, 'la suoni col dito o col mouse, in tempo reale'))),
         claude,
@@ -459,7 +500,7 @@ export const trasforma = {
     async function keep() {
       action.progress(0.4, 'Tengo…');
       const c = work();
-      const v = await saveVersion(`${recipeById(c.style).name} · ${c.format.duration} s · ${c.format.aspect}`, 'ninni');
+      const v = await saveVersion(`${nameOf(c)} · ${c.format.duration} s · ${c.format.aspect}`, 'ninni');
       v.marked = true; v.status = 'scelta';
       await updateVersion(v);
       action.progress(null, 'Tieni questa');
@@ -500,7 +541,7 @@ let long = 3840;
 function metaFor(clip, v, exp) {
   return {
     nome: exp?.name, versione: v ? { id: v.id, etichetta: v.label, stato: v.status, nota: v.note } : null,
-    stile: recipeById(clip.style)?.name, seme: clip.seed, movimento: clip.motion, loop: clip.format.loop,
+    stile: nameOf(clip), seme: clip.seed, movimento: clip.motion, loop: clip.format.loop,
     catena: clip.chain.map((p) => ({ processo: byId[p.proc]?.name, acceso: p.on, fusione: p.blend, quantita: p.mix, parametri: p.params })),
     chiavi: clip.keys,
     sorgenti: clip.sources.map((s) => { const r = sourceById(s.id); return r ? { nome: r.name, tipo: r.kind, provenienza: r.origin, diritti: r.rights } : { id: s.id, mancante: true }; }),
@@ -547,7 +588,7 @@ export const salva = {
             h('label.saverow__pick', null,
               h('input', { type: 'checkbox', checked: chosen.has(v.id), onchange: (e) => { e.target.checked ? chosen.add(v.id) : chosen.delete(v.id); drawAction(); } }),
               h('span.saverow__img', null, v.thumb ? h('img', { src: v.thumb, alt: '' }) : null),
-              h('span.stack', null, h('span', null, recipeById(c.style)?.name || v.note || v.label), h('span.meta', null, `${c.format.duration} s · ${c.format.aspect} · ${c.format.fps} fps · ${v.label}`))),
+              h('span.stack', null, h('span', null, nameOf(c) || v.note || v.label), h('span.meta', null, `${c.format.duration} s · ${c.format.aspect} · ${c.format.fps} fps · ${v.label}`))),
             h('label.saverow__done', { title: 'Lo decidi solo tu. Puoi sempre toglierla.' },
               h('input', { type: 'checkbox', checked: v.status === 'finita', onchange: async (e) => { v.status = e.target.checked ? 'finita' : 'scelta'; if (e.target.checked) v.finishedAt = Date.now(); await updateVersion(v); toast(e.target.checked ? 'Segnata come finita da te' : 'Riaperta'); } }),
               h('span', null, 'Questa è finita')));
@@ -596,12 +637,12 @@ export const salva = {
       try {
         for (let k = 0; k < t.length; k++) {
           let { v, clip } = t[k];
-          if (!v) { v = await saveVersion(`${recipeById(clip.style)?.name || ''} · prima del salvataggio`, 'ninni'); v.marked = true; await updateVersion(v); clip = v.clip; }
+          if (!v) { v = await saveVersion(`${nameOf(clip)} · prima del salvataggio`, 'ninni'); v.marked = true; await updateVersion(v); clip = v.clip; }
           clip = normalizeClip(clone(clip));
           if (ov && (clip.format.duration !== ov.duration || clip.format.aspect !== ov.aspect || clip.format.fps !== ov.fps)) {
             // il file resta legato alla sua ricetta: le modifiche diventano una versione figlia
             clip.format = { ...clip.format, ...ov };
-            v = await saveVersion(`${recipeById(clip.style)?.name || ''} · ${ov.duration} s · ${ov.aspect} · ${ov.fps} fps`, 'ninni', clip, v.id);
+            v = await saveVersion(`${nameOf(clip)} · ${ov.duration} s · ${ov.aspect} · ${ov.fps} fps`, 'ninni', clip, v.id);
             v.marked = true; await updateVersion(v);
           }
           const release = await auxLock();

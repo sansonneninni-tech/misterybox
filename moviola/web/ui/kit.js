@@ -59,7 +59,7 @@ export function dialog({ title, body, foot = [], wide = false, onClose }) {
 export function confirmDialog({ title, text, ok = 'Conferma', danger }) {
   return new Promise((res) => {
     let d;
-    const done = (v) => { d.close(); res(v); };
+    const done = (v) => { res(v); d.close(); }; // prima la risposta: chiudere chiama onClose, che direbbe «no»
     d = dialog({
       title, body: h('p.prose', null, text), onClose: () => res(false),
       foot: [h('span.spacer'), h('button.btn', { onclick: () => done(false) }, 'Annulla'), h('button.btn' + (danger ? '' : '.btn--solid'), { onclick: () => done(true) }, ok)],
