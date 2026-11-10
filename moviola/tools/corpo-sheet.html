@@ -1,0 +1,59 @@
+<!doctype html><meta charset="utf-8"><title>Foglio corpo</title>
+<body style="margin:0;background:#111;color:#ccc;font:12px monospace">
+<canvas id="c" style="display:none"></canvas>
+<script type="module">
+// Verifiche di Scolpire e Macro, guidate da fuori (Playwright):
+//   await window.corpo.run({ photo, clip, w, frames: [..], field: true })
+// rende i fotogrammi richiesti partendo sempre dal fotogramma 0, come il
+// salvataggio, e restituisce le immagini e, se chiesto, il campo scolpito.
+import { Renderer } from '../web/engine/renderer.js';
+import { defaultParams, byId } from '../web/engine/processes.js';
+import { defaultClip, dims } from '../web/engine/clip.js';
+import { buildClip } from '../web/engine/recipes.js';
+
+const load = (u) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; });
+const cache = new Map();
+let r = null;
+
+async function run({ photo, clip, long = 960, frames = [0], field = false, jpeg = true, raw = false }) {
+  if (!r) r = new Renderer(document.getElementById('c'));
+  const imgs = [];
+  for (const p of [].concat(photo || [])) { if (!cache.has(p)) cache.set(p, await load(p)); imgs.push(cache.get(p)); }
+  r.setSources(imgs.map((im) => ({ el: im, w: im.naturalWidth, h: im.naturalHeight, kind: 'image' })));
+  const { w, h } = dims(clip.format.aspect, long);
+  r.setSize(w, h); r.prune([]); r.reset();
+  const fps = clip.format.fps;
+  const want = new Set(frames);
+  const last = Math.max(...frames);
+  const out = { w, h, shots: {}, fields: {}, ms: 0, errors: [] };
+  const t0 = performance.now();
+  for (let f = 0; f <= last; f++) {
+    const total = Math.round(clip.format.duration * fps);
+    r.render(clip, (f % total) / fps, f, null, { display: want.has(f) });
+    if (want.has(f)) {
+      if (jpeg) out.shots[f] = r.canvas.toDataURL('image/jpeg', 0.9);
+      if (raw) { const px = r.readRGBA8(); out.shots[f] = { w, h, data: Array.from(px) }; }
+      if (field && r.corpo.campo) {
+        const a = r.corpo.campo.read();
+        let hsh = 0, mx = 0; for (let i = 0; i < a.length; i++) { hsh = (hsh * 31 + Math.round(a[i] * 1e5)) | 0; mx = Math.max(mx, Math.abs(a[i])); }
+        out.fields[f] = { hash: hsh, max: mx, n: a.length, w: r.corpo.campo.w, h: r.corpo.campo.h };
+      }
+    }
+  }
+  out.ms = Math.round((performance.now() - t0) / (last + 1));
+  for (const [k, v] of r.errors) out.errors.push(k + ': ' + v);
+  return out;
+}
+
+function clipWith({ style = 'nudo', materie = [], seed = 7, duration = 6, fps = 24, aspect = '16:9', scolpire = null, macro = null, keys = null, photos = 1, motion }) {
+  const fake = Array.from({ length: photos }, (_, i) => ({ id: 'p' + i }));
+  const c = buildClip({ style, sources: fake, format: { duration, fps, aspect, loop: false }, seed, materie: materie.map((proc) => ({ proc })), motion });
+  if (scolpire) c.scolpire = scolpire;
+  if (macro) c.macro = macro;
+  if (keys) Object.assign(c.keys, keys);
+  return c;
+}
+
+window.corpo = { run, clipWith, byId, defaultParams, defaultClip };
+window.ready = true;
+</script>

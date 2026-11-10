@@ -474,7 +474,7 @@ export function bindTerritorio(r, L, pass) {
   const gl = r.gl;
   const b = r._terr?.bind.get(pass.id);
   if (L.u_terr) gl.uniform1f(L.u_terr, b ? 1 : 0);
-  r._bind(8, b ? b.tex : r._empty);
-  if (L.u_tF) gl.uniform1i(L.u_tF, 8);
+  r._bind(12, b ? b.tex : r._empty); // 8 e 9 sono del corpo (rilievo e campo scolpito)
+  if (L.u_tF) gl.uniform1i(L.u_tF, 12);
   if (b && L.u_tq) gl.uniform4f(L.u_tq, b.q[0], b.q[1], b.q[2], b.q[3]);
 }

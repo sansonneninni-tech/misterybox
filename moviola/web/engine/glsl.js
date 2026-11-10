@@ -1,6 +1,9 @@
 // Codice GLSL comune a tutti i processi.
 // Ogni processo scrive solo una funzione `vec3 fx(vec2 uv)`; qui ci sono gli
 // ingressi, il rumore periodico (per i loop chiusi) e la fusione finale.
+// `uv` è sulla superficie: con la Macro spenta coincide con lo schermo.
+
+import { PRELUDE_CORPO } from './corpo/glsl.js';
 
 import { TERR_POST } from './territorio-glsl.js';
 
@@ -98,26 +101,28 @@ vec3 pigment(float x, float tint) {
   return clamp(a + b * cos(TAU * (c * x + d)), 0.0, 1.0);
 }
 
+${PRELUDE_CORPO}
 vec2 cover(vec2 uv, float r) {
   uv -= 0.5;
   if (r > 1.0) uv.x /= r; else uv.y *= r;
   return uv + 0.5;
 }
 vec3 SRC(int i, vec2 uv) {
-  if (i >= u_ns) return texture(u_in, uv).rgb;
+  if (i >= u_ns) return texture(u_in, CAM_S(uv)).rgb;
+  uv -= SCD(uv);
   if (i == 0) return texture(u_s0, cover(uv, u_sAsp.x)).rgb;
   if (i == 1) return texture(u_s1, cover(uv, u_sAsp.y)).rgb;
   if (i == 2) return texture(u_s2, cover(uv, u_sAsp.z)).rgb;
   return texture(u_s3, cover(uv, u_sAsp.w)).rgb;
 }
-vec3 IN(vec2 uv) { return texture(u_in, uv).rgb; }
-vec3 FB(vec2 uv) { return texture(u_fb, uv).rgb; }
+vec3 IN(vec2 uv) { return texture(u_in, CAM_S(uv)).rgb; }
+vec3 FB(vec2 uv) { return texture(u_fb, CAM_S(uv)).rgb; }
 // k fotogrammi fa (0 = adesso). Si ferma al più vecchio disponibile.
 vec3 HIST(float k, vec2 uv) {
   if (u_histN < 1.0) return IN(uv);
   k = clamp(floor(k), 0.0, u_histN - 1.0);
   float layer = mod(u_histHead - k + u_histCap, u_histCap);
-  return texture(u_hist, vec3(uv, layer)).rgb;
+  return texture(u_hist, vec3(CAM_S(uv), layer)).rgb;
 }
 // Stato della simulazione: rgba liberi, in virgola mobile.
 vec4 ST(vec2 uv) { return texture(u_st, uv); }
@@ -143,10 +148,15 @@ ${TERR_POST}
 void main() {
   // territorio: dove sta la materia e come si mescola sul confine (territorio-glsl.js)
   vec3 tr = u_terr > 0.5 ? trrTerritorio(v_uv) : vec3(1.0, 0.0, 0.0);
-  vec3 base = texture(u_in, v_uv - tr.yz * 0.5).rgb;
-  vec3 fxc = fx(v_uv + tr.yz);
-  vec3 c = mix(base, blendc(base, fxc, u_blend), u_mix * tr.x);
-  o_col = vec4(max(c, 0.0), 1.0);
+  vec4 b4 = texture(u_in, v_uv - tr.yz * 0.5);
+  vec3 base = b4.rgb;
+  // la materia lavora sulla superficie: con la Macro spenta CAM_W è l'identità
+  vec3 fxc = fx(CAM_W(v_uv + tr.yz));
+  float k = u_mix * tr.x;
+  vec3 c = mix(base, blendc(base, fxc, u_blend), k);
+  // alfa: il rilievo che una materia dichiara (FX_H), altrimenti passa com'è
+  float a = FX_H >= 0.0 ? mix(b4.a, 0.02 + 0.98 * clamp(FX_H, 0.0, 1.0), k) : b4.a;
+  o_col = vec4(max(c, 0.0), a);
 }`;
 
 // Passaggi di servizio
@@ -166,4 +176,4 @@ precision highp float;
 uniform sampler2D u_tex; uniform float u_r; uniform float u_has;
 in vec2 v_uv; out vec4 o;
 vec2 cover(vec2 uv, float r) { uv -= 0.5; if (r > 1.0) uv.x /= r; else uv.y *= r; return uv + 0.5; }
-void main() { o = u_has > 0.5 ? vec4(texture(u_tex, cover(v_uv, u_r)).rgb, 1.0) : vec4(0.0, 0.0, 0.0, 1.0); }`;
+void main() { o = u_has > 0.5 ? vec4(texture(u_tex, cover(v_uv, u_r)).rgb, 0.0) : vec4(0.0); }`;

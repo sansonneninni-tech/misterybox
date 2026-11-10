@@ -19,6 +19,7 @@ import { localCritique } from '../engine/critic.js';
 import { mainPlayer, syncPlayer } from '../app.js';
 import { qrSvg } from './qr.js';
 import { territorioSection } from './territorio.js';
+import { corpoUI } from './corpo.js';
 
 const MAX = 4;
 const fmtVal = (v, d) => (d.step >= 1 ? String(Math.round(v)) : Math.abs(d.max - d.min) <= 2 ? v.toFixed(2) : v.toFixed(1));
@@ -211,7 +212,8 @@ export const trasforma = {
     const player = mainPlayer();
     const stage = h('div.flow__stage');
     const using = h('div.using');
-    const screen = h('div.screen.flow__screen', { onclick: () => { player.toggle(); drawUsing(); } }, player.canvas);
+    let corpo = null; // Scolpisci e Macro
+    const screen = h('div.screen.flow__screen', { onclick: () => { if (corpo?.capturesTap()) return; player.toggle(); drawUsing(); } }, player.canvas);
     const styles = h('div.styles', { role: 'listbox', 'aria-label': 'Stili' });
     const mats = h('div.mats');
     const head = h('div.scrub__head');
@@ -228,7 +230,8 @@ export const trasforma = {
     const more = h('div.flow__panel.flow__panel--more');
     const kept = h('div.kept');
     const action = cta('Tieni questa', () => keep());
-    stage.append(using, screen, timeline, styles, mats);
+    corpo = corpoUI({ player, screen, redraw: (what) => { if (ready) drawPanel(); if (what === 'play') drawUsing(); } });
+    stage.append(using, screen, corpo.bar, timeline, styles, mats);
     root.append(h('div.flow.flow--trasforma', null, stage, h('div.flow__side', null, h('div.flow__scroll', null, panel, kept, more), action)));
 
     let ready = false;
@@ -358,6 +361,10 @@ export const trasforma = {
         seed: patch.seed || c.seed, materie: patch.materie ?? c.materie,
       });
       next.intensity = patch.intensity ?? c.intensity ?? 0.8;
+      // i gesti scolpiti e la Macro non dipendono dallo stile: restano
+      if (c.scolpire) next.scolpire = c.scolpire;
+      if (c.macro) next.macro = c.macro;
+      for (const [k, v] of Object.entries(c.keys || {})) if (k.startsWith('macro.')) next.keys[k] = v;
       applyIntensity(next);
       Object.keys(S.work).forEach((k) => delete S.work[k]);
       Object.assign(S.work, next);
@@ -379,7 +386,8 @@ export const trasforma = {
         h('div.ctl', null, h('span.ctl__lbl', null, 'Movimento', h('span.meta', null, MOVES.find((m) => m.id === c.motion.mode)?.hint || '')),
           seg(MOVES, c.motion.mode, (v) => { rebuild({ motion: { mode: v } }); drawPanel(); }, { label: 'Movimento' }),
           c.motion.mode === 'ritmico' ? h('div.row', null, bpm, h('span.meta', null, 'battiti al minuto')) : null),
-        materiaPanel(c));
+        materiaPanel(c),
+        corpo.panel());
       fill(more,
         h('details.fmt', { open: fmtOpen, ontoggle: (e) => { fmtOpen = e.target.open; } },
           h('summary.fmt__sum', null, h('span', null, 'Formato'), h('span.meta', null, `${c.format.duration} s · ${c.format.aspect} · ${c.format.fps} fps`), h('span.fmt__chg', null, fmtOpen ? 'Chiudi' : 'Cambia')),
@@ -451,6 +459,7 @@ export const trasforma = {
 
     async function partiDa(v) {
       openVersion(v.id);
+      corpo.sync();
       S.pick = S.work.sources.map((x) => x.id); S.zero = !S.pick.length;
       if (!S.work.style) S.work.style = 'emulsione';
       await syncPlayer(); player.restart(); player.play();
@@ -471,6 +480,7 @@ export const trasforma = {
 
     app.onFrame = (p) => {
       if (!p.total) return;
+      corpo.frame(p);
       const fr = p.frame % p.total;
       tlFill.style.width = ((fr + 1) / p.total) * 100 + '%';
       head.textContent = `${(fr / p.fps).toFixed(1)} s di ${p.clip?.format.duration} s · fotogramma ${fr + 1} di ${p.total}`;
@@ -480,6 +490,7 @@ export const trasforma = {
       await ensureWork();
       if (!S.work.style) { S.work.style = 'emulsione'; }
       ready = true;
+      corpo.sync();
       await syncPlayer();
       player.restart(); player.play();
       // la lettura prende l'ausiliario prima delle miniature, così arriva subito
@@ -491,7 +502,7 @@ export const trasforma = {
       if (e.key === ' ') { e.preventDefault(); player.toggle(); drawUsing(); }
     };
     document.addEventListener('keydown', keys);
-    return () => { document.removeEventListener('keydown', keys); matIO?.disconnect(); player.pause(); };
+    return () => { document.removeEventListener('keydown', keys); matIO?.disconnect(); corpo.destroy(); player.pause(); };
   },
 };
 
@@ -505,6 +516,8 @@ function metaFor(clip, v, exp) {
     stile: recipeById(clip.style)?.name, seme: clip.seed, movimento: clip.motion, loop: clip.format.loop,
     catena: clip.chain.map((p) => ({ processo: byId[p.proc]?.name, acceso: p.on, fusione: p.blend, quantita: p.mix, parametri: p.params })),
     chiavi: clip.keys,
+    scolpito: clip.scolpire?.gesti?.length ? { gesti: clip.scolpire.gesti.length, memoria: clip.scolpire.memoria, campo: '512 px, passi di 1/120 s' } : undefined,
+    macro: clip.macro?.on ? { ...clip.macro.params, microdettaglio_tipo: clip.macro.micro } : undefined,
     sorgenti: clip.sources.map((s) => { const r = sourceById(s.id); return r ? { nome: r.name, tipo: r.kind, provenienza: r.origin, diritti: r.rights } : { id: s.id, mancante: true }; }),
     ricetta: clip,
   };

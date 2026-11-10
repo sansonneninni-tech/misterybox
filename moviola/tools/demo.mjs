@@ -18,7 +18,7 @@ const read = (p) => readFileSync(join(root, p), 'utf8');
 const js = execFileSync('npx', ['--yes', 'esbuild@0.24.0', join(root, 'web/app.js'), '--bundle', '--format=esm', '--minify', '--target=safari15'], { encoding: 'utf8', maxBuffer: 64 << 20 });
 
 const font = (f) => `url("data:font/woff2;base64,${readFileSync(join(root, 'design', f)).toString('base64')}")`;
-const css = ['design/tokens.css', 'design/components.css', 'design/moviola.css', 'design/territorio.css'].map(read).join('\n')
+const css = ['design/tokens.css', 'design/components.css', 'design/moviola.css', 'design/territorio.css', 'design/corpo.css'].map(read).join('\n')
   .replace(/url\("(fonts\/[^"]+\.woff2)"\)/g, (_, f) => font(f));
 // nell'Artifact la pagina sta già dentro i margini di sicurezza dello schermo
 const fit = artifact ? 'html { box-sizing: border-box; } .shell { height: 100% !important; }' : '';

@@ -6,6 +6,7 @@ import { VERT, PRELUDE, POSTLUDE, COPY_FRAG, BASE_FRAG } from './glsl.js';
 import { byId, fragmentFor, simFragmentFor, BLENDS } from './processes.js';
 import { passValues } from './motion.js';
 import { updateTerritori, bindTerritorio, pruneTerritori, destroyTerritori } from './territorio.js';
+import { Corpo } from './corpo/index.js';
 
 const BLEND_INDEX = Object.fromEntries(BLENDS.map((b, i) => [b.id, i]));
 
@@ -30,6 +31,7 @@ export class Renderer {
     this.baseProg = this._program(VERT, BASE_FRAG);
     this._empty = this._tex(1, 1, false);
     this._emptyArr = this._texArray(1, 1, 1);
+    this.corpo = new Corpo(this); // Scolpire con le dita e Macro
     canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.lost = true; });
   }
 
@@ -171,6 +173,7 @@ export class Renderer {
     this._freeTarget(this.base);
     for (const st of this.passState.values()) this._freePass(st);
     this.passState.clear();
+    this.corpo.free();
   }
 
   _freePass(st) {
@@ -189,6 +192,7 @@ export class Renderer {
       if (st.hist) { st.hist.n = 0; st.hist.head = 0; }
       if (st.sim) st.sim.init = true;
     }
+    this.corpo.reset();
   }
 
   _ensurePass(pass, proc) {
@@ -280,15 +284,21 @@ export class Renderer {
     for (const s of this.sources) if (s.kind === 'video') this._upload(s);
     const outAsp = this.w / this.h;
 
+    // corpo: campo scolpito, rilievo e camera macro (spento non fa nulla)
+    const corpo = this.corpo.pre(clip, t);
+    const zoom = this.corpo.zoom;
+
     // base: la prima sorgente adattata al quadro, oppure il nero
     const s0 = this.sources[0];
-    const bp = this.baseProg;
-    gl.useProgram(bp.p);
-    this._bind(0, s0?.uploaded ? s0.tex : this._empty);
-    gl.uniform1i(bp.loc.u_tex, 0);
-    gl.uniform1f(bp.loc.u_r, s0 ? (s0.w / s0.h) / outAsp : 1);
-    gl.uniform1f(bp.loc.u_has, s0?.uploaded ? 1 : 0);
-    this._draw(bp, this.base, this.w, this.h);
+    if (!corpo || !this.corpo.base(this.base)) {
+      const bp = this.baseProg;
+      gl.useProgram(bp.p);
+      this._bind(0, s0?.uploaded ? s0.tex : this._empty);
+      gl.uniform1i(bp.loc.u_tex, 0);
+      gl.uniform1f(bp.loc.u_r, s0 ? (s0.w / s0.h) / outAsp : 1);
+      gl.uniform1f(bp.loc.u_has, s0?.uploaded ? 1 : 0);
+      this._draw(bp, this.base, this.w, this.h);
+    }
     let stream = this.base;
 
     const sAsp = [0, 1, 2, 3].map((i) => (this.sources[i] ? (this.sources[i].w / this.sources[i].h) / outAsp : 1));
@@ -329,7 +339,7 @@ export class Renderer {
 
       const vals = passValues(clip, pass, t, live);
       const arr = new Float32Array(8); vals.forEach((v, i) => { arr[i] = v; });
-      const common = (L, w, h) => {
+      const common = (L, w, h, z = zoom) => {
         this._bind(0, stream.tex); gl.uniform1i(L.u_in, 0);
         for (let i = 0; i < 4; i++) {
           const s = this.sources[i];
@@ -344,8 +354,10 @@ export class Renderer {
         gl.uniform1f(L.u_frame, frame);
         gl.uniform1f(L.u_fps, clip.format.fps);
         gl.uniform1f(L.u_seed, clip.seed || 1);
-        gl.uniform2f(L.u_res, w, h);
+        // con la Macro i passaggi vedono un mondo più grande della finestra
+        gl.uniform2f(L.u_res, w * z, h * z);
         gl.uniform1fv(L.u_p, arr);
+        this.corpo.bind(L);
       };
 
       // simulazione: alcuni passi sullo stato, prima di disegnare
@@ -364,7 +376,7 @@ export class Renderer {
           const steps = Math.max(1, Math.round((proc.steps || 4) * dF));
           for (let k = 0; k < steps; k++) {
             gl.useProgram(sp.p);
-            common(sp.loc, S.w, S.h);
+            common(sp.loc, S.w, S.h, 1);
             this._bind(7, S.t[1].tex); gl.uniform1i(sp.loc.u_st, 7);
             gl.uniform2f(sp.loc.u_stRes, S.w, S.h);
             gl.uniform1f(sp.loc.u_init, S.init ? 1 : 0);
@@ -396,6 +408,8 @@ export class Renderer {
       if (st.fb) st.fb.reverse(); // ora fb[1] è l'uscita appena scritta
       stream = st.fb ? st.fb[1] : out;
     }
+
+    stream = this.corpo.post(stream, clip, t);
 
     this.final = stream;
     if (display) this.present();
