@@ -136,11 +136,13 @@ export function dab(m, st, x, y, radius, softness, strength, erase) {
   const x0 = Math.max(0, Math.floor(x - r - 1)), x1 = Math.min(w - 1, Math.ceil(x + r + 1));
   const y0 = Math.max(0, Math.floor(y - r - 1)), y1 = Math.min(h - 1, Math.ceil(y + r + 1));
   if (x0 > x1 || y0 > y1) return null;
-  const inner = r * (1 - Math.min(0.98, softness));
+  // la rampa va da 1 (dentro) a 0 (sul raggio) ed è larga almeno un pixel:
+  // anche il pennello duro ha il bordo pulito, e fuori dal raggio non resta nulla
+  const inner = Math.min(r * (1 - Math.min(0.98, softness)), r - 1);
   for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) {
     const d = Math.hypot(xx + 0.5 - x, yy + 0.5 - y);
     let f;
-    if (d <= inner) f = 1; else if (d >= r) f = Math.max(0, 1 - (d - r)); // un pixel di bordo morbido
+    if (d <= inner) f = 1; else if (d >= r) f = 0;
     else { const t = (d - inner) / (r - inner); f = 1 - t * t * (3 - 2 * t); }
     const i = yy * w + xx;
     if (f > st.S[i]) st.S[i] = f;
