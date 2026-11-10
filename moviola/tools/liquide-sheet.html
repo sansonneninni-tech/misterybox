@@ -27,7 +27,7 @@ r.setSize(W, H);
 const gl = r.gl;
 const src = { id: 'f1', kind: 'image', w: im.naturalWidth, h: im.naturalHeight };
 r.setSources([{ el: im, w: im.naturalWidth, h: im.naturalHeight, kind: 'image' }]);
-const c = buildClip({ style: 'nudo', sources: [src], format: { duration: Math.max(S, 4), fps: 24, aspect: '16:9' }, seed: 7, materie: q.get('tutto') ? [{ proc: id }, { proc: 'marmo', mix: 0.8 }] : [{ proc: id }] });
+const c = buildClip({ style: 'nudo', sources: [src], format: { duration: S + 2, fps: 24, aspect: '16:9' }, seed: 7, materie: q.get('tutto') ? [{ proc: id }, { proc: 'marmo', mix: 0.8 }] : [{ proc: id }] });
 c.format.loop = false;
 if (q.get('tutto')) {
   c.materie[1].contagio = defaultContagio();
