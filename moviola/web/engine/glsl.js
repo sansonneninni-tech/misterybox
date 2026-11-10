@@ -2,6 +2,8 @@
 // Ogni processo scrive solo una funzione `vec3 fx(vec2 uv)`; qui ci sono gli
 // ingressi, il rumore periodico (per i loop chiusi) e la fusione finale.
 
+import { TERR_POST } from './territorio-glsl.js';
+
 export const VERT = `#version 300 es
 in vec2 a_pos;
 out vec2 v_uv;
@@ -137,10 +139,13 @@ vec3 blendc(vec3 a, vec3 b, int m) {
   if (m == 7) return min(a, b);                                 // scurisci
   return b;                                                     // normale
 }
+${TERR_POST}
 void main() {
-  vec3 base = texture(u_in, v_uv).rgb;
-  vec3 fxc = fx(v_uv);
-  vec3 c = mix(base, blendc(base, fxc, u_blend), u_mix);
+  // territorio: dove sta la materia e come si mescola sul confine (territorio-glsl.js)
+  vec3 tr = u_terr > 0.5 ? trrTerritorio(v_uv) : vec3(1.0, 0.0, 0.0);
+  vec3 base = texture(u_in, v_uv - tr.yz * 0.5).rgb;
+  vec3 fxc = fx(v_uv + tr.yz);
+  vec3 c = mix(base, blendc(base, fxc, u_blend), u_mix * tr.x);
   o_col = vec4(max(c, 0.0), 1.0);
 }`;
 
