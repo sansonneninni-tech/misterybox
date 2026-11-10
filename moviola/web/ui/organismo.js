@@ -40,7 +40,7 @@ function howReads(proc) {
   return 'non le sente: è una materia che sta ferma';
 }
 
-export function attachOrganismo({ screen, timeline, player, work, changed }) {
+export function attachOrganismo({ screen, timeline, player, work, changed, rebuild }) {
   let destroyed = false;
   const clip = () => work();
   const materie = () => (clip()?.chain || []).filter((p) => byId[p.proc]?.materia);
@@ -291,7 +291,6 @@ export function attachOrganismo({ screen, timeline, player, work, changed }) {
   }
 
   // ----------------------------------------------------------- pannello
-  const host = h('section.org', { 'aria-label': 'Tutta la catena' });
   const open = { respiro: false, tempo: false, forze: false };
   let breathCv = null;
   const live = [];        // controlli con chiavi da aggiornare mentre scorre il tempo
@@ -302,7 +301,7 @@ export function attachOrganismo({ screen, timeline, player, work, changed }) {
   }
 
   /** Cursore con valore, e (se serve) il rombo per la chiave al punto della timeline. */
-  function slider({ label, min, max, step, value, meta, onInput, keys }) {
+  function slider({ name, about, label, min, max, step, value, meta, onInput, keys }) {
     const val = h('span.prm__val', null, meta ? meta(value) : fmt(value));
     const input = h('input.range', { type: 'range', min, max, step: step || (max - min) / 200, value, 'aria-label': label,
       oninput: (e) => { const v = Number(e.target.value); val.textContent = meta ? meta(v) : fmt(v); onInput(v); } });
@@ -342,13 +341,9 @@ export function attachOrganismo({ screen, timeline, player, work, changed }) {
         draw();
       });
     }
-    return h('div.prm.org-prm', null, h('span.prm__lbl', null, label), val, keyBtn || h('span'), input);
-  }
-
-  function section(id, title, on, toggle, body, meta) {
-    return h('details.org-sec', { open: open[id], 'data-on': String(!!on), ontoggle: (e) => { open[id] = e.target.open; if (e.target.open) requestAnimationFrame(() => { drawBreath(); drawOverlay(); }); } },
-      h('summary.org-sec__sum', null, h('span.org-sec__name', null, title), h('span.meta', null, meta), sw(on, title, meta, toggle)),
-      h('div.org-sec__body', null, body));
+    return h('div.prm.org-prm', null,
+      name ? h('span.org-mat__name.org-prm__name', null, name, about ? h('span.meta', null, ' · ' + about) : null) : null,
+      h('span.prm__lbl', null, label), val, keyBtn || h('span'), input);
   }
 
   // ---- Respiro
@@ -365,7 +360,7 @@ export function attachOrganismo({ screen, timeline, player, work, changed }) {
       RESPIRO_CONTROLLI.map((d) => slider({ label: d.label, min: d.min, max: d.max, step: d.step, value: R[d.id], meta: d.meta,
         onInput: (v) => { R[d.id] = v; changed(); drawBreath(); },
         keys: d.keys ? { track: () => R.chiavi[d.id], set: (tr) => { if (tr) R.chiavi[d.id] = tr; else delete R.chiavi[d.id]; } } : null })),
-      ms.length ? h('div.org-per', null, h('span.label', null, 'Per materia'),
+      ms.length ? [h('span.label.org-per__h', { 'data-keep': '' }, 'Per materia'),
         ms.map((p) => {
           const proc = byId[p.proc], k = passKey(c, p);
           const M = () => (R.materie[k] ||= {});
@@ -382,13 +377,12 @@ export function attachOrganismo({ screen, timeline, player, work, changed }) {
                 changed();
               } }, d.label, h('span.org-chip__s', null, mode === 'inverso' ? ' ↓' : ''));
           });
-          return h('div.org-mat', null,
-            h('span.org-mat__name', null, proc.name),
+          return [
+            h('span.org-mat__name', { 'data-keep': '' }, proc.name),
             slider({ label: 'Profondità', min: 0, max: 2, value: cur.profondita ?? 1, meta: pct, onInput: (v) => { M().profondita = v; changed(); } }),
             slider({ label: 'Ritardo', min: 0, max: 1, value: cur.ritardo ?? 0, meta: (v) => (v < 0.01 ? 'con l’onda' : `+${Math.round(v * 100)}% di respiro`), onInput: (v) => { M().ritardo = v; changed(); drawBreath(); } }),
-            h('div.org-chips', { role: 'group', 'aria-label': 'Parametri che respirano' }, chips),
-            h('span.meta', null, 'parametri: chiari respirano, ↓ al contrario, spenti esclusi'));
-        })) : h('p.meta', null, 'Aggiungi una materia: il respiro muove le materie.'),
+            h('div.org-chips', { role: 'group', 'aria-label': 'Parametri che respirano' }, chips, h('span.meta.org-chips__note', null, 'chiari respirano, ↓ al contrario, spenti esclusi'))];
+        })] : h('p.meta', null, 'Aggiungi una materia: il respiro muove le materie.'),
     ];
   }
 
@@ -440,14 +434,13 @@ export function attachOrganismo({ screen, timeline, player, work, changed }) {
       quality,
       h('button.org-sw.org-exact', { type: 'button', role: 'switch', 'aria-checked': String(!!player.exact), onclick: () => { player.setExact(!player.exact); redrawPanel(); } },
         h('span.switch__knob'), h('span.stack', null, h('span', null, 'Anteprima esatta'), h('span.meta', null, 'tutti i passi, anche se scorre più lenta'))),
-      ms.length ? h('div.org-per', null, h('span.label', null, 'Per materia: invecchia'),
+      ms.length ? [h('span.label.org-per__h', { 'data-keep': '' }, 'Per materia: invecchia'),
         ms.map((p) => {
           const k = passKey(c, p);
           const f = T.materie[k]?.fattore ?? 1;
-          return h('div.org-mat', null, h('span.org-mat__name', null, byId[p.proc].name),
-            slider({ label: 'Invecchia', min: -2, max: 2, step: 0.05, value: Math.log2(f), meta: (v) => { const x = 2 ** v; return Math.abs(x - 1) < 0.03 ? 'come le altre' : x > 1 ? `×${fmt(x)} più in fretta` : `×${fmt(1 / x)} più piano`; },
-              onInput: (v) => { (T.materie[k] ||= {}).fattore = round(2 ** v); changed({ restart: true, soft: true }); } }));
-        })) : h('p.meta', null, 'Aggiungi una materia: il tempo geologico agisce sulle materie.'),
+          return slider({ name: byId[p.proc].name, label: 'Invecchia', min: -2, max: 2, step: 0.05, value: Math.log2(f), meta: (v) => { const x = 2 ** v; return Math.abs(x - 1) < 0.03 ? 'come le altre' : x > 1 ? `×${fmt(x)} più in fretta` : `×${fmt(1 / x)} più piano`; },
+              onInput: (v) => { (T.materie[k] ||= {}).fattore = round(2 ** v); changed({ restart: true, soft: true }); } });
+        })] : h('p.meta', null, 'Aggiungi una materia: il tempo geologico agisce sulle materie.'),
     ];
   }
   // la qualità dell'anteprima: il caso peggiore dell'ultimo paio di secondi
@@ -470,33 +463,32 @@ export function attachOrganismo({ screen, timeline, player, work, changed }) {
     const ms = materie();
     return [
       h('p.about', null, 'Un campo di forze unico che tutte le materie sentono: la gravità, il vento con le sue raffiche, e le forze che disegni sul quadro.'),
-      h('span.label', null, 'Gravità'),
+      h('span.label', { 'data-keep': '' }, 'Gravità'),
       slider({ label: 'Forza', min: 0, max: 1.5, value: F.gravita.forza, meta: (v) => (v < 0.02 ? 'senza peso' : Math.abs(v - 0.5) < 0.03 ? 'normale' : v < 0.5 ? 'leggera' : 'pesante'), onInput: (v) => { F.gravita.forza = v; changed(); drawOverlay(); }, keys: key('gravita.forza') }),
       slider({ label: 'Direzione', min: 0, max: 360, step: 1, value: F.gravita.direzione, meta: deg, onInput: (v) => { F.gravita.direzione = v; changed(); drawOverlay(); }, keys: key('gravita.direzione') }),
-      h('span.label', null, 'Vento'),
+      h('span.label', { 'data-keep': '' }, 'Vento'),
       slider({ label: 'Forza', min: 0, max: 1.5, value: F.vento.forza, meta: (v) => (v < 0.02 ? 'calma' : v < 0.35 ? 'brezza' : v < 0.8 ? 'vento' : 'burrasca'), onInput: (v) => { F.vento.forza = v; changed(); drawOverlay(); }, keys: key('vento.forza') }),
       slider({ label: 'Direzione', min: 0, max: 360, step: 1, value: F.vento.direzione, meta: deg, onInput: (v) => { F.vento.direzione = v; changed(); drawOverlay(); }, keys: key('vento.direzione') }),
       slider({ label: 'Raffiche', min: 0, max: 1, value: F.vento.raffiche, meta: pct, onInput: (v) => { F.vento.raffiche = v; changed(); }, keys: key('vento.raffiche') }),
       slider({ label: 'Grandezza delle raffiche', min: 0, max: 1, value: F.vento.misura, meta: (v) => (v < 0.33 ? 'larghe' : v < 0.66 ? 'medie' : 'fitte'), onInput: (v) => { F.vento.misura = v; changed(); } }),
-      h('span.label', null, 'Forze sul quadro'),
+      h('span.label', { 'data-keep': '' }, 'Forze sul quadro'),
       h('div.org-tools', { role: 'group', 'aria-label': 'Disegna una forza' }, FORZE_TIPI.map((t) =>
         h('button.seg__opt', { type: 'button', 'aria-pressed': String(tool === t.id), title: t.hint, onclick: () => { setTool(tool === t.id ? null : t.id); } }, t.label))),
       h('p.meta', null, tool ? `${FORZE_TIPI.find((x) => x.id === tool).hint} sul quadro. Ritocca «${FORZE_TIPI.find((x) => x.id === tool).label}» per smettere.` : 'Scegli una forza, poi disegnala sul quadro con il dito o con il mouse.'),
-      F.locali.length ? h('div.org-locals', null, F.locali.map((l, i) => h('div.org-local', { 'data-sel': String(selected === l.id) },
+      F.locali.length ? F.locali.map((l, i) => [h('div.org-local', { 'data-sel': String(selected === l.id), 'data-keep': '' },
         h('button.org-local__name', { type: 'button', onclick: () => { selected = selected === l.id ? null : l.id; drawOverlay(); redrawPanel(); } }, `${i + 1} · ${FORZE_TIPI.find((t) => t.id === l.tipo)?.label}`),
         l.tipo === 'vortice' ? h('button.btn.btn--quiet', { type: 'button', onclick: () => { l.verso = -(l.verso || 1); changed(); drawOverlay(); redrawPanel(); } }, (l.verso || 1) > 0 ? '↺ antiorario' : '↻ orario') : null,
-        h('button.btn.btn--quiet', { type: 'button', 'aria-label': 'Togli questa forza', onclick: () => { F.locali.splice(i, 1); delete F.chiavi['f:' + l.id]; changed(); drawOverlay(); redrawPanel(); } }, 'Togli'),
+        h('button.btn.btn--quiet', { type: 'button', 'aria-label': 'Togli questa forza', onclick: () => { F.locali.splice(i, 1); delete F.chiavi['f:' + l.id]; changed(); drawOverlay(); redrawPanel(); } }, 'Togli')),
         slider({ label: 'Forza', min: 0, max: 2, value: l.forza, meta: pct, onInput: (v) => { l.forza = v; changed(); drawOverlay(); }, keys: key('f:' + l.id) }),
-        slider({ label: l.tipo === 'corrente' ? 'Larghezza' : 'Raggio', min: 0.03, max: 0.9, value: l.r, meta: pct, onInput: (v) => { l.r = v; changed(); drawOverlay(); } })))) : null,
+        slider({ label: l.tipo === 'corrente' ? 'Larghezza' : 'Raggio', min: 0.03, max: 0.9, value: l.r, meta: pct, onInput: (v) => { l.r = v; changed(); drawOverlay(); } })]) : null,
       h('button.org-sw', { type: 'button', role: 'switch', 'aria-checked': String(!!F.mostra), onclick: () => { F.mostra = !F.mostra; changed(); drawOverlay(); redrawPanel(); } },
         h('span.switch__knob'), h('span.stack', null, h('span', null, 'Mostra il campo sul quadro'), h('span.meta', null, 'linee sottili, non finiscono nel video'))),
-      ms.length ? h('div.org-per', null, h('span.label', null, 'Per materia: quanto sente le forze'),
+      ms.length ? [h('span.label.org-per__h', { 'data-keep': '' }, 'Per materia: quanto sente le forze'),
         ms.map((p) => {
           const proc = byId[p.proc], k = passKey(c, p);
           const v0 = F.materie[k]?.presa ?? 1;
-          return h('div.org-mat', null, h('span.org-mat__name', null, proc.name), h('span.meta', null, howReads(proc)),
-            slider({ label: 'Sente le forze', min: 0, max: 2, value: v0, meta: pct, onInput: (v) => { (F.materie[k] ||= {}).presa = v; changed(); } }));
-        })) : null,
+          return slider({ name: proc.name, about: howReads(proc), label: 'Sente le forze', min: 0, max: 2, value: v0, meta: pct, onInput: (v) => { (F.materie[k] ||= {}).presa = v; changed(); } });
+        })] : null,
     ];
   }
 
@@ -507,20 +499,52 @@ export function attachOrganismo({ screen, timeline, player, work, changed }) {
     drawOverlay(); redrawPanel();
   }
 
+  // La scheda Catena si ridisegna da flow.js: qui si chiede soltanto di farlo.
   function redrawPanel() {
     if (destroyed) return;
-    const c = clip();
-    if (!c) return;
+    rebuild && rebuild();
+  }
+
+  const NAMES = { respiro: 'Respiro', tempo: 'Tempo geologico', forze: 'Gravità e vento' };
+  const ABOUT = {
+    respiro: 'Un solo ritmo lento e irregolare per tutte le materie: la clip diventa un organismo che respira.',
+    tempo: 'Ore di trasformazione compresse in pochi secondi, con una curva di velocità che disegni sulla timeline.',
+    forze: 'Gravità, vento con raffiche, correnti e vortici disegnati sul quadro: tutte le materie li sentono.',
+  };
+  function metaOf(c, id) {
+    if (!c[id].on) return 'spento';
+    if (id === 'respiro') return `${fmt(c.respiro.frequenza)} al minuto`;
+    if (id === 'tempo') return `fino a ×${c.tempo.massimo}`;
+    return c.forze.locali.length ? `${c.forze.locali.length} forze sul quadro` : 'acceso';
+  }
+  const toggleOf = (c, id) => (on) => { c[id].on = on; if (id === 'forze' && !on) setTool(null); changed({ restart: id !== 'respiro' }); drawOverlay(); drawStrip(); redrawPanel(); };
+  /** L'interruttore di una voce, da mettere accanto al suo nome. */
+  function switchOf(id) { const c = clip(); ensureOrganismo(c); return sw(c[id].on, NAMES[id], '', toggleOf(c, id)); }
+
+  /** L'elenco delle tre voci: nome, stato, interruttore. open(id) apre i suoi comandi. */
+  function rows(openView) {
+    const c = clip(); if (!c) return [];
     ensureOrganismo(c);
     live.length = 0;
-    const toggle = (id, extra) => (on) => { c[id].on = on; if (on) open[id] = true; if (id === 'forze' && !on) setTool(null); changed({ restart: id !== 'respiro' }); drawOverlay(); drawStrip(); redrawPanel(); extra && extra(on); };
-    fill(host,
-      h('div.org__head.grp__head', null, h('span.label', null, 'Tutta la catena'), h('span.meta', null, 'agiscono su tutte le materie insieme')),
-      section('respiro', 'Respiro', c.respiro.on, toggle('respiro'), c.respiro.on ? respiroBody(c) : h('p.about', null, 'Un solo ritmo lento e irregolare per tutte le materie: la clip diventa un organismo che respira.'), c.respiro.on ? `${fmt(c.respiro.frequenza)} al minuto` : ''),
-      section('tempo', 'Tempo geologico', c.tempo.on, toggle('tempo'), c.tempo.on ? tempoBody(c) : h('p.about', null, 'Ore di trasformazione compresse in pochi secondi, con una curva di velocità che disegni sulla timeline.'), c.tempo.on ? `fino a ×${c.tempo.massimo}` : ''),
-      section('forze', 'Gravità e vento', c.forze.on, toggle('forze'), c.forze.on ? forzeBody(c) : h('p.about', null, 'Gravità, vento con raffiche, correnti e vortici disegnati sul quadro: tutte le materie li sentono.'), c.forze.on && c.forze.locali.length ? `${c.forze.locali.length} forze sul quadro` : ''));
-    requestAnimationFrame(() => { drawBreath(); drawQuality(); });
+    return ['respiro', 'tempo', 'forze'].map((id) => h('div.org-row', { 'data-on': String(!!c[id].on) },
+      h('button.org-row__open', { type: 'button', onclick: () => openView(id), 'aria-label': `${NAMES[id]}: apri i comandi` },
+        h('span.org-row__name', null, NAMES[id], h('span.org-row__go', { 'aria-hidden': 'true' }, ' ›')),
+        h('span.meta', null, c[id].on ? metaOf(c, id) : ABOUT[id])),
+      sw(c[id].on, NAMES[id], '', toggleOf(c, id))));
   }
+
+  /** I comandi di una voce, a blocchi piccoli. */
+  function blocks(id) {
+    const c = clip(); if (!c) return [];
+    ensureOrganismo(c);
+    live.length = 0;
+    open[id] = true;
+    const body = !c[id].on ? [h('p.about', null, ABOUT[id]), h('p.meta', null, 'Accendila con l’interruttore qui sopra.')]
+      : id === 'respiro' ? respiroBody(c) : id === 'tempo' ? tempoBody(c) : forzeBody(c);
+    requestAnimationFrame(() => { drawBreath(); drawQuality(); drawOverlay(); drawStrip(); });
+    return body;
+  }
+  const closeView = (id) => { open[id] = false; };
 
   // aggiornamenti mentre la clip scorre: playhead, chiavi, qualità dell'anteprima
   let raf = 0, lastF = -1, lastQ = 0;
@@ -543,8 +567,10 @@ export function attachOrganismo({ screen, timeline, player, work, changed }) {
   ro.observe(screen); ro.observe(strip);
 
   return {
-    panel() { redrawPanel(); requestAnimationFrame(() => { drawOverlay(); drawStrip(); }); return host; },
-    redraw() { redrawPanel(); drawOverlay(); drawStrip(); },
+    rows, blocks, switchOf, closeView, metaOf, names: NAMES,
+    redraw() { drawOverlay(); drawStrip(); },
+    /** Smette di disegnare forze sul quadro (Reset, o si esce dalla voce). */
+    stopTool() { if (tool) setTool(null); selected = null; },
     destroy() { destroyed = true; cancelAnimationFrame(raf); ro.disconnect(); ov.remove(); stripWrap.remove(); delete screen.dataset.drawing; },
   };
 }

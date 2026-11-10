@@ -29,6 +29,7 @@ const status = document.getElementById('status');
 export const app = {
   route: null,
   cleanup: null,
+  reset: null, // il Reset del passo 2 (flow.js)
   player: null,
   go,
   side: { open: openSide, close: closeSide, toggle: () => (shell.dataset.side === 'open' ? closeSide() : openSide()) },
@@ -61,7 +62,9 @@ function go(route, opts = {}) {
   app.route = route;
   document.querySelectorAll('.steps__item').forEach((b) => b.setAttribute('aria-current', b.dataset.go === route ? 'step' : 'false'));
   const k = STEPS.indexOf(route);
-  fill(document.getElementById('stepPhone'), k >= 0 ? `Passo ${k + 1} di 3 · ${STEP_NAMES[route]}` : `Avanzato · ${ADV[route]?.[0] || ''}`);
+  // nel passo 2 la barra porta anche Reset: su iPhone il nome del passo si accorcia
+  fill(document.getElementById('stepPhone'), route === 'trasforma' ? `2 · ${STEP_NAMES[route]}` : k >= 0 ? `Passo ${k + 1} di 3 · ${STEP_NAMES[route]}` : `Avanzato · ${ADV[route]?.[0] || ''}`);
+  document.getElementById('resetBtn').hidden = route !== 'trasforma';
   document.getElementById('back').hidden = k === 0;
   shell.dataset.route = route;
   fill(main);
@@ -127,6 +130,7 @@ async function start() {
   document.getElementById('nav').addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
   document.getElementById('back').addEventListener('click', () => { const k = STEPS.indexOf(app.route); go(k > 0 ? STEPS[k - 1] : ADV[app.route]?.[1] || 'scegli'); });
   document.getElementById('advBtn').addEventListener('click', () => advanced());
+  document.getElementById('resetBtn').addEventListener('click', () => app.reset && app.reset());
   document.querySelector('.side-scrim').addEventListener('click', closeSide);
   on((what) => { setStatus(); if (shell.dataset.side === 'open' && (what === 'work' || what === 'versions')) interlocutore.refresh?.(); });
   document.addEventListener('keydown', (e) => {

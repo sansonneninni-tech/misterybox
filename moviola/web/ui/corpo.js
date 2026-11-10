@@ -47,6 +47,7 @@ export function corpoUI({ player, screen, redraw }) {
     toolSeg.set(sc().strumento);
     rDim.value = sc().dimensione; rForza.value = sc().forza;
     bMacro.setAttribute('aria-pressed', String(!!c.macro?.on));
+    fill(bMacro, c.macro?.on ? 'Macro · accesa' : 'Macro');
     drawStatus();
   }
 
@@ -64,7 +65,7 @@ export function corpoUI({ player, screen, redraw }) {
   const overlay = h('div.corpo__over', { 'aria-hidden': 'true' }, rings, cross, h('div.corpo__tag', null, label, recDot));
   screen.append(overlay);
 
-  // ------------------------------------------------------------ barra sotto l'anteprima
+  // ------------------------------------------------------------ comandi (scheda Gesto)
   const bSculpt = h('button.corpo__mode', { type: 'button', 'aria-pressed': 'false', onclick: () => setSculpt(!sculpting) }, 'Scolpisci');
   const bMacro = h('button.corpo__mode', { type: 'button', 'aria-pressed': 'false', onclick: () => setMacro(!mc().on) }, 'Macro');
   const status = h('span.corpo__status.meta');
@@ -78,13 +79,9 @@ export function corpoUI({ player, screen, redraw }) {
   const bRec = h('button.btn', { type: 'button', onclick: () => (rec ? stopRec(false) : startRec()) }, 'Registra un giro');
   const bPlay = h('button.btn', { type: 'button', onclick: () => riascolta() }, 'Riascolta');
   const bUndo = h('button.btn.btn--quiet', { type: 'button', onclick: () => undo() }, 'Annulla l’ultimo');
-  const tools = h('div.corpo__tools', { hidden: true },
-    toolSeg,
-    h('div.corpo__sliders', null,
-      h('label.corpo__sl', null, h('span', null, 'Dimensione'), rDim),
-      h('label.corpo__sl', null, h('span', null, 'Forza'), rForza)),
-    h('div.corpo__acts', null, bRec, bPlay, bUndo));
-  const bar = h('div.corpo', null, h('div.corpo__row', null, bSculpt, bMacro, status), tools);
+  const slDim = h('label.corpo__sl', null, h('span', null, 'Dimensione'), rDim);
+  const slForza = h('label.corpo__sl', null, h('span', null, 'Forza'), rForza);
+  const acts = h('div.corpo__acts', null, bRec, bPlay, bUndo);
 
   function drawStatus() {
     const c = clip(); if (!c) return;
@@ -104,22 +101,23 @@ export function corpoUI({ player, screen, redraw }) {
 
   function setSculpt(on) {
     if (on && picking) stopPick();
+    if (on === sculpting) { drawStatus(); return; }
     sculpting = on;
     bSculpt.setAttribute('aria-pressed', String(on));
-    tools.hidden = !on;
+    fill(bSculpt, on ? 'Scolpisci · acceso' : 'Scolpisci');
     screen.dataset.sculpt = String(on);
-    // mentre scolpisci, l'anteprima prende il posto delle strisce di stili e materie
-    if (bar.parentElement) bar.parentElement.dataset.sculpt = String(on);
     if (on && !player.r.float) toast('Questo browser non calcola in virgola mobile: qui Scolpisci non lascia impronte. Sul Mac con Safari o Chrome funziona.');
     if (on) { sc(); if (!ui.hinted) { ui.hinted = true; toast(player.playing ? 'Tocca l’anteprima: ogni gesto si registra nel tempo della clip e torna identico nel video salvato.' : 'A clip ferma il gesto resta in questo istante. Con la clip che scorre, si registra nel tempo.'); } }
     else { active.clear(); fill(rings); if (rec) stopRec(false); }
     drawStatus();
+    redraw();
   }
 
   function setMacro(on) {
     const m = mc();
     m.on = on;
     bMacro.setAttribute('aria-pressed', String(on));
+    fill(bMacro, on ? 'Macro · accesa' : 'Macro');
     if (on) ui.open.macro = true;
     touch('clip');
     if (!player.playing) player.draw();
@@ -412,11 +410,31 @@ export function corpoUI({ player, screen, redraw }) {
       p.hint ? h('span.meta.corpo__hint', null, p.hint) : null);
   }
 
-  function panel() {
-    const c = clip(); if (!c) return null;
+  /**
+   * I comandi della scheda Gesto, a blocchi piccoli da distribuire in pagine.
+   * which: 'scolpisci' o 'macro'.
+   */
+  function blocks(which) {
+    const c = clip(); if (!c) return [];
     sliders.clear();
     const s = sc(), m = mc();
     const ch = carattere(c, byId);
+    if (which === 'macro') {
+      return [
+        h('div.corpo__row', null, bMacro, h('span.meta.corpo__on', null, m.on ? `accesa · ×${f1(macroValue(c, 'ingrandimento', player.t))}` : 'spenta')),
+        h('p.about', null, 'Una camera che entra nella materia: avvicinandoti compaiono grana, pori, fibre, bolle o cristalli, ancorati alla superficie; il rilievo dà parallasse e fuoco vero.'),
+        h('div.corpo__pres', null,
+          h('button.btn', { type: 'button', onclick: () => (picking ? stopPick() : startPick()) }, picking ? 'Annulla la scelta del punto' : 'Scegli il punto da guardare'),
+          h('button.btn', { type: 'button', onclick: () => preset('entra') }, 'Entra piano'),
+          h('button.btn', { type: 'button', onclick: () => preset('esci') }, 'Esci piano'),
+          h('button.btn', { type: 'button', onclick: () => preset('fuoco') }, 'Il fuoco scivola')),
+        h('div.ctl.corpo__micro', null, h('span.ctl__lbl', null, 'Microdettaglio', h('span.meta', null, (m.micro || 'auto') === 'auto' ? `secondo la materia: ${MICRO.find((x) => x.id === ch.micro)?.label.toLowerCase()}` : '')),
+          seg(MICRO.map((x) => ({ id: x.id, label: x.id === 'auto' ? 'Auto' : x.label })), m.micro || 'auto', (v) => { m.micro = v; touch('clip'); if (!player.playing) player.draw(); redraw(); }, { label: 'Microdettaglio' })),
+        MACRO_PARAMS.filter((p) => p.id !== 'guardaX' && p.id !== 'guardaY').map(macroRow),
+        h('p.meta.corpo__hint', null, '◆ mette una chiave in questo istante: con due o più chiavi il parametro si muove lungo la clip. Spostando il cursore su un parametro con chiavi, cambi la chiave di questo istante.'),
+        keysOf('ingrandimento').length || Object.keys(c.keys).some((k) => k.startsWith('macro.')) ? h('button.link', { type: 'button', onclick: () => preset('togli') }, 'Togli tutte le chiavi della Macro') : null,
+      ];
+    }
     const n = s.gesti.length;
     // la memoria cambia tutta la storia del campo: si ricalcola quando il cursore si ferma
     let timer = 0;
@@ -439,32 +457,29 @@ export function corpoUI({ player, screen, redraw }) {
         h('span.meta', null, a === b ? `a ${f1(a)} s` : `da ${f1(a)} a ${f1(b)} s`, ` · dito ${pct(g.dimensione)} · forza ${g.forza.toFixed(2).replace('.', ',')}`),
         h('button.btn.btn--quiet', { type: 'button', 'aria-label': `Cancella il gesto ${i + 1}`, onclick: () => removeGesture(i) }, 'Cancella'));
     });
-    const sculptSec = h('details.layer.corpo__sec', { open: ui.open.scolpisci, ontoggle: (e) => { ui.open.scolpisci = e.target.open; } },
-      h('summary.layer__sum', null, h('span.layer__name', null, 'Scolpisci con le dita'), h('span.meta', null, n ? `${n} ${n === 1 ? 'gesto' : 'gesti'}` : 'nessun gesto')),
-      h('p.about', null, `Tocchi la materia e la spingi, la scavi, la impasti, la lisci, la pizzichi. Adesso risponde come ${ch.da.toLowerCase()}: ${ch.fluido > 0.6 ? 'si apre e si richiude' : ch.tenuta > 0.8 ? 'tiene l’impronta' : 'cede e torna piano'}.`),
-      h('div.layer__prms', null,
-        memRow('memoria', 'Memoria della materia', 0, 1, 0.01, '0 nulla resta · metà la materia com’è · 1 tutto resta', (v) => (v < 0.47 ? 'dimentica' : v > 0.53 ? 'ricorda' : 'com’è'), true),
-        memRow('rilievo', 'Rilievo dell’impronta', 0, 2, 0.01, null, (v) => v.toFixed(2).replace('.', ',')),
-        memRow('luce', 'Direzione della luce radente', 0, 360, 1, null, (v) => Math.round(v) + '°')),
-      n ? h('div.corpo__list', null, h('span.label', null, 'Gesti registrati'), gesti,
-        h('button.link', { type: 'button', onclick: () => { const all = s.gesti.splice(0); corpo().hint('edit', 0); touch('clip'); if (!player.playing) player.seek(player.frame); drawStatus(); redraw(); toast(`Cancellati ${all.length} gesti.`, { label: 'Rimetti', run: () => { s.gesti.push(...all); corpo().hint('edit', 0); touch('clip'); if (!player.playing) player.seek(player.frame); drawStatus(); redraw(); } }); } }, 'Cancella tutti i gesti'))
-        : h('p.meta', null, 'Accendi «Scolpisci» sotto l’anteprima e tocca la materia.'));
-    const macroSec = h('details.layer.corpo__sec', { open: ui.open.macro, ontoggle: (e) => { ui.open.macro = e.target.open; } },
-      h('summary.layer__sum', null, h('span.layer__name', null, 'Macro'), h('span.meta', null, m.on ? `accesa · ×${f1(macroValue(c, 'ingrandimento', player.t))}` : 'spenta')),
-      h('p.about', null, 'Una camera che entra nella materia: avvicinandoti compaiono grana, pori, fibre, bolle o cristalli, ancorati alla superficie; il rilievo dà parallasse e fuoco vero.'),
-      h('button.switch', { type: 'button', role: 'switch', 'aria-checked': String(m.on), onclick: () => setMacro(!m.on) },
-        h('span.switch__knob'), h('span.stack', null, h('span', null, m.on ? 'Macro accesa' : 'Accendi la Macro'), h('span.meta', null, 'tutta la catena vista da vicino'))),
-      h('div.corpo__pres', null,
-        h('button.btn', { type: 'button', onclick: () => (picking ? stopPick() : startPick()) }, picking ? 'Annulla' : 'Scegli il punto da guardare'),
-        h('button.btn', { type: 'button', onclick: () => preset('entra') }, 'Entra piano'),
-        h('button.btn', { type: 'button', onclick: () => preset('esci') }, 'Esci piano'),
-        h('button.btn', { type: 'button', onclick: () => preset('fuoco') }, 'Il fuoco scivola')),
-      h('div.ctl', null, h('span.ctl__lbl', null, 'Microdettaglio', h('span.meta', null, (m.micro || 'auto') === 'auto' ? `secondo la materia: ${MICRO.find((x) => x.id === ch.micro)?.label.toLowerCase()}` : '')),
-        seg(MICRO.map((x) => ({ id: x.id, label: x.id === 'auto' ? 'Auto' : x.label })), m.micro || 'auto', (v) => { m.micro = v; touch('clip'); if (!player.playing) player.draw(); redraw(); }, { label: 'Microdettaglio' })),
-      h('div.layer__prms', null, MACRO_PARAMS.filter((p) => p.id !== 'guardaX' && p.id !== 'guardaY').map(macroRow)),
-      h('p.meta.corpo__hint', null, '◆ mette una chiave in questo istante: con due o più chiavi il parametro si muove lungo la clip. Spostando il cursore su un parametro con chiavi, cambi la chiave di questo istante.'),
-      keysOf('ingrandimento').length || Object.keys(c.keys).some((k) => k.startsWith('macro.')) ? h('button.link', { type: 'button', onclick: () => preset('togli') }, 'Togli tutte le chiavi della Macro') : null);
-    return h('div.corpo__panel', null, sculptSec, macroSec);
+    const clearAll = () => { const all = s.gesti.splice(0); corpo().hint('edit', 0); touch('clip'); if (!player.playing) player.seek(player.frame); drawStatus(); redraw(); toast(`Cancellati ${all.length} gesti.`, { label: 'Rimetti', run: () => { s.gesti.push(...all); corpo().hint('edit', 0); touch('clip'); if (!player.playing) player.seek(player.frame); drawStatus(); redraw(); } }); };
+    return [
+      h('div.corpo__row', null, bSculpt, status),
+      sculpting ? [
+        h('div.corpo__tools', null, toolSeg),
+        slDim, slForza, acts,
+      ] : h('p.about', null, `Accendi «Scolpisci» e tocca la materia sull’immagine: la spingi, la scavi, la impasti, la lisci, la pizzichi. Adesso risponde come ${ch.da.toLowerCase()}: ${ch.fluido > 0.6 ? 'si apre e si richiude' : ch.tenuta > 0.8 ? 'tiene l’impronta' : 'cede e torna piano'}.`),
+      memRow('memoria', 'Memoria della materia', 0, 1, 0.01, '0 nulla resta · metà la materia com’è · 1 tutto resta', (v) => (v < 0.47 ? 'dimentica' : v > 0.53 ? 'ricorda' : 'com’è'), true),
+      memRow('rilievo', 'Rilievo dell’impronta', 0, 2, 0.01, null, (v) => v.toFixed(2).replace('.', ',')),
+      memRow('luce', 'Direzione della luce radente', 0, 360, 1, null, (v) => Math.round(v) + '°'),
+      n ? [
+        h('span.label.corpo__gh', { 'data-keep': '' }, `Gesti registrati · ${n}`),
+        gesti,
+        h('button.link.corpo__clear', { type: 'button', onclick: clearAll }, 'Cancella tutti i gesti'),
+      ] : null,
+    ];
+  }
+
+  /** Il gesto torna a zero: niente impronte, Macro spenta (Reset). */
+  function reset() {
+    if (picking) stopPick();
+    if (sculpting) { sculpting = false; bSculpt.setAttribute('aria-pressed', 'false'); fill(bSculpt, 'Scolpisci'); screen.dataset.sculpt = 'false'; active.clear(); fill(rings); if (rec) stopRec(false); }
+    corpo()?.hint?.('edit', 0);
   }
 
   // ------------------------------------------------------------- a ogni fotogramma
@@ -509,7 +524,8 @@ export function corpoUI({ player, screen, redraw }) {
 
   drawStatus();
   return {
-    bar, panel, frame, sync,
+    blocks, frame, sync, reset,
+    sculpting: () => sculpting,
     /** Un tocco sull'anteprima appartiene a Scolpisci o alla scelta del punto, non al play. */
     capturesTap: () => sculpting || picking,
     destroy() {

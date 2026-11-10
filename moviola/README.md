@@ -207,6 +207,44 @@ madre: la generazione dopo nasce da lei. Decide sempre ninni.
 - Le nove anteprime girano su un solo motore a risoluzione ridotta; se il
   computer resta indietro, scendono ancora di risoluzione da sole.
 
+## Il passo 2 a schede e il tasto Reset
+
+Il passo 2 **non scorre mai in verticale**, né su iPhone né sul Mac: l'immagine
+resta ferma davanti agli occhi mentre si regola qualsiasi comando. Sopra
+l'immagine «1 foto · Cambia»; sotto, la linea del tempo; poi cinque schede, una
+aperta alla volta (si ricorda tornando al passo 2), e in fondo «Tieni questa»
+con il conto delle tenute. Sul Mac le schede stanno nella colonna di destra e
+sotto l'immagine c'è una sola striscia di miniature, che segue la scheda: gli
+stili nella scheda Stile, le materie nella scheda Materie. Quello che non sta in
+una scheda va in pagine da sfogliare di lato (col dito, con ‹ ›, con i
+trattini, con due dita sul trackpad, con ← → sulla tastiera): «1 di 3». Un tocco
+sull'immagine la ferma e la fa ripartire; **due tocchi** nascondono tutti i
+comandi e la mostrano a tutto schermo, un altro tocco li riporta.
+
+| Scheda | Cosa c'è |
+|---|---|
+| Stile | Le miniature degli stili (su iPhone nella scheda, sul Mac sotto l'immagine), nome e descrizione dello stile o la ricetta con le sue manopole, Intensità, Movimento con i battiti al minuto, ↺ solo lo stile |
+| Materie | La riga degli strati («1 Granuli», «2 Inchiostro», «+ Aggiungi», fino a 6) e ↺ solo le materie. Uno strato aperto: ↑ sposta prima, Togli, Rimetti i valori di partenza, Quantità, i parametri, poi Dove sta (mappa), Il confine e Contagio, ognuno dalla sua pagina. «+ Aggiungi»: la striscia delle materie per famiglia, con Le mie ricette, Salva come ricetta e Gestisci |
+| Gesto | Scolpisci con le dita (acceso o spento, strumento, dimensione, forza, Registra un giro, Riascolta, Annulla l'ultimo, memoria, rilievo, luce, i gesti registrati) e Macro (accesa o spenta, punto da guardare, Entra piano, Esci piano, Il fuoco scivola, microdettaglio, parametri con ◆), ↺ solo il gesto |
+| Catena | Respiro, Tempo geologico, Gravità e vento: tre righe con il loro interruttore; toccandone una, i suoi comandi prendono il posto dell'elenco, con ‹ per tornare. Le curve e le forze disegnate restano sull'immagine e sotto la linea del tempo. ↺ solo la catena |
+| Altro | Formato (durata, proporzioni, fotogrammi al secondo), Altre strade (Un'altra versione, Mostrami 6 versioni, Deriva · 9 mutazioni, Salva come ricetta), Anteprima dal vivo, Claude con «Discuti», le tenute (Confronta, Tutte le versioni), il link Avanzato |
+
+**Reset** sta nella barra in alto a destra, sempre visibile nel passo 2. Riporta
+la foto o le foto (tutte insieme) com'erano quando sono state scelte: senza
+stile («Nessuno stile»), senza materie, senza gesti di Scolpisci, Macro spenta,
+Respiro, Tempo geologico e Gravità e vento spenti, Intensità e Movimento ai
+valori di partenza. Non tocca le foto scelte, il formato, le versioni tenute, le
+ricette, l'archivio. Nessuna finestra di conferma: per 7 secondi c'è «Annulla»,
+che rimette tutto com'era, scheda aperta compresa. Ogni scheda ha il suo ↺ che
+azzera solo il suo capitolo, con lo stesso Annulla. Il bersaglio del Reset è in
+un punto solo: `RESET_STYLE` in `web/ui/flow.js`.
+
+Le pagine laterali sono in `web/ui/schede.js`: i comandi arrivano come blocchi
+piccoli e vengono distribuiti misurando lo spazio vero. Prova automatica (cloud):
+quattro misure di schermo, ogni scheda, casi pesanti (6 strati, la materia più
+ricca, contagio, Scolpisci con gesti, Macro, ognuna delle tre voci di Catena, 8
+tenute).
+
 ## Dove sta ogni risposta delle 20 domande
 
 | # | Risposta | Dove sta |
@@ -214,21 +252,21 @@ madre: la generazione dopo nasce da lei. Decide sempre ninni.
 | 1 | Astrazione di ogni tipo | Passo 2: nove stili di famiglie diverse, «Nessuno stile» e le 38 materie a strati; Avanzato: 16 processi e le 38 materie da combinare |
 | 2 | Brakhage, McLaren, Len Lye, Ikeda, Viola, Clipson | Passo 2: ogni miniatura dice a chi si ispira |
 | 3 | Da zero, da immagine o da video | Passo 1: «Aggiungi foto o video» e «parti da zero» |
-| 4 | Il movimento lo sceglie lui | Passo 2: Movimento (Fermo, Lento, A tempo con bpm, Caotico) e Intensità in vista; chiavi in Avanzato |
+| 4 | Il movimento lo sceglie lui | Passo 2, scheda Stile: Movimento (Fermo, Lento, A tempo con bpm, Caotico) e Intensità; chiavi in Avanzato |
 | 5 | Pura esperienza visiva | Nessun testo nel video |
-| 6 | Da 1 a 30 secondi | Passo 2 e passo 3: Durata 1, 3, 5, 8, 15, 30 s (in Avanzato qualsiasi valore) |
-| 7 | Più formati | Passo 2 e 3: 16:9, 9:16, 1:1, 4:5, 2.39:1, 4:3 |
+| 6 | Da 1 a 30 secondi | Passo 2 (scheda Altro) e passo 3: Durata 1, 3, 5, 8, 15, 30 s (in Avanzato qualsiasi valore) |
+| 7 | Più formati | Passo 2 (scheda Altro) e 3: 16:9, 9:16, 1:1, 4:5, 2.39:1, 4:3 |
 | 8 | 4K, 24 e 30 fps | Passo 3: 4K e 24/30 in vista |
 | 9 | DaVinci | Passo 3: ProRes 422 HQ / 4444 XQ, PNG/TIFF 16 bit, `.json`, Rec.709 |
 | 10–11 | Niente suono | Nessuna traccia audio |
 | 12 | Solo motori locali gratuiti | Tutto sul Mac, nessun servizio a pagamento |
 | 13 | Timeline «un po'» | Passo 2: striscia del tempo sotto l'anteprima; chiavi in Avanzato › Regolazioni fini |
-| 14 | Tempo reale se lo sceglie | Passo 2: «Anteprima dal vivo» |
+| 14 | Tempo reale se lo sceglie | Passo 2, scheda Altro: «Anteprima dal vivo» |
 | 15 | App separata | Cartella, archivio e porta suoi |
 | 16 | Stessa grafica di ATELIER | Stessi token, componenti e percorso a tre passi |
 | 17 | iPhone e Mac | Tutto il percorso, verificato su entrambi |
-| 18 | Claude critico | Passo 2: riga «Claude:» con «Discuti» |
-| 19 | Cronologia e rami | Passo 2: tenute, «tocca per ripartire», «Confronta»; Deriva (ogni scelta è un ramo); Avanzato › Versioni |
+| 18 | Claude critico | Passo 2, scheda Altro: riga «Claude:» con «Discuti» |
+| 19 | Cronologia e rami | Passo 2: «Tenute: N» accanto a «Tieni questa», nella scheda Altro le tenute, «tocca per ripartire», «Confronta»; Deriva (ogni scelta è un ramo); Avanzato › Versioni |
 | 20 | MacBook Pro M2 Pro | Render 4K locale, fotogramma per fotogramma |
 
 ## Tutta la catena: Respiro, Tempo geologico, Gravità e vento

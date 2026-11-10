@@ -222,12 +222,12 @@ function slider(k, onTweak, { short = false } = {}) {
  * Il blocco della ricetta aperta, al posto dello stile.
  * on: { tweak() dopo un parametro, save() salva o aggiorna, full() apri per intero }
  */
-export function ricettaBlock(clip, on) {
+export function ricettaBlock(clip, on, { flat = false } = {}) {
   const r = clip.ricetta || {};
   const saved = r.id && ricettaById(r.id);
   const knobs = (r.visibili || []).map((v) => knobDef(clip, v)).filter(Boolean);
   const warn = warnings(clip);
-  return h('div.ric-block', null,
+  const parts = [
     h('div.flow__style.ric-block__head', null,
       h('span.label', null, 'Ricetta'),
       h('span.flow__stylename', null, r.name || 'Ricetta'),
@@ -235,11 +235,14 @@ export function ricettaBlock(clip, on) {
         : r.deriva ? 'Nata dalla Deriva e non ancora salvata. Se ti convince, salvala come ricetta.'
           : r.id ? 'Questa ricetta non è più nell’archivio: puoi salvarla di nuovo.' : 'Non ancora salvata.')),
     warn.length ? h('div.ric-warn', null, warn.map((w) => h('p', null, w))) : null,
-    knobs.length ? h('div.ric-knobs', null, knobs.map((k) => slider(k, on.tweak)))
-      : h('p.meta', null, 'Nessun parametro in vista: sceglili in «Apri per intero».'),
-    h('div.row', null,
+    h('div.row.ric-block__acts', null,
       h('button.btn', { onclick: () => on.full() }, 'Apri per intero'),
-      h('button.btn', { onclick: () => on.save() }, saved ? 'Aggiorna o salva come nuova' : 'Salva come ricetta')));
+      h('button.btn', { onclick: () => on.save() }, saved ? 'Aggiorna o salva come nuova' : 'Salva come ricetta')),
+  ];
+  const knobEls = knobs.length ? knobs.map((k) => slider(k, on.tweak)) : [h('p.meta', null, 'Nessun parametro in vista: sceglili in «Apri per intero».')];
+  // nelle pagine del passo 2 ogni manopola è un blocco a sé
+  if (flat) return [parts[0], parts[1], knobEls, parts[2]].filter(Boolean);
+  return h('div.ric-block', null, parts[0], parts[1], knobs.length ? h('div.ric-knobs', null, knobEls) : knobEls, parts[2]);
 }
 
 /**

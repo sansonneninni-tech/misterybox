@@ -11,7 +11,6 @@
 .corpo__mode[aria-pressed="true"] { background: var(--salt); color: var(--void); border-color: var(--salt); }
 .corpo__status { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: var(--s-2); }
 .corpo__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px var(--s-4); padding-bottom: 4px; }
-.flow__stage[data-sculpt="true"] > .styles, .flow__stage[data-sculpt="true"] > .mats { display: none; }
 .corpo__tools[hidden] { display: none; }
 .corpo__tools .seg { display: flex; flex: 1 1 420px; }
 .corpo__tools .seg__opt { flex: 1 1 0; min-height: 38px; }
@@ -74,9 +73,6 @@
   .corpo__tools { flex-direction: column; align-items: stretch; gap: 6px; }
   .corpo__tools .seg, .corpo__sliders { flex: none; }
   .corpo__sliders { grid-template-columns: 1fr; gap: 0; }
-  /* su iPhone scolpendo restano stili e materie sotto: si scorre la pagina, l'anteprima resta grande */
-  .flow__stage[data-sculpt="true"] > .styles, .flow__stage[data-sculpt="true"] > .mats { display: flex; }
-  .flow__stage[data-sculpt="true"] > .mats { display: block; }
   .corpo__sl .range { height: 44px; margin: 0; }
   .corpo__acts .btn { flex: 1 1 auto; }
   .corpo__key { width: 44px; height: 44px; }
