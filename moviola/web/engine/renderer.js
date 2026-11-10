@@ -210,7 +210,9 @@ export class Renderer {
     if (proc.sim) {
       // lo stato ha la stessa misura in anteprima e nel render 4K: la materia
       // cresce allo stesso modo, il 4K aggiunge solo nitidezza al disegno
-      const s = Math.min(1, (proc.simLong || 1024) / Math.max(this.w, this.h));
+      // (simFixed: la misura non scende nemmeno con un'anteprima più piccola,
+      // per i fluidi che a griglia diversa prenderebbero strade diverse)
+      const s = proc.simFixed ? (proc.simLong || 1024) / Math.max(this.w, this.h) : Math.min(1, (proc.simLong || 1024) / Math.max(this.w, this.h));
       const sw = Math.max(2, Math.round(this.w * s)), sh = Math.max(2, Math.round(this.h * s));
       st.sim = { t: [this._target(this._tex(sw, sh, this.simFloat)), this._target(this._tex(sw, sh, this.simFloat))], w: sw, h: sh, init: true };
     }
@@ -323,7 +325,7 @@ export class Renderer {
       else out = this.scratch[0] === stream ? this.scratch[1] : this.scratch[0];
 
       const vals = passValues(clip, pass, t, live);
-      const arr = new Float32Array(8); vals.forEach((v, i) => { arr[i] = v; });
+      const arr = new Float32Array(16); vals.forEach((v, i) => { arr[i] = v; });
       const common = (L, w, h) => {
         this._bind(0, stream.tex); gl.uniform1i(L.u_in, 0);
         for (let i = 0; i < 4; i++) {

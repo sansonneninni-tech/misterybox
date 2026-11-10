@@ -11,12 +11,18 @@ import { MATERIA as argilla } from './dense/argilla.js';
 import { MATERIA as bitume } from './dense/bitume.js';
 import { MATERIA as ghiaccio } from './dense/ghiaccio.js';
 import { MATERIA as cenere } from './dense/cenere.js';
+import { MATERIA as inchiostroAcqua } from './fluide/inchiostro-acqua.js';
+import { MATERIA as vetroFuso } from './fluide/vetro-fuso.js';
 
 // Le materie dense: peso, spessore, superficie. Una per file.
 const dense = [impasto, argilla, bitume, ghiaccio, cenere].filter(Boolean);
 
+// Le materie fluide: fluidodinamica e masse trasparenti. Una per file.
+const fluide = [inchiostroAcqua, vetroFuso].filter(Boolean);
+
 export const MATERIA_FAMILIES = [
   { id: 'dense', label: 'Materie dense' },
+  { id: 'fluide', label: 'Materie fluide' },
   { id: 'liquidi', label: 'Liquidi' },
   { id: 'acque', label: 'Acque e vetri' },
   { id: 'minerali', label: 'Minerali' },
@@ -24,4 +30,4 @@ export const MATERIA_FAMILIES = [
   { id: 'corpi', label: 'Fumi e corpi' },
 ];
 
-export const MATERIE = [...dense, ...liquidi, ...acque, ...minerali, ...organismi, ...corpi].map((m) => ({ ...m, materia: true }));
+export const MATERIE = [...dense, ...fluide, ...liquidi, ...acque, ...minerali, ...organismi, ...corpi].map((m) => ({ ...m, materia: true }));

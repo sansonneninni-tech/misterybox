@@ -26,7 +26,7 @@ uniform float u_histHead;    // indice dello strato più recente
 uniform float u_histCap;     // capienza della memoria
 uniform float u_t, u_T, u_loop, u_frame, u_fps, u_seed, u_vmix;
 uniform vec2 u_res;
-uniform float u_p[8];
+uniform float u_p[16];
 uniform float u_mix;
 uniform int u_blend;
 in vec2 v_uv;
