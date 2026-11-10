@@ -6,7 +6,7 @@ export const MATERIE = [
   // ------------------------------------------------------------------- fumo
   {
     id: 'fumo', code: 'Fu', name: 'Fumo', family: 'corpi', ref: 'Jordan Belson',
-    steps: 2, simLong: 768, noloop: true,
+    steps: 2, simLong: 768, noloop: true, forze: 'trasporto', peso: 0,
     about: 'La foto si fa fumo: dalle sue luci (o dalle ombre) si staccano volute che salgono lente e si sciolgono; è il colore, non la linea, a definire le forme.',
     params: [
       P('fumo', 'Fumo', 0, 1, 0.75, 0.3),
@@ -28,7 +28,7 @@ vec2 fuVel(vec2 uv) {
   float nx = fbm(p + vec2(e, 0.0), t, 0.0, 3);
   float ny = fbm(p + vec2(0.0, e), t, 0.0, 3);
   vec2 curl = vec2(ny - n0, -(nx - n0)) / e;
-  vec2 v = curl * volute * 0.0011 + vec2(0.0, salita * 0.0016);
+  vec2 v = curl * volute * 0.0011 - GIU(vec2(0.0, -1.0)) * salita * 0.0016 * GRAVITA; // sale contro la gravità
   return v / a;
 }
 vec4 sim(vec2 uv) {
@@ -237,7 +237,8 @@ float seH(vec2 p, float z, float Pz) {
   // la frequenza cambia da punto a punto: pieghe larghe e strette insieme
   float w = fbm(p * 0.22 + vec2(0.0, z * 0.3), z, Pz, 3);
   float w2 = fbm(p * 0.5 + vec2(3.7, 1.1), z * 1.3 + 2.0, Pz, 2);
-  float t1 = TAU * ztime(vento * 0.3), t2 = TAU * ztime(vento * 0.19), t3 = TAU * ztime(vento * 0.45);
+  float vv = SOFFIO(vento);
+  float t1 = TAU * ztime(vv * 0.3), t2 = TAU * ztime(vv * 0.19), t3 = TAU * ztime(vv * 0.45);
   float ph = p.x * 2.0 + w * 4.0 + w2 * 1.2;
   float s1 = sin(ph - t1);
   float s2 = sin(p.x * 3.7 + p.y * 1.1 + w * 3.0 - t3 + 1.3);
@@ -247,9 +248,10 @@ float seH(vec2 p, float z, float Pz) {
 }
 vec3 fx(vec2 uv) {
   vec2 a = vec2(ASPECT, 1.0);
-  mat2 R = rot(direzione * PI);
+  vec2 sd = VERSO_VENTO(vec2(1.0, 0.0)); // il vento disegnato, se soffia, orienta il drappo
+  mat2 R = rot(sd.x < 0.99999 || sd.y != 0.0 ? atan(sd.y, sd.x) : direzione * PI);
   vec2 p = R * ((uv - 0.5) * a) * misura * 2.0;
-  float z = ztime(vento * 0.12), Pz = period(vento * 0.12);
+  float z = ztime(SOFFIO(vento) * 0.12), Pz = period(SOFFIO(vento) * 0.12);
   float e = 0.02;
   float h0 = seH(p, z, Pz);
   float hx = seH(p + vec2(e, 0.0), z, Pz), hy = seH(p + vec2(0.0, e), z, Pz);
@@ -288,7 +290,7 @@ vec3 fx(vec2 uv) {
   // ------------------------------------------------------------------- carta
   {
     id: 'carta', code: 'Cb', name: 'Carta bagnata', family: 'corpi', ref: 'Acquerello, cerchio di caffè',
-    steps: 4, simLong: 768, noloop: true,
+    steps: 4, simLong: 768, noloop: true, forze: 'trasporto', peso: 0.6,
     about: 'Carta bagnata che beve la foto: l’acqua avanza nelle fibre con un fronte frastagliato, dove arriva i colori si allargano come acquerello e sul bordo si deposita il pigmento; poi asciuga.',
     params: [
       P('acqua', 'Acqua', 0, 1, 0.55, 0.2),

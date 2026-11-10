@@ -291,11 +291,11 @@ vec3 fx(vec2 uv) {
   vec2 p = uv * a;
   float z = ztime(velocita), Pz = period(velocita);
   float ang = direzione * TAU;
-  vec2 wd = vec2(cos(ang), sin(ang));
+  vec2 wd = VERSO_VENTO(vec2(cos(ang), sin(ang))); // il vento disegnato porta la sabbia
   // il ciclo: sparpagliata (0) ↔ formata (1), con un fronte che attraversa il quadro
   float cyc = sin(TAU * u_t * rate(velocita * 0.5) + fbm(p * 0.9, z, Pz, 2) * 2.5 + dot(p, wd) * 1.5);
   float fo = smoothstep(-0.6, 0.6, cyc + (forma - 0.5) * 1.6);
-  float sc = (1.0 - fo) * vento;
+  float sc = (1.0 - fo) * SOFFIO(vento);
   // le increspature: creste che camminano col vento
   vec2 pw = p + vec2(fbm(p * 1.7 + 4.0, z, Pz, 3), fbm(p * 1.7 + 8.0, z, Pz, 3)) * 0.12;
   float rp = dot(pw, wd) * 62.0 + dot(pw, vec2(-wd.y, wd.x)) * 6.0 * sin(dot(pw, vec2(-wd.y, wd.x)) * 5.0) - z * TAU;
