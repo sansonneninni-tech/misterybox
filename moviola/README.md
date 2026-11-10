@@ -125,6 +125,20 @@ Trentacinque processi nati dalla ricerca su Clipson (strati in macchina, zoom, m
 | Carta bagnata (Cb) · *cresce* | Carta bagnata che beve la foto: l’acqua avanza nelle fibre con un fronte frastagliato, dove arriva i colori si allargano come acquerello e sul bordo si deposita il pigmento; poi asciuga. | Acquerello, cerchio di caffè |
 | Strati (Sr) · *cresce* | Cinque o sei esposizioni della stessa immagine sovrapposte in macchina, ognuna con il suo zoom che scatta avanti e indietro e il suo ritardo; il fuoco passa da uno strato all’altro come un’onda. Si aggiunge all’immagine invece di togliere. | Paul Clipson; McLaren, Pas de deux |
 
+## Scolpire con le dita e Macro
+
+Sotto l'anteprima, nel passo 2, due pulsanti valgono per qualunque materia, anche per quelle che arriveranno.
+
+**Scolpisci.** Acceso, l'anteprima diventa materia da toccare (lo dice in alto a sinistra, e il tocco non ferma più il video). Cinque strumenti: **Spingi** (la materia segue il dito e si accumula davanti), **Scava** (un solco o una conca col bordo rialzato), **Impasta** (giri e grumi dove tieni il dito), **Liscia** (spiana e cancella piano), **Pizzica** (raccoglie verso il dito e solleva). Poi **Dimensione** e **Forza**. Su iPhone vanno più dita insieme; con la matita conta la pressione vera, altrimenti contano l'area del tocco e la velocità (piano e largo spinge di più).
+
+Ogni dito è un gesto registrato nel tempo della clip: posizione, forza e strumento. A clip ferma il gesto resta in quell'istante; con la clip che scorre si registra mentre la guardi. **Registra un giro** riparte dall'inizio e fa un giro intero; **Riascolta** lo ripete identico, con cerchi tratteggiati dove passano le dita. **Annulla l'ultimo**, e nel pannello a destra l'elenco dei gesti, ognuno da cancellare.
+
+Ogni materia risponde a modo suo: le dense e i minerali si lasciano incidere e tengono l'impronta in luce radente, i liquidi e le acque si aprono, ondeggiano e si richiudono piegando la luce che li attraversa, le carni cedono e tornano piano. Comanda la materia più in alto tra gli strati. **Memoria della materia** la piega: a sinistra non resta nulla, al centro la materia com'è, a destra resta tutto. Poi **Rilievo dell'impronta** e **Direzione della luce radente**.
+
+Il gesto si ripete identico nel video salvato in 4K, a 24 o a 30 fps: il campo che le materie leggono avanza a passi fissi di 1/120 di secondo e ha la stessa misura in anteprima e nel render.
+
+**Macro.** Una camera che entra nella materia. Non è uno zoom che sgrana: con la Macro accesa tutta la catena viene calcolata da vicino, ogni materia disegna la sua struttura al posto giusto e, avvicinandosi, compaiono nuovi livelli di microdettaglio ancorati alla superficie (grana, pori, fibre, microbolle o cristalli, secondo la materia o a scelta). Il rilievo della materia dà parallasse e una messa a fuoco vera: piano di fuoco dal punto più basso al più alto di quello che vedi, sfocato morbido che cresce con la distanza dal piano, senza luccichii. Parametri: Ingrandimento (fino a ×32), punto guardato («Scegli il punto da guardare» mostra tutto il quadro: tocca dove entrare), Piano di fuoco, Apertura, Inclinazione e il suo verso, Rotazione, Microdettaglio, Profondità del rilievo, Deriva, Respiro del fuoco. Ogni parametro ha ◆ per mettere una chiave nell'istante in cui sei; «Entra piano», «Esci piano» e «Il fuoco scivola» mettono le chiavi da un capo all'altro della clip.
+
 ## Dove sta ogni risposta delle 20 domande
 
 | # | Risposta | Dove sta |

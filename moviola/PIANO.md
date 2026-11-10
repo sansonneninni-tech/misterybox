@@ -140,3 +140,37 @@ finestra del Mac aperta esegue la coda).
 4. Dal vivo: performance registrabile
 5. Esporta: ProRes / sequenze 16 bit / .json, coda di render
 6. Interlocutore
+
+## Il corpo: Scolpire con le dita e Macro (`web/engine/corpo/`)
+
+Valgono per ogni materia, anche per quelle nuove, senza toccarne i file.
+
+- **Campo scolpito** (`corpo/index.js`, classe `Campo`): una texture RGBA16F
+  di 512 px sul lato lungo, sempre la stessa misura in anteprima e in 4K.
+  xy = spostamento (uv), z = altezza (negativa scavata), w = velocità verticale
+  dei fluidi. Avanza a passi fissi di 1/120 s (120 è multiplo di 24 e 30): il
+  fotogramma n è il passo 5n a 24 fps e 4n a 30 fps, quindi stesso gesto =
+  stesso campo a ogni risoluzione e frequenza (verificato con l'impronta
+  numerica del campo a 480, 640, 1920 e 3840 px, 24 e 30 fps). Ogni secondo
+  una copia del campo per tornare indietro in fretta.
+- **Gesti** (`corpo/gesti.js`): `clip.scolpire = { gesti: [{ strumento,
+  dimensione, forza, pts: [[t, x, y, pressione, tenuta]] }], memoria, rilievo,
+  luce }`. Coordinate della superficie, tempo della clip, nessun pixel.
+- **Carattere** (`corpo/tatto.js`): tenuta, ritorno, fluido e microdettaglio
+  per ogni materia; una materia nuova può dichiarare `tatto: { tenuta,
+  ritorno, fluido, micro }`, altrimenti vale la sua famiglia.
+- **Come le materie lo leggono**: la foto arriva già spostata (base e `SRC`),
+  e dopo la catena l'impronta viene resa in luce radente (solidi) o come
+  rifrazione (fluidi). Una materia che vuole rispondere a modo suo legge
+  `SCULPT(uv)` nel suo GLSL.
+- **Macro** (`corpo/macro.js`): con la Macro accesa `fx(uv)` riceve coordinate
+  della superficie e `u_res` è la risoluzione del mondo ingrandito, quindi
+  `K1080` e `PX` restano ancorati alla superficie; `IN`, `FB` e `HIST`
+  leggono i buffer dello schermo passando dalla camera (`CAM_S`), con la
+  parallasse data da un rilievo stimato (`u_rl`). Dopo la catena:
+  microdettaglio procedurale per ottave (entrano quando sono abbastanza grandi
+  sullo schermo) e messa a fuoco a raccolta pesata per area, senza lumi.
+  Una materia che conosce il suo rilievo lo scrive in `FX_H` (0..1) dentro
+  `fx`: la messa a fuoco usa quello invece della stima.
+- **Spento non cambia nulla**: con Scolpire e Macro spenti i fotogrammi sono
+  identici bit per bit a prima (verificato su cinque combinazioni di materie).
