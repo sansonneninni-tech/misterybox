@@ -2,6 +2,7 @@
 // clip (fermo, contemplativo, ritmico, caotico). Tutto deterministico dal seme.
 
 import { byId } from './processes.js';
+import { breathFor, breathOffset } from './respiro.js';
 
 function h1(n) { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
 const smooth = (x) => x * x * (3 - 2 * x);
@@ -81,6 +82,8 @@ export function modulation(clip, t, salt) {
 export function passValues(clip, pass, t, live) {
   const proc = byId[pass.proc];
   const amount = clip.motion?.mode === 'fermo' ? 0 : (clip.motion?.amount ?? 0.5);
+  // Respiro: sopra chiavi e carattere del movimento, un ritmo solo per tutte le materie
+  const br = proc.materia ? breathFor(clip, pass, t) : null;
   return proc.params.map((p, i) => {
     const key = `${pass.id}.${p.id}`;
     let v = live && live[key] !== undefined ? live[key] : keyValue(clip.keys?.[key], t);
@@ -89,6 +92,7 @@ export function passValues(clip, pass, t, live) {
     if (amount > 0 && w > 0 && !p.options) {
       v += modulation(clip, t, i + hashStr(pass.id)) * amount * w * (p.max - p.min) * 0.35;
     }
+    if (br) v += breathOffset(br, proc, p);
     v = Math.min(p.max, Math.max(p.min, v));
     if (p.step) v = Math.round(v / p.step) * p.step;
     return v;

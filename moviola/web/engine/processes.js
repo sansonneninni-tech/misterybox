@@ -565,5 +565,7 @@ export function fragmentFor(proc, prelude, postlude) {
 /** GLSL del passo di simulazione: `vec4 sim(vec2 uv)` scrive il nuovo stato. */
 export function simFragmentFor(proc, prelude) {
   const defs = proc.params.map((p, i) => `#define ${p.id} u_p[${i}]`).join('\n');
-  return `${prelude}\n${defs}\n${proc.sim}\nvoid main() { o_col = sim(v_uv); }`;
+  // forze 'mappa': lo stato xy è uno spostamento verso la foto, e il campo lo
+  // porta: la materia che arriva da monte porta con sé il suo pezzo di foto
+  return `${prelude}\n${defs}\n${proc.sim}\nvoid main() { vec4 s = sim(v_uv); if (u_mappa > 0.5 && u_init < 0.5) s.xy -= FORZA(v_uv) * u_trST; o_col = s; }`;
 }
