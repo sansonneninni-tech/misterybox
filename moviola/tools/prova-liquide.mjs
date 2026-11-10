@@ -8,6 +8,8 @@
 // per il Ferrofluido, con un dito che fa da magnete. Con --prima fa gli stessi
 // filmati con l'altra versione e li mette a fianco (prima | dopo).
 // Con --app fotografa il passo 2 a misura di Mac e di iPhone con la materia accesa.
+// Attenzione: «Trasforma» crea un esperimento nell'archivio del server a cui punta
+// --app: usalo con un server acceso su una COPIA dei dati (MOVIOLA_DATA), mai su quello vero.
 // Serve playwright-core (npm i --no-save playwright-core), Google Chrome e ffmpeg.
 // Non scrive nulla dentro moviola/dati.
 import { createServer } from 'node:http';
@@ -99,6 +101,9 @@ if (app) {
     const tile = await p.$('.media__tile'); if (tile && (await tile.getAttribute('aria-pressed')) !== 'true') { await tile.click(); await p.waitForTimeout(500); }
     await p.locator('button:has-text("Trasforma")').last().click();
     await p.waitForTimeout(5000);
+    // le materie stanno nella scheda «Materie» del pannello
+    await p.locator('button', { hasText: /^Materie$/ }).first().click().catch(() => {});
+    await p.waitForTimeout(800);
     for (const m of ['Bolle', 'Ferrofluido']) {
       const b = p.locator('button.mat', { hasText: m }).first();
       if (await b.count()) { await b.scrollIntoViewIfNeeded().catch(() => {}); await b.click().catch(() => {}); await p.waitForTimeout(4000); await p.screenshot({ path: join(out, `ui-${name}-${m.toLowerCase()}.png`) }); await b.click().catch(() => {}); await p.waitForTimeout(800); }

@@ -29,7 +29,8 @@
 //   x = liquido m, y = campo (per il disegno), in ogni cella;
 //   zw delle prime righe: le spine. Spina i: cella (i % 100, i / 100) zw = posizione
 //   (altezze di quadro, centro 0, y in su); cella (i % 100, 4 + i / 100) zw =
-//   altezza (in passi del reticolo; 0 = non c'è) e età.
+//   altezza (in passi del reticolo; 0 = non c'è) e età. Riga 8, celle 0-2, zw:
+//   dove stanno i magneti che si muovono da soli.
 import { P } from '../comune.js';
 
 const STEPS = 8;
@@ -60,15 +61,10 @@ float ffCampo(vec2 uv) {
   vec2 p = (uv - 0.5) * vec2(asp, 1.0);
   float f = 0.0;
   int nm = int(numero + 0.5);
-  float t = u_t * velocita;
   for (int i = 0; i < 3; i++) {
     if (i >= nm) break;
-    float fi = float(i);
-    vec2 hh = hash22(vec2(fi * 3.7 + 1.0, S(21.0)));
-    vec2 c = vec2(sin(TAU * (t * (0.11 + 0.05 * fi) + hh.x)) * 0.33 * asp,
-                  sin(TAU * (t * (0.08 + 0.035 * fi) + hh.y) + fi) * 0.28);
-    if (nm == 1) c *= 0.55;
-    vec2 q = p - c;
+    // dove sta il magnete adesso (lo muove la cella del magnete, più sotto)
+    vec2 q = p - ffT(ivec2(i, 8)).zw;
     // un magnete sotto il vassoio: il campo sulla superficie cala in fretta
     float d = 0.2;
     f += pow(1.0 + dot(q, q) / (d * d), -1.6);
@@ -84,6 +80,31 @@ float ffCampo(vec2 uv) {
   return f * magneti * (1.0 + 0.25 * RESPIRO);
 }
 
+// il percorso libero del magnete i: un giro lento, diverso per ognuno
+vec2 ffGiro(int i, float asp) {
+  float fi = float(i), t = u_t * velocita;
+  vec2 hh = hash22(vec2(fi * 3.7 + 1.0, S(21.0)));
+  vec2 c = vec2(sin(TAU * (t * (0.11 + 0.05 * fi) + hh.x)) * 0.33 * asp,
+                sin(TAU * (t * (0.08 + 0.035 * fi) + hh.y) + fi) * 0.28);
+  return int(numero + 0.5) == 1 ? c * 0.55 : c;
+}
+// dove andrebbe il magnete: vicino al suo giro, ma dove c'è liquido (chi lo
+// muove lo tiene sotto la pozza, non sulla foto asciutta)
+vec2 ffMira(int i, float asp) {
+  vec2 g = ffGiro(i, asp);
+  vec2 A = vec2(asp, 1.0);
+  vec3 acc = vec3(g * 0.02, 0.02);
+  for (int k = 0; k < 48; k++) {
+    float fk = float(k);
+    float r = 0.42 * sqrt((fk + 0.5) / 48.0), an = fk * 2.39996;
+    vec2 q = g + vec2(cos(an), sin(an)) * r;
+    vec2 uq = q / A + 0.5;
+    if (uq.x < 0.0 || uq.y < 0.0 || uq.x > 1.0 || uq.y > 1.0) continue;
+    float w = ffT(ivec2(uq * u_stRes)).x * exp(-r * r / 0.05);
+    acc += vec3(q * w, w);
+  }
+  return acc.xy / acc.z;
+}
 vec4 sim(vec2 uv) {
   ivec2 c = ivec2(gl_FragCoord.xy);
   float asp = u_stRes.x / u_stRes.y;
@@ -115,18 +136,28 @@ vec4 sim(vec2 uv) {
     // si spiana da sé (tensione e gravità) e va verso il campo; il vento e la
     // gravità della catena lo portano, in celle per passo
     // il bordo della pozza resta attaccato: il velo sottilissimo non scorre
-    float g = 0.16, mu = 0.9 * visc;
+    float g = 0.16, mu = 1.3 * visc;
     vec2 vf = FORZA(uv) * u_stRes * dt;
     float m = s.x;
-    float fE = 0.5 * (m + sE.x) * smoothstep(0.012, 0.05, max(m, sE.x)) * (-g * (sE.x - m) + mu * (FE - Fc) + vf.x);
-    float fW = 0.5 * (m + sW.x) * smoothstep(0.012, 0.05, max(m, sW.x)) * (-g * (m - sW.x) + mu * (Fc - FW) + vf.x);
-    float fN = 0.5 * (m + sN.x) * smoothstep(0.012, 0.05, max(m, sN.x)) * (-g * (sN.x - m) + mu * (FN - Fc) + vf.y);
-    float fS = 0.5 * (m + sS.x) * smoothstep(0.012, 0.05, max(m, sS.x)) * (-g * (m - sS.x) + mu * (Fc - FS) + vf.y);
+    float fE = 0.5 * (m + sE.x) * smoothstep(0.12, 0.28, max(m, sE.x)) * clamp(-g * (sE.x - m) + mu * (FE - Fc) + vf.x, -0.2, 0.2);
+    float fW = 0.5 * (m + sW.x) * smoothstep(0.12, 0.28, max(m, sW.x)) * clamp(-g * (m - sW.x) + mu * (Fc - FW) + vf.x, -0.2, 0.2);
+    float fN = 0.5 * (m + sN.x) * smoothstep(0.12, 0.28, max(m, sN.x)) * clamp(-g * (sN.x - m) + mu * (FN - Fc) + vf.y, -0.2, 0.2);
+    float fS = 0.5 * (m + sS.x) * smoothstep(0.12, 0.28, max(m, sS.x)) * clamp(-g * (m - sS.x) + mu * (Fc - FS) + vf.y, -0.2, 0.2);
     mn = max(m - (fE - fW + fN - fS) * 0.5, 0.0);
   }
   vec4 o = vec4(mn, Fc, 0.0, 0.0);
 
   // ---------------------------------------------------------- le spine
+  // le celle dei magneti: si spostano verso la loro mira con il loro passo
+  if (c.y == 8 && c.x < 3) {
+    vec2 mira = ffMira(c.x, asp);
+    vec2 pm = u_init > 0.5 ? mira : s.zw;
+    vec2 dm = mira - pm;
+    float L = length(dm), vmax = (0.05 + 0.5 * velocita) * dt;
+    if (L > vmax) dm *= vmax / L;
+    o.zw = pm + dm;
+    return o;
+  }
   bool isP = c.x < 100 && c.y < 3;
   bool isH = c.x < 100 && c.y >= 4 && c.y < 7;
   if (!isP && !isH) return o;
@@ -137,7 +168,7 @@ vec4 sim(vec2 uv) {
   float hgt = ha.x, age = ha.y;
   vec2 puv = p / A + 0.5;
   vec2 mf = ffM(puv);
-  float F = mf.y, deep = smoothstep(0.04, 0.3, mf.x);
+  float F = mf.y, deep = smoothstep(0.03, 0.18, mf.x);
   float lam = ffLam(F);
   // l'altezza a cui la spina tende: zero sotto la soglia, poi cresce come la
   // radice dello scarto (biforcazione), limitata dal liquido che c'è
@@ -158,7 +189,7 @@ vec4 sim(vec2 uv) {
       q = (hash22(r.xy * 57.3 + 1.7) - 0.5) * A;
     }
     vec2 qm = ffM(q / A + 0.5);
-    float fq = qm.y * smoothstep(0.04, 0.3, qm.x);
+    float fq = qm.y * smoothstep(0.03, 0.18, qm.x);
     if (fq < soglia + 0.03 || abs(q.x) > asp * 0.5 || abs(q.y) > 0.5) return o;
     float lq = ffLam(qm.y);
     for (int k = 0; k < FF_N; k++) {
@@ -271,7 +302,15 @@ vec3 fx(vec2 uv) {
     bz = zHit;
     bcov = smoothstep(0.0, px * 1.2, best);
   }
-  float cover = smoothstep(0.008, 0.016, m);
+  // il bordo della pozza: il liquido letto appena ammorbidito, perché la
+  // griglia non si veda a scalini
+  vec2 ec = 0.75 / u_stRes;
+  float ms = (m * 2.0 + ffM(uv + ec).x + ffM(uv - ec).x + ffM(uv + vec2(ec.x, -ec.y)).x + ffM(uv + vec2(-ec.x, ec.y)).x) / 6.0;
+  float gx = ffM(uv + vec2(ec.x, 0.0)).x - ffM(uv - vec2(ec.x, 0.0)).x;
+  float gy = ffM(uv + vec2(0.0, ec.y)).x - ffM(uv - vec2(0.0, ec.y)).x;
+  // quanto cambia il liquido in un pixel: il bordo è largo un pixel e mezzo
+  float dpx = length(vec2(gx / (2.0 * ec.x * u_res.x), gy / (2.0 * ec.y * u_res.y)));
+  float cover = smoothstep(0.07 - 0.75 * dpx - 0.002, 0.07 + 0.75 * dpx + 0.002, ms);
   if (cover <= 0.001 && bz < 0.0) return img;
   // chi guarda sta davanti e in alto: il raggio di vista scende nel vassoio
   vec3 v = normalize(vec3(0.0, FF_S, -sqrt(1.0 - FF_S * FF_S)));
@@ -304,7 +343,7 @@ export const MATERIA = {
   steps: STEPS, simLong: 200, simFixed: true, simF32: true, noloop: true,
   about: 'Un liquido nero e lucido versato sulla foto: sotto i magneti si raccoglie con il ritardo della sua viscosità e si alza in spine a reticolo, più alte e fitte dove il campo è forte, che si fondono, si dividono e si riabbassano in una pozza liscia quando il magnete se ne va. Col dito (Gesto › Scolpisci) porti tu un magnete. La foto vive nei riflessi.',
   params: [
-    P('copertura', 'Quanto liquido', 0, 1, 0.45, 0.2),
+    P('copertura', 'Quanto liquido', 0, 1, 0.35, 0.2),
     P('origine', 'Versato su', 0, 2, 0, 0, { step: 1, options: ['scuri', 'chiari', 'una pozza'] }),
     P('magneti', 'Forza dei magneti', 0, 2, 1, 0.4),
     P('numero', 'Magneti che si muovono', 0, 3, 2, 0, { step: 1 }),
@@ -313,7 +352,7 @@ export const MATERIA = {
     P('dallafoto', 'Campo nascosto nella foto', 0, 1.5, 0, 0.3),
     P('campodove', 'Il campo sta nei', 0, 1, 0, 0, { step: 1, options: ['chiari', 'scuri'] }),
     P('punte', 'Spine nel quadro', 6, 30, 13, 0.1),
-    P('altezza', 'Altezza delle spine', 0, 2, 1, 0.3),
+    P('altezza', 'Altezza delle spine', 0, 2, 1.3, 0.3),
     P('soglia', 'Soglia delle spine', 0.1, 1, 0.3, 0.2),
     P('viscosita', 'Viscosità (ritardo)', 0, 1, 0.45, 0.2),
     P('riflesso', 'Riflesso della foto', 0, 1, 0.6, 0.3),

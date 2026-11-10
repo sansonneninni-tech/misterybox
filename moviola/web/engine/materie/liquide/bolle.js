@@ -23,14 +23,14 @@
 // capovolto). Al centro la bolla è quasi trasparente, sul bordo riflette quasi
 // tutto. Nessuna luce aggiunta: tutto ciò che brilla viene dalla foto.
 //
-// Stato (32 bit, letto con texelFetch): 96 bolle, due texel ciascuna.
-//   A (righe 0-5)  x, y (in altezze di quadro, centro 0, y in su), raggio,
+// Stato (32 bit, letto con texelFetch): 160 bolle, due texel ciascuna.
+//   A (righe 0-9)  x, y (in altezze di quadro, centro 0, y in su), raggio,
 //                  pellicola (µm; negativa = sta scoppiando, -0..-1 avanzamento)
-//   B (righe 6-11) vx, vy, aria (raggio² a riposo), orologio (età; negativo =
+//   B (righe 10-19) vx, vy, aria (raggio² a riposo), orologio (età; negativo =
 //                  attesa prima di rinascere)
 import { P } from '../comune.js';
 
-const N = 96;
+const N = 160;
 const STEPS = 8;
 
 // Pesi delle 16 lunghezze d'onda per passare dalla riflettanza al colore:
@@ -57,9 +57,9 @@ const COMUNE = `
 #define BO_N ${N}
 #define BO_STEPS ${STEPS}.0
 vec4 boA(int i) { return texelFetch(u_st, ivec2(i % 16, i / 16), 0); }
-vec4 boB(int i) { return texelFetch(u_st, ivec2(i % 16, 6 + i / 16), 0); }
+vec4 boB(int i) { return texelFetch(u_st, ivec2(i % 16, 10 + i / 16), 0); }
 // raggio medio in altezze di quadro
-float boRm() { return 0.052 * misura; }
+float boRm() { return 0.042 * misura; }
 `;
 
 const SIM = COMUNE + `
@@ -123,12 +123,12 @@ void boNasce(int i, bool init, out vec4 A, out vec4 B) {
 
 vec4 sim(vec2 uv) {
   ivec2 cc = ivec2(gl_FragCoord.xy);
-  if (cc.x >= 16 || cc.y >= 12) return vec4(0.0);
-  int i = (cc.y % 6) * 16 + cc.x;
-  bool isB = cc.y >= 6;
+  if (cc.x >= 16 || cc.y >= 20) return vec4(0.0);
+  int i = (cc.y % 10) * 16 + cc.x;
+  bool isB = cc.y >= 10;
   float asp = u_stRes.x / u_stRes.y;
   float dt = 1.0 / (u_fps * BO_STEPS);
-  int nAct = int(6.0 + quantita * 90.0);
+  int nAct = int(8.0 + quantita * float(BO_N - 8));
   vec4 A, B;
   if (u_init > 0.5) {
     if (i < nAct) boNasce(i, true, A, B);
@@ -152,7 +152,7 @@ vec4 sim(vec2 uv) {
     if (A.w <= -1.0) {
       A = vec4(0.0);
       // la schiuma si rifà: dopo una pausa ne nasce un'altra
-      B = vec4(0.0, 0.0, 0.0, -mix(0.15, 2.6, hash12(vec2(float(i), u_frame + S(9.0)))) * (1.3 - quantita));
+      B = vec4(0.0, 0.0, 0.0, -mix(0.1, 1.6, hash12(vec2(float(i), u_frame + S(9.0)))) * (1.2 - quantita));
     }
     return isB ? B : A;
   }
@@ -349,8 +349,8 @@ vec3 fx(vec2 uv) {
     }
   }
   // il contorno: la stessa lamina vista di taglio
-  float sil = smoothstep(1.0 - 2.2 * px / r1, 1.0 - 0.6 * px / r1, rho) * fFront;
-  col = mix(col, bg * 0.62 + envF * 0.2, sil * 0.55);
+  float sil = smoothstep(1.0 - 2.6 * px / r1, 1.0 - 0.6 * px / r1, rho) * fFront;
+  col = mix(col, bg * 0.5 + envF * 0.2, sil * 0.75);
   // l'orlo della membrana che si ritira: un filo d'acqua più spesso, poi nebbia
   col = mix(col, bg * 0.7 + envF * 0.25, rimF * 0.8);
   return mix(img, boGam(col), cover);
@@ -358,10 +358,10 @@ vec3 fx(vec2 uv) {
 
 export const MATERIA = {
   id: 'bolle', code: 'Bo', name: 'Bolle', family: 'acque', ref: 'Brakhage, Youngblood; la schiuma di Plateau',
-  steps: STEPS, simLong: 48, simFixed: true, simF32: true, noloop: true,
+  steps: STEPS, simLong: 64, simFixed: true, simF32: true, noloop: true,
   about: 'Davanti alla foto una schiuma vera di bolle di sapone: salgono e tremano con l’aria, si incollano in grappoli con pareti dritte che si incontrano a tre, le piccole vengono assorbite dalle grandi. La pellicola si colora per interferenza, scorre, in alto diventa nera e lì scoppia; le vicine si riassestano di scatto. La foto vive dietro e nei riflessi, piccola e capovolta.',
   params: [
-    P('quantita', 'Quantità di schiuma', 0, 1, 0.6, 0.2),
+    P('quantita', 'Quantità di schiuma', 0, 1, 0.75, 0.2),
     P('misura', 'Misura bolle', 0.3, 2.5, 1, 0.2),
     P('varieta', 'Varietà delle misure', 0, 1, 0.6, 0.2),
     P('salita', 'Salita (scendono · salgono)', -1, 1, 0.3, 0.2),
@@ -371,7 +371,7 @@ export const MATERIA = {
     P('assorbimento', 'Le grandi assorbono le piccole', 0, 1, 0.45, 0.2),
     P('nascita', 'Nascono', 0, 3, 0, 0, { step: 1, options: ['ovunque', 'dal basso', 'dai chiari', 'dagli scuri'] }),
     P('colori', 'Colori della pellicola', 0, 1, 1, 0.2),
-    P('riflesso', 'Riflessi della foto', 0, 1, 0.55, 0.3),
+    P('riflesso', 'Riflessi della foto', 0, 1, 0.7, 0.3),
     P('lente', 'Lente', 0, 1, 0.12, 0.3),
   ],
   sim: SIM,
