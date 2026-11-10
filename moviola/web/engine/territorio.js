@@ -245,7 +245,8 @@ void main() {
   float sg = sp / (abs(sp) + 0.15);
   float drive = sp * 1.15
     + u_c[2] * fl.z * 2.6
-    + u_c[3] * ((1.0 - ring) - 0.5) * 3.6
+    // dita: solo vicino al fronte, le punte (poca materia attorno) corrono, le baie si fermano
+    + u_c[3] * (0.5 - ring) * 3.2 * smoothstep(0.02, 0.2, ring) * (1.0 - smoothstep(0.8, 0.98, ring))
     - u_c[5] * smoothstep(0.06, 0.28, fl.y) * 2.6 * sg
     - u_c[6] * (fl.x - 0.5) * 2.6 * sg
     - u_c[7] * (F - F0) * 2.2;

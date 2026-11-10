@@ -232,10 +232,17 @@ export async function openPainter({ index, onDone }) {
       const xl = x > 0 ? i - 1 : i, xr = x < MW - 1 ? i + 1 : i, yu = y > 0 ? i - MW : i, yd = y < MH - 1 ? i + MW : i;
       sm[i] = (pr[i] * 4 + pr[xl] + pr[xr] + pr[yu] + pr[yd]) / 8;
     }
+    // un secondo passaggio: i tratti del pennello fanno onde piccole sul filo
+    const s2 = new Float32Array(MW * MH);
+    for (let y = 0, i = 0; y < MH; y++) for (let x = 0; x < MW; x++, i++) {
+      const xl = x > 0 ? i - 1 : i, xr = x < MW - 1 ? i + 1 : i, yu = y > 0 ? i - MW : i, yd = y < MH - 1 ? i + MW : i;
+      s2[i] = (sm[i] * 4 + sm[xl] + sm[xr] + sm[yu] + sm[yd]) / 8;
+    }
+    sm.set(s2);
     for (let y = 0, i = 0, k = 0; y < MH; y++) for (let x = 0; x < MW; x++, i++, k += 4) {
       const gx = sm[x < MW - 1 ? i + 1 : i] - sm[x > 0 ? i - 1 : i], gy = sm[y < MH - 1 ? i + MW : i] - sm[y > 0 ? i - MW : i];
       const g = Math.hypot(gx, gy) * 0.5 + 1;
-      const line = Math.max(0, 1 - Math.abs(sm[i] - 127.5) / g / 0.9);
+      const line = Math.max(0, 1 - Math.abs(sm[i] - 127.5) / g / 1.4);
       const a = (255 - pr[i]) * 0.8;
       // nero del mascherino sotto, filo chiaro sopra
       const la = line * 150;

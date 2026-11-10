@@ -57,7 +57,7 @@ vec3 trrTerritorio(vec2 uv) {
     // impasta: le due materie piegate l'una nell'altra in lamelle
     vec2 w2 = vec2(gnoise(vec3(q * 0.45 + 1.7, z), Pz), gnoise(vec3(q * 0.45 + 9.2, z), Pz));
     float f = gnoise(vec3(q * 0.3 + w2 * 1.8, z * 0.5), Pz);
-    n = 0.5 + 0.5 * sin(f * 6.5 + P * 2.0);
+    n = 0.5 + 0.5 * sin(f * 6.5 + P * 2.0 + gnoise(vec3(q * 5.0 + 4.0, z), Pz) * 0.9); // lamelle con il bordo sfrangiato
   }
   n = clamp(n, 0.002, 0.998);
   // dentro la materia (P = 1) nessun buco, fuori (P = 0) nessuna briciola
