@@ -131,14 +131,17 @@ export class Renderer {
     }
   }
 
-  _tex(w, h, float = this.float) {
+  _tex(w, h, float = this.float, f32 = false) {
     const gl = this.gl;
     const t = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, t);
-    if (float) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    if (float && f32) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, null);
+    else if (float) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
     else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    // a 32 bit il filtro lineare non è garantito (e senza, la texture sarebbe incompleta)
+    const filt = float && f32 ? gl.NEAREST : gl.LINEAR;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     return t;
@@ -230,7 +233,9 @@ export class Renderer {
       // cresce allo stesso modo, il 4K aggiunge solo nitidezza al disegno
       const s = Math.min(this.simFull ? 16 : 1, (proc.simLong || 1024) / Math.max(this.w, this.h));
       const sw = Math.max(2, Math.round(this.w * s)), sh = Math.max(2, Math.round(this.h * s));
-      st.sim = { t: [this._target(this._tex(sw, sh, this.simFloat)), this._target(this._tex(sw, sh, this.simFloat))], w: sw, h: sh, init: true };
+      // simF32: stato a 32 bit (posizioni, quote), letto con texelFetch
+      const f32 = !!proc.simF32;
+      st.sim = { t: [this._target(this._tex(sw, sh, this.simFloat, f32)), this._target(this._tex(sw, sh, this.simFloat, f32))], w: sw, h: sh, init: true };
     }
     this.passState.set(pass.id, st);
     return st;
@@ -361,7 +366,7 @@ export class Renderer {
       else out = this.scratch[0] === stream ? this.scratch[1] : this.scratch[0];
 
       const vals = passValues(clip, pass, t, live);
-      const arr = new Float32Array(8); vals.forEach((v, i) => { arr[i] = v; });
+      const arr = new Float32Array(12); vals.forEach((v, i) => { arr[i] = v; });
       // il tempo della materia: con Tempo geologico il suo orologio corre
       // secondo la curva (e il suo fattore); la durata diventa la sua durata,
       // così il loop delle materie senza stato resta chiuso

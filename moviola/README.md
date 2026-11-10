@@ -58,7 +58,7 @@ diritti, tutte le opzioni di salvataggio.
 
 ## Le materie: l'immagine diventa il corpo di una sostanza
 
-Trentacinque processi nati dalla ricerca su Clipson (strati in macchina, zoom, macro, riflessi), Brakhage, Belson, Youngblood, McLaren, Viola e Turing. Nel passo 2, sotto gli stili, la striscia **Materie**: tocca una materia per aggiungerla, ritoccala per toglierla. Si sommano a strati (fino a sei, nell'ordine in cui le tocchi) sopra lo stile scelto; con **Nessuno stile** resta solo la foto con le sue materie. Ogni strato, nel pannello a destra, ha la sua Quantità e i suoi 7–8 parametri. Niente pellicola, graffi o bagliori: la foto resta riconoscibile, diventa il corpo della materia. Quelle segnate *cresce* si sviluppano da sole dall'inizio della clip (non chiudono il loop esatto).
+Trentotto processi nati dalla ricerca su Clipson (strati in macchina, zoom, macro, riflessi), Brakhage, Belson, Youngblood, McLaren, Viola e Turing. Nel passo 2, sotto gli stili, la striscia **Materie**: tocca una materia per aggiungerla, ritoccala per toglierla. Si sommano a strati (fino a sei, nell'ordine in cui le tocchi) sopra lo stile scelto; con **Nessuno stile** resta solo la foto con le sue materie. Ogni strato, nel pannello a destra, ha la sua Quantità e i suoi 7–12 parametri. Niente pellicola, graffi o bagliori: la foto resta riconoscibile, diventa il corpo della materia. Quelle segnate *cresce* si sviluppano da sole dall'inizio della clip (non chiudono il loop esatto).
 
 **Materie dense** (peso, spessore, superficie in luce radente)
 
@@ -69,6 +69,16 @@ Trentacinque processi nati dalla ricerca su Clipson (strati in macchina, zoom, m
 | Bitume (Bt) · *cresce* | Un catrame pesante esce dai bui della foto e la inghiotte piano: avanza con un labbro spesso, la pelle si raggrinza in corde, le bolle si gonfiano e lasciano crateri; dove è sottile macchia la foto di bruno, dove è spesso ne conserva la luce come un ricordo. | Burri, Catrami |
 | Ghiaccio (Gh) | La foto è congelata in fondo a un blocco di ghiaccio spesso visto da vicinissimo: sciami di bolle, veli lattiginosi e piani di frattura a profondità diverse scorrono in parallasse, i piani di frattura avanzano a scatti e sulla superficie a conche cola un velo d’acqua di fusione. | Viola, l’acqua e la lentezza; Clipson, macro |
 | Cenere (Nr) · *cresce* | La foto è un foglio spesso che carbonizza in silenzio: il fronte avanza a dita, la carta imbrunisce e si imbarca, diventa crosta nera a scaglie sollevate e poi cenere chiara che si sfoglia, si sbriciola e scopre il fondo. | Burri, Combustioni |
+
+**Terre e stoffe** (materie che cedono: simulazioni vere, ripetibili a parità di seme)
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Granuli (Gn) · *cresce* | La foto è un letto di sabbia: ogni grano porta il colore del punto da cui parte. Prima l’immagine tiene, poi cede a zone e frana fino all’angolo di riposo; il vento solleva i grani dai fianchi esposti e li ridepone dietro le creste, in dune e increspature, così l’immagine si disfa e si ricompone a strati. | Brakhage e la sabbia; le dune che il vento rifà ogni notte |
+| Tessuto bagnato (Ts) · *cresce* | La foto è stampata su una stoffa pesante e bagnata, appesa davanti a un muro: pende dai suoi appigli in pieghe profonde con ombra propria, si tende, e dove cede si strappa con bordi sfilacciati che lasciano vedere ciò che sta sotto. Da vicino si vede il filato; dove è più bagnata è più scura e aderisce al muro. | Il drappo pesante delle pieghe barocche; i Sacchi di Burri |
+| Erosione (Er) · *cresce* | La luce della foto diventa la quota di un terreno. Piove: l’acqua scorre verso il basso, scava solchi che si ramificano e letti di fiume, e dove rallenta lascia ventagli e delta di sedimento. Il colore dell’immagine viaggia con la terra e si ridepone a valle in strati. | Il terreno visto dall’alto, i calanchi, i delta dei fiumi |
+
+Sono simulazioni a retroazione: lo stesso seme dà sempre la stessa clip, ma il loop non si chiude in modo esatto (l’interfaccia lo dice). Lo stato della simulazione ha la stessa misura in anteprima e nel render 4K, quindi la materia si muove allo stesso modo; il 4K aggiunge solo nitidezza a grani, filato e grana della terra.
 
 **Liquidi**
 
@@ -194,7 +204,7 @@ madre: la generazione dopo nasce da lei. Decide sempre ninni.
 
 | # | Risposta | Dove sta |
 |---|----------|----------|
-| 1 | Astrazione di ogni tipo | Passo 2: nove stili di famiglie diverse, «Nessuno stile» e le 35 materie a strati; Avanzato: 16 processi e le 35 materie da combinare |
+| 1 | Astrazione di ogni tipo | Passo 2: nove stili di famiglie diverse, «Nessuno stile» e le 38 materie a strati; Avanzato: 16 processi e le 38 materie da combinare |
 | 2 | Brakhage, McLaren, Len Lye, Ikeda, Viola, Clipson | Passo 2: ogni miniatura dice a chi si ispira |
 | 3 | Da zero, da immagine o da video | Passo 1: «Aggiungi foto o video» e «parti da zero» |
 | 4 | Il movimento lo sceglie lui | Passo 2: Movimento (Fermo, Lento, A tempo con bpm, Caotico) e Intensità in vista; chiavi in Avanzato |

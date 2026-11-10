@@ -1,5 +1,5 @@
 // I processi di MOVIOLA. Tutti locali, tutti gratuiti, tutti in GLSL.
-// Ogni processo: codice di due lettere, nome, famiglia, parametri (max 8),
+// Ogni processo: codice di due lettere, nome, famiglia, parametri (max 12),
 // e il corpo GLSL di `vec3 fx(vec2 uv)`. I nomi dei parametri diventano
 // costanti nel GLSL (es. `scala`), lette da u_p[].
 //
@@ -10,7 +10,8 @@
 //   noloop    non può garantire un loop chiuso
 //   sim       GLSL di `vec4 sim(vec2 uv)`: uno stato in virgola mobile che
 //             evolve da sé (crescita, onde, diffusione). Si legge con ST(uv).
-//             steps = passi per fotogramma, simLong = lato lungo dello stato.
+//             steps = passi per fotogramma, simLong = lato lungo dello stato,
+//             simF32 = stato a 32 bit invece di 16.
 
 import { MATERIE, MATERIA_FAMILIES } from './materie/index.js';
 
