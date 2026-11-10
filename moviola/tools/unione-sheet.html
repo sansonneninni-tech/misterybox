@@ -1,0 +1,84 @@
+<!doctype html><meta charset="utf-8"><title>Prova dell'unione</title>
+<body style="margin:0;background:#111;color:#ccc;font:12px monospace">
+<canvas id="c" style="display:none"></canvas>
+<script type="module">
+// Prova di tutte le aggiunte insieme: compila ogni processo e poi disegna
+// clip che accendono tutto nello stesso momento (strati, territorio e
+// contagio, Scolpisci, Macro, Respiro, Tempo geologico, Gravità e vento).
+// ?f=foto ?w=larghezza ?n=fotogrammi ?m=materie,separate,da,virgole
+import { Renderer } from '../web/engine/renderer.js';
+import { byId } from '../web/engine/processes.js';
+import { buildClip } from '../web/engine/recipes.js';
+import { defaultContagio } from '../web/engine/territorio.js';
+import { FORZE_BASE } from '../web/engine/forze.js';
+import { TEMPO_BASE } from '../web/engine/tempo.js';
+import { RESPIRO_BASE } from '../web/engine/respiro.js';
+import { defaultMacro } from '../web/engine/corpo/macro.js';
+import { defaultScolpire } from '../web/engine/corpo/gesti.js';
+const q = new URLSearchParams(location.search);
+const W = Number(q.get('w') || 256), H = Math.round(W * 9 / 16 / 2) * 2;
+const N = Number(q.get('n') || 12);
+const load = (u) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; });
+const im = await load(q.get('f'));
+const r = new Renderer(document.getElementById('c'));
+r.setSize(W, H);
+const gl = r.gl;
+const out = { compile: {}, runs: [] };
+
+if (!q.get('m')) {
+  for (const id of Object.keys(byId)) {
+    r.procProgram(id); if (byId[id].sim) r.simProgram(id);
+    if (r.errors.get(id)) out.compile[id] = r.errors.get(id).slice(0, 400);
+  }
+}
+const src = { id: 'f1', kind: 'image', w: im.naturalWidth, h: im.naturalHeight };
+r.setSources([{ el: im, w: im.naturalWidth, h: im.naturalHeight, kind: 'image' }]);
+const px = new Uint8Array(W * H * 4);
+const stats = () => {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let s = 0, s2 = 0;
+  for (let i = 0; i < px.length; i += 4) { const l = (px[i] + px[i + 1] + px[i + 2]) / 3; s += l; s2 += l * l; }
+  const n = px.length / 4, m = s / n;
+  return { mean: +m.toFixed(1), sd: +Math.sqrt(Math.max(0, s2 / n - m * m)).toFixed(1) };
+};
+const diff = (a, b) => { let d = 0; for (let i = 0; i < a.length; i += 4) d += Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]); return +(d / (a.length / 4) / 3).toFixed(2); };
+
+const mats = (q.get('m') || 'granuli,tessuto,erosione,inchiostroacqua,vetrofuso,miele,inchiostro,marmo').split(',');
+function clipFor(id, all, grav = 270) {
+  const c = buildClip({ style: 'nudo', sources: [src], format: { duration: 4, fps: 24, aspect: '16:9' }, seed: 7, materie: [{ proc: id }, { proc: 'marmo', mix: 0.8 }] });
+  if (all) {
+    c.materie[1].contagio = defaultContagio();
+    c.forze = { ...structuredClone(FORZE_BASE), on: true, gravita: { forza: 0.8, direzione: grav }, vento: { forza: 0.4, direzione: 30, raffiche: 0.4, misura: 0.5 } };
+    c.tempo = { ...structuredClone(TEMPO_BASE), on: true, punti: [[0, 2], [1, 6]] };
+    c.respiro = { ...structuredClone(RESPIRO_BASE), on: true };
+    c.macro = { ...defaultMacro(), on: true }; c.macro.params.ingrandimento = 3;
+    c.scolpire = defaultScolpire();
+    c.scolpire.gesti = [{ id: 'g1', strumento: 'scava', dimensione: 0.08, forza: 0.9, pts: [[0, 0.3, 0.5, 0.6, 0], [0.3, 0.6, 0.5, 0.6, 0.3], [0.6, 0.7, 0.3, 0.6, 0.3]] }];
+  }
+  return c;
+}
+function run(clip) {
+  r.prune(clip.chain); r.reset();
+  let err = 0;
+  for (let f = 0; f < N; f++) { r.render(clip, f / 24, f, null, { display: true }); const e = gl.getError(); if (e) err = e; }
+  gl.finish();
+  const st = stats();
+  return { ...st, glError: err, px: px.slice() };
+}
+for (const id of mats) {
+  if (!byId[id]) { out.runs.push({ id, missing: true }); continue; }
+  const t0 = performance.now();
+  const solo = run(clipFor(id, false));
+  const tutto = run(clipFor(id, true, 270));
+  const shot = r.canvas.toDataURL('image/jpeg', 0.8);
+  const laterale = run(clipFor(id, true, 0));
+  out.runs.push({
+    id, solo: { mean: solo.mean, sd: solo.sd, glError: solo.glError },
+    tutto: { mean: tutto.mean, sd: tutto.sd, glError: tutto.glError },
+    tuttoVsSolo: diff(solo.px, tutto.px), gravitaGirata: diff(tutto.px, laterale.px),
+    errors: [...r.errors.entries()].map(([k, v]) => k + ': ' + v.slice(0, 200)), ms: Math.round(performance.now() - t0), shot,
+  });
+}
+window.__out = out;
+</script>

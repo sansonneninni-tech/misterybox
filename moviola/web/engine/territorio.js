@@ -155,7 +155,7 @@ uniform sampler2D u_F;      // stato: r = presenza, g = dove vorrebbe stare
 uniform sampler2D u_G;      // stato di un altro territorio, o il campo del fotogramma
 uniform sampler2D u_map;    // mappa dipinta: r aggiunge, g toglie, b dalla foto
 uniform float u_hasMap, u_live, u_mapCover;
-uniform float u_g[6];       // modo, soglia, morbidezza, inverti, tinta, ampiezza
+uniform float u_gen[6];       // modo, soglia, morbidezza, inverti, tinta, ampiezza
 uniform float u_c[8];       // contagio
 uniform float u_dt, u_R;
 vec2 photoUV(vec2 uv) { return cover(uv, u_sAsp.x); }
@@ -174,22 +174,22 @@ vec3 rgb2hsv(vec3 c) {
 }
 // la mappa ricavata dalla foto, dal vivo (per i video che la seguono, o senza mappa)
 float autoM(vec2 uv) {
-  int modo = int(u_g[0] + 0.5);
-  float so = u_g[1], mo = max(u_g[2] * 0.5, 0.004);
+  int modo = int(u_gen[0] + 0.5);
+  float so = u_gen[1], mo = max(u_gen[2] * 0.5, 0.004);
   float m = 0.0;
   if (u_ns < 1 || modo == 0) m = 0.0;
   else if (modo == 1) m = smoothstep(so - mo, so + mo, luma(photoSoft(uv)));
   else if (modo == 2) {
     vec3 hsv = rgb2hsv(photoSoft(uv));
-    float d = abs(fract(hsv.x - u_g[4] + 0.5) - 0.5);
-    m = (1.0 - smoothstep(u_g[5] - mo * 0.4, u_g[5] + mo * 0.4, d)) * smoothstep(0.04, 0.16, hsv.y * hsv.z);
+    float d = abs(fract(hsv.x - u_gen[4] + 0.5) - 0.5);
+    m = (1.0 - smoothstep(u_gen[5] - mo * 0.4, u_gen[5] + mo * 0.4, d)) * smoothstep(0.04, 0.16, hsv.y * hsv.z);
   } else {
     float e = 0.0;
     for (int i = 0; i < 8; i++) { float a = float(i) * 0.785 + 0.2; vec2 o = vec2(cos(a), sin(a)) * PX * 2.5; e += abs(luma(photoAt(uv + o)) - luma(photoAt(uv - o))); }
     e = e / 8.0 * 4.0;
     m = smoothstep(so - mo, so + mo, e);
   }
-  if (u_g[3] > 0.5) m = 1.0 - m;
+  if (u_gen[3] > 0.5) m = 1.0 - m;
   return m;
 }
 float targetM(vec2 uv) {
@@ -411,7 +411,7 @@ export function updateTerritori(r, clip, frame) {
       gl.uniform1f(L.u_hasMap, mp && mtex ? 1 : 0);
       gl.uniform1f(L.u_live, live ? 1 : 0);
       gl.uniform1f(L.u_mapCover, ns > 0 ? 1 : 0);
-      gl.uniform1fv(L.u_g, new Float32Array(genArr));
+      gl.uniform1fv(L.u_gen, new Float32Array(genArr));
     };
     const cont = m.contagio?.on ? m.contagio : null;
     // a 30 fps lo stesso fronte, in secondi, che a 24
