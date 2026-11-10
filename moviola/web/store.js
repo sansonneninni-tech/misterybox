@@ -1,7 +1,7 @@
 // Archivio: sul Mac parla con il server (file in moviola/dati), nella pagina
 // demo resta nel browser (IndexedDB). Stessa interfaccia per entrambi.
 
-const COLLS = ['sources', 'experiments', 'versions', 'renders', 'queue'];
+const COLLS = ['sources', 'experiments', 'versions', 'renders', 'queue', 'ricette'];
 
 class ServerStore {
   constructor(info) { this.mode = 'server'; this.info = info; }
@@ -34,7 +34,7 @@ class LocalStore {
   constructor() { this.mode = 'browser'; this.info = null; this.urls = new Map(); }
   async open() {
     this.db = await new Promise((res, rej) => {
-      const r = indexedDB.open('moviola', 1);
+      const r = indexedDB.open('moviola', 2);
       r.onupgradeneeded = () => { for (const c of [...COLLS, 'blobs']) if (!r.result.objectStoreNames.contains(c)) r.result.createObjectStore(c, { keyPath: 'id' }); };
       r.onsuccess = () => res(r.result);
       r.onerror = () => rej(r.error);

@@ -5,7 +5,7 @@
 import { dims } from './clip.js';
 import { seekVideo, videoTime } from '../media.js';
 
-function frameStats(px, w, h) {
+export function frameStats(px, w, h) {
   const n = w * h;
   let sl = 0, sl2 = 0, ss = 0, edge = 0, sym = 0, purple = 0, bright = 0, dark = 0;
   const L = new Float32Array(n);

@@ -42,5 +42,8 @@ const { qrMatrix } = await imp('web/ui/qr.js');
 const q = qrMatrix('http://192.168.1.20:5174/?k=abcdef0123456789');
 if (!q || q.length < 21) fail('qrMatrix');
 
+// ricette di materia e deriva
+bad += await (await imp('tools/check-ricette-deriva.mjs')).run();
+
 console.log(bad ? `\n${bad} problemi` : `✓ ${files.length} file controllati, motore e QR a posto`);
 process.exit(bad ? 1 : 0);

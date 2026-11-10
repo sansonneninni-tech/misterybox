@@ -174,3 +174,35 @@ Valgono per ogni materia, anche per quelle nuove, senza toccarne i file.
   `fx`: la messa a fuoco usa quello invece della stima.
 - **Spento non cambia nulla**: con Scolpire e Macro spenti i fotogrammi sono
   identici bit per bit a prima (verificato su cinque combinazioni di materie).
+## Ricette di materia e Deriva
+
+File propri, tocchi minimi al resto:
+
+- `web/engine/ricette.js` (puro): una clip «in ricetta» ha `style: 'ricetta'` e
+  `clip.ricetta = { id, name, chain, keys, dur, nsrc, visibili }`. `buildAny`
+  sostituisce `buildClip` in Trasforma: per gli stili delega, per le ricette
+  ricostruisce la catena congelata (gli id dei passaggi restano, perché decidono
+  anche il movimento), adatta le sorgenti (fusione delle foto aggiunta o tolta),
+  allunga le chiavi con la durata, salta le materie che mancano e lo dice, e
+  mette sopra gli strati toccati dopo. `syncRicetta` rilegge la catena prima di
+  ogni gesto: le regolazioni fatte nel Banco restano. Esporta e importa in un
+  pacchetto `.json` (`tipo: moviola-ricette`).
+- `web/engine/mutazioni.js` (puro, tranne le misure): genoma = base + strati +
+  movimento + seme; `mutate` (passi proporzionali alla scala, in rapporto per i
+  parametri da 0,3 a 10, peso dal `mod` o da un `peso` dichiarato; catena:
+  aggiungi, scambia, togli, riordina; movimento; colore; blocchi; pellicola e
+  luce solo in giù), `cross`, `probe` (stesse misure dell'interlocutore più una
+  firma delle scale e del colore), `distance`, `rejectReason`, `thresholds`
+  tarate sul rumore della madre (distanza da sé stessa con un altro seme).
+  Tutto dal seme: `rng(seedOf(seme della deriva, generazione, tentativo))`.
+- `web/ui/ricette.js`: archivio (collezione `ricette`), gruppo nella striscia
+  Materie, salva, per intero, gestione.
+- `web/ui/deriva.js`: un solo `Renderer` per le nove anteprime (`simFull`: le
+  simulazioni alla loro misura piena anche nei provini piccoli), con la memoria
+  di ogni anteprima in una `passState` sua; prove sul motore ausiliario;
+  risoluzione che scende da sola se si perdono fotogrammi.
+- Tocchi al resto: `flow.js` (buildAny, pannello ricetta, pulsanti, gruppo
+  ricette), `renderer.js` (opzione `simFull`), `analysis.js` (esporta
+  `frameStats`), `store.js` e `server/index.mjs` (collezione `ricette`),
+  `index.html` e `tools/demo.mjs` (il foglio `design/ricette-deriva.css`),
+  `tools/check.mjs` (chiama `tools/check-ricette-deriva.mjs`).

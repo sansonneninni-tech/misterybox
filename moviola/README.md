@@ -138,6 +138,57 @@ Ogni materia risponde a modo suo: le dense e i minerali si lasciano incidere e t
 Il gesto si ripete identico nel video salvato in 4K, a 24 o a 30 fps: il campo che le materie leggono avanza a passi fissi di 1/120 di secondo e ha la stessa misura in anteprima e nel render.
 
 **Macro.** Una camera che entra nella materia. Non è uno zoom che sgrana: con la Macro accesa tutta la catena viene calcolata da vicino, ogni materia disegna la sua struttura al posto giusto e, avvicinandosi, compaiono nuovi livelli di microdettaglio ancorati alla superficie (grana, pori, fibre, microbolle o cristalli, secondo la materia o a scelta). Il rilievo della materia dà parallasse e una messa a fuoco vera: piano di fuoco dal punto più basso al più alto di quello che vedi, sfocato morbido che cresce con la distanza dal piano, senza luccichii. Parametri: Ingrandimento (fino a ×32), punto guardato («Scegli il punto da guardare» mostra tutto il quadro: tocca dove entrare), Piano di fuoco, Apertura, Inclinazione e il suo verso, Rotazione, Microdettaglio, Profondità del rilievo, Deriva, Respiro del fuoco. Ogni parametro ha ◆ per mettere una chiave nell'istante in cui sei; «Entra piano», «Esci piano» e «Il fuoco scivola» mettono le chiavi da un capo all'altro della clip.
+## Le mie ricette: una catena tua, usata come una materia sola
+
+Quando una clip ti convince, «Salva come ricetta» (nel passo 2, sotto i pulsanti,
+oppure nella striscia Materie) mette da parte **tutta la catena**: ogni materia
+con ogni parametro, il movimento, le chiavi della timeline e il seme, con il nome
+che scegli tu. Le ricette stanno in testa alla striscia Materie, nel gruppo **Le
+mie ricette**, ognuna con un provino fatto dalla ricetta stessa sulle foto che hai
+aperto. Un tocco e la ricetta va sulla foto o sul video che stai usando.
+
+- **Su un'altra foto**: restano le proporzioni della clip; durata, movimento e
+  chiavi vengono dalla ricetta. Con due o più foto entra la fusione tra le foto,
+  con una sola sparisce. Se cambi la durata, le chiavi si allungano con lei.
+- **Pochi parametri in vista**: quando salvi scegli fino a sei regolazioni da
+  tenere sotto mano (la quantità di ogni materia e il parametro più vivo sono già
+  proposti). **Apri per intero** mostra tutti i parametri e, con ◆, decidi quali
+  restano in vista. La catena completa e le chiavi sono in Avanzato › Regolazioni
+  fini.
+- **Gestisci**: rinomina, duplica, aggiorna con la clip aperta (la versione di
+  prima resta, «Annulla»), elimina (chiede conferma), sposta su e giù, esporta una
+  o tutte in un file `.json`, importa da file su un altro Mac.
+- **Reggono il tempo**: se una materia non c'è più, la ricetta si apre lo stesso,
+  dice «manca …» e la tiene da parte; i parametri nuovi partono dal loro valore di
+  partenza, quelli spariti si ignorano e lo dice.
+
+## Deriva: nove mutazioni, scegli tu
+
+**Deriva · 9 mutazioni** (passo 2) esplora da sola attorno alla clip aperta e
+mostra nove figlie vive, che si muovono davvero. Ne scegli una e diventa la nuova
+madre: la generazione dopo nasce da lei. Decide sempre ninni.
+
+- Le mutazioni muovono i parametri in proporzione alla loro scala e al loro peso;
+  ogni tanto aggiungono, tolgono, scambiano o riordinano una materia (prese dal
+  registro: le materie nuove entrano da sole). Pellicola, grana e luce possono
+  solo diminuire.
+- Prima di mostrarle, la Deriva le misura come l'interlocutore (luminosità,
+  contrasto, colore, densità, movimento, sfarfallio, varietà) e scarta le nere,
+  le bruciate, le immobili, quelle che sfarfallano e le quasi uguali tra loro o
+  alla madre. La soglia di «uguale» si tara sulla madre: quanto cambia da sola
+  con un altro seme.
+- **Ampiezza**: da ritocco a salto. **Cosa può mutare**: parametri, catena,
+  movimento, colore. **Tieni fermo**: blocca una materia intera o singoli
+  parametri. **♥** due preferite e **Incrocia**. **Indietro di una generazione**
+  e la genealogia in alto per tornare a qualsiasi madre.
+- Tocca una mutazione per ingrandirla: **Scegli come madre**, **Lavoraci
+  adesso**, **Salva come ricetta**.
+- Ogni scelta è una versione nuova, figlia della madre di prima, con la nota
+  «Deriva G2: …»: in Versioni la genealogia si legge come un ramo. Tutto viene dal
+  seme della deriva, scritto sotto i pulsanti: stessa madre, stesse scelte, stesse
+  figlie.
+- Le nove anteprime girano su un solo motore a risoluzione ridotta; se il
+  computer resta indietro, scendono ancora di risoluzione da sole.
 
 ## Dove sta ogni risposta delle 20 domande
 
@@ -160,7 +211,7 @@ Il gesto si ripete identico nel video salvato in 4K, a 24 o a 30 fps: il campo c
 | 16 | Stessa grafica di ATELIER | Stessi token, componenti e percorso a tre passi |
 | 17 | iPhone e Mac | Tutto il percorso, verificato su entrambi |
 | 18 | Claude critico | Passo 2: riga «Claude:» con «Discuti» |
-| 19 | Cronologia e rami | Passo 2: tenute, «tocca per ripartire», «Confronta»; Avanzato › Versioni |
+| 19 | Cronologia e rami | Passo 2: tenute, «tocca per ripartire», «Confronta»; Deriva (ogni scelta è un ramo); Avanzato › Versioni |
 | 20 | MacBook Pro M2 Pro | Render 4K locale, fotogramma per fotogramma |
 
 ## Tutta la catena: Respiro, Tempo geologico, Gravità e vento

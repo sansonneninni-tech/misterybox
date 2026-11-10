@@ -14,12 +14,15 @@ import { breathUniform } from './respiro.js';
 const BLEND_INDEX = Object.fromEntries(BLENDS.map((b, i) => [b.id, i]));
 
 export class Renderer {
-  constructor(canvas, { histLong = 1280 } = {}) {
+  constructor(canvas, { histLong = 1280, simFull = false } = {}) {
     this.canvas = canvas;
     const gl = canvas.getContext('webgl2', { antialias: false, premultipliedAlpha: false, preserveDrawingBuffer: true, alpha: false, powerPreference: 'high-performance' });
     if (!gl) throw new Error('WebGL2 non disponibile in questo browser');
     this.gl = gl;
     this.histLong = histLong;
+    // simFull: lo stato delle simulazioni resta alla sua misura piena anche se
+    // l'uscita è piccola (provini della Deriva): la materia cresce come nel 4K
+    this.simFull = simFull;
     this.float = this._probeFloat();
     // le simulazioni hanno bisogno di valori fini anche se l'uscita è a 8 bit
     this.simFloat = this.float;
@@ -225,7 +228,7 @@ export class Renderer {
     if (proc.sim) {
       // lo stato ha la stessa misura in anteprima e nel render 4K: la materia
       // cresce allo stesso modo, il 4K aggiunge solo nitidezza al disegno
-      const s = Math.min(1, (proc.simLong || 1024) / Math.max(this.w, this.h));
+      const s = Math.min(this.simFull ? 16 : 1, (proc.simLong || 1024) / Math.max(this.w, this.h));
       const sw = Math.max(2, Math.round(this.w * s)), sh = Math.max(2, Math.round(this.h * s));
       st.sim = { t: [this._target(this._tex(sw, sh, this.simFloat)), this._target(this._tex(sw, sh, this.simFloat))], w: sw, h: sh, init: true };
     }
