@@ -272,6 +272,8 @@ export const trasforma = {
       clearTimeout(tapTimer);
       tapTimer = setTimeout(() => { player.toggle(); drawUsing(); }, 280);
     });
+    // alcuni browser trasformano il doppio tocco in un solo «dblclick»
+    screen.addEventListener('dblclick', () => { if (corpo?.capturesTap() || screen.dataset.drawing === 'true' || full) return; clearTimeout(tapTimer); lastTap = 0; setFull(true); });
     const styles = h('div.styles', { role: 'listbox', 'aria-label': 'Stili' });
     const mats = h('div.mats');
     const strip = h('div.strip');
@@ -563,8 +565,10 @@ export const trasforma = {
       const ric = c.style === 'ricetta';
       return {
         key: 'stile',
-        head: [sheetHead(title(ric ? (c.ricetta?.name || 'Ricetta') : r.name, ric ? 'ricetta' : null), miniReset('lo stile', resetStile)), phone() ? styles : null],
+        // su iPhone la riga del nome entra nella prima pagina: lo spazio va alle miniature e ai cursori
+        head: phone() ? [styles] : [sheetHead(title(ric ? (c.ricetta?.name || 'Ricetta') : r.name, ric ? 'ricetta' : null), miniReset('lo stile', resetStile))],
         blocks: [
+          phone() ? h('div.sheet__line', null, title(ric ? (c.ricetta?.name || 'Ricetta') : r.name, ric ? 'ricetta' : null), miniReset('lo stile', resetStile)) : null,
           ric ? ricettaBlock(c, { tweak, save: ricetteOn.save, full: () => openIntera(work(), { tweak, changed: () => drawTab(), fine: () => app.go('banco') }) }, { flat: true })
             : h('p.about.sheet__about', null, r.line),
           h('div.prm', null, h('span.prm__lbl', null, 'Intensità', h('span.meta', null, ' · quanto lo stile pesa sulle foto')), intVal, slider),
@@ -581,18 +585,20 @@ export const trasforma = {
       const adding = UI.layer < 0;
       const chips = h('div.layerchips', { role: 'tablist', 'aria-label': 'Strati' },
         list.map((m, i) => h('button.layerchip', { type: 'button', role: 'tab', 'aria-selected': String(i === UI.layer), onclick: () => { UI.layer = i; saveUI(); drawTab(); } },
-          h('span.layer__n', null, String(i + 1)), byId[m.proc].name)),
-        list.length < MAX_MATERIE ? h('button.layerchip.layerchip--add', { type: 'button', role: 'tab', 'aria-selected': String(adding), onclick: () => { UI.layer = -1; saveUI(); drawTab(); } }, '+ Aggiungi') : null);
-      const headRow = sheetHead(chips, list.length ? miniReset('le materie', resetMaterie) : null);
+          h('span.layer__n', null, String(i + 1)), byId[m.proc].name)));
+      // «+ Aggiungi» fuori dalla riga che scorre: si vede sempre, anche con sei strati sul telefono
+      const add = list.length < MAX_MATERIE ? h('button.layerchip.layerchip--add', { type: 'button', role: 'tab', 'aria-selected': String(adding), 'aria-label': 'Aggiungi una materia', onclick: () => { UI.layer = -1; saveUI(); drawTab(); } }, list.length && phone() ? '+' : '+ Aggiungi') : null;
+      requestAnimationFrame(() => { const on = chips.querySelector('[aria-selected="true"]'); if (on && on.offsetLeft + on.offsetWidth > chips.clientWidth) chips.scrollLeft = on.offsetLeft + on.offsetWidth - chips.clientWidth; });
+      const headRow = sheetHead(h('div.layerchips__row', null, chips, add), list.length ? miniReset('le materie', resetMaterie) : null);
       if (adding) {
         const where = phone() ? 'qui sopra' : 'sotto l’immagine';
         return {
           key: 'materie:+',
           head: [headRow, phone() ? mats : null],
           blocks: [
-            h('p.about', null, list.length >= MAX_MATERIE ? `Ci sono già ${MAX_MATERIE} strati, il massimo: togline uno per aggiungerne un altro.`
-              : `Tocca una materia nella striscia ${where}: si posa sopra le altre, fino a ${MAX_MATERIE}. Ritoccala per toglierla.`),
-            list.length ? h('p.meta', null, `Tocca «1 ${byId[list[0].proc].name}» o un altro strato per regolarlo.`) : h('p.meta', null, 'L’immagine diventa il corpo di una sostanza. Le materie si sommano a strati, nell’ordine in cui le tocchi.'),
+            h('p.about', null, list.length >= MAX_MATERIE ? `Già ${MAX_MATERIE} strati, il massimo: togline uno per aggiungerne un altro.`
+              : `Tocca una materia ${where} per posarla sopra le altre, fino a ${MAX_MATERIE}. Ritoccala per toglierla.`),
+            list.length ? h('p.meta', null, `Tocca «1 ${byId[list[0].proc].name}» o un altro strato per regolarlo.`) : h('p.meta', null, 'L’immagine diventa il corpo di una sostanza; le materie si sommano a strati.'),
           ],
         };
       }
@@ -668,6 +674,8 @@ export const trasforma = {
       if (!phone()) fill(strip, UI.strip === 'materie' ? mats : styles);
       fill(area, hd, pg);
       area.dataset.tab = UI.tab;
+      flowEl.dataset.tab = UI.tab;
+      flowEl.dataset.view = UI.tab === 'catena' && UI.catena ? UI.catena : '';
       area.setAttribute('aria-label', TABS.find((t) => t.id === UI.tab).label);
       strip.hidden = phone();
     }

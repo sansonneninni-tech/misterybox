@@ -530,7 +530,7 @@ pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; col
 .flow--trasforma { height: 100%; max-width: none; padding: 0; gap: 0; display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: minmax(0, 1fr); overflow: hidden; }
 .flow__stage { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: var(--hair) solid var(--seam); overflow: hidden; }
 .flow__side { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
-.flow__screen { cursor: pointer; }
+.flow__screen { cursor: pointer; touch-action: manipulation; }
 .flow__stage > .screen { flex: 1 1 auto; min-height: 120px; }
 .strip { flex: none; min-width: 0; }
 .strip[hidden] { display: none; }
@@ -591,7 +591,9 @@ pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; col
 .bpm { gap: var(--s-3); }
 
 /* Materie: la riga degli strati e la riga dello strato aperto */
-.layerchips { flex: 1; min-width: 0; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 6px 0; }
+.layerchips__row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; }
+.layerchips__row > .layerchip--add { flex: none; min-width: 36px; justify-content: center; }
+.layerchips { position: relative; flex: 0 1 auto; min-width: 0; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 6px 0; }
 .layerchips::-webkit-scrollbar { display: none; }
 .layerchip { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; background: none; border: var(--hair) solid var(--seam); color: var(--salt); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
 .layerchip:hover { border-color: var(--seam-strong); }
@@ -697,9 +699,9 @@ pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; col
   .sheet > .mats .style__name { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sheet__title { font-size: 17px; }
   .pager__in { padding: var(--s-2) var(--s-4); gap: var(--s-2); }
-  .pager__nav { height: 40px; }
-  .pager__arrow { height: 40px; }
-  .pager__dot { height: 40px; }
+  .pager__nav { height: 44px; }
+  .pager__arrow { height: 44px; }
+  .pager__dot { height: 44px; }
   .pager .prm > .range, .pager .prm > input[type=range] { height: 40px; }
   .pager .ctl .seg__opt { min-height: 40px; }
   .pager .flow__more .btn { flex: 1 1 calc(50% - var(--s-2)); height: 44px; }
@@ -709,4 +711,28 @@ pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; col
   .flow__foot .cta__btn { height: 48px; }
   .bar__reset { min-height: 32px; }
   .shell[data-full="true"] { grid-template-rows: 0 1fr; }
+}
+.pager__dots[hidden] { display: none; }
+.sheet__line { display: flex; align-items: center; gap: var(--s-2); min-height: 44px; margin: -4px 0 -6px; }
+.sheet__line .sheet__title { font-size: 17px; }
+.sheet__line .mini-reset { padding-right: 0; }
+@media (max-width: 760px) {
+  .pager__dot { width: 30px; }
+  .pager .prm .opt-row .tag { min-height: 40px; }
+  /* la curva del Tempo geologico sotto la timeline: sul telefono solo quando il Tempo è aperto, e più bassa */
+  .flow--trasforma:not([data-view="tempo"]) .org-tempo { display: none; }
+  .flow--trasforma .org-tempo__cv { height: 48px; }
+}
+/* iPhone piccolo (SE): l'immagine resta sopra un quarto dello schermo, il resto si stringe */
+@media (max-width: 760px) and (max-height: 700px) {
+  .flow__stage > .screen { height: 26dvh; min-height: 25dvh; }
+  .using { min-height: 32px; }
+  .scrub__wrap { padding: 0 var(--s-4) 2px; }
+  .flow__foot { padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+  .flow__foot .cta__btn { height: 44px; }
+  .sheet > .styles, .sheet > .mats { padding-top: 6px; padding-bottom: 6px; }
+  .sheet > .styles .style, .sheet > .mats .style { width: 84px; }
+  .flow--trasforma .org-tempo__cv { height: 36px; }
+  .flow--trasforma .org-tempo__head .meta:first-child { display: none; }
+
 }

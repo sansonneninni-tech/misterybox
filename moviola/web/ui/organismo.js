@@ -352,6 +352,7 @@ export function attachOrganismo({ screen, timeline, player, work, changed, rebui
     const B = breaths(R, c);
     const n = B.list.filter((x) => x.t0 >= -1e-6 && x.t0 < c.format.duration).length;
     breathCv = h('canvas.org-breath', { 'aria-label': 'Il respiro nella clip' });
+    ro.observe(breathCv); // si disegna quando la pagina lo mette al suo posto, anche a clip ferma
     const ms = materie();
     return [
       h('p.about', null, 'Un solo respiro lento e irregolare muove insieme tutte le materie: inspira, trattiene, espira più a lungo. L’onda passa da una materia all’altra.'),
@@ -381,7 +382,9 @@ export function attachOrganismo({ screen, timeline, player, work, changed, rebui
             h('span.org-mat__name', { 'data-keep': '' }, proc.name),
             slider({ label: 'Profondità', min: 0, max: 2, value: cur.profondita ?? 1, meta: pct, onInput: (v) => { M().profondita = v; changed(); } }),
             slider({ label: 'Ritardo', min: 0, max: 1, value: cur.ritardo ?? 0, meta: (v) => (v < 0.01 ? 'con l’onda' : `+${Math.round(v * 100)}% di respiro`), onInput: (v) => { M().ritardo = v; changed(); drawBreath(); } }),
-            h('div.org-chips', { role: 'group', 'aria-label': 'Parametri che respirano' }, chips, h('span.meta.org-chips__note', null, 'chiari respirano, ↓ al contrario, spenti esclusi'))];
+            // i parametri a gruppi di quattro: ogni gruppo sta in una pagina anche su un telefono piccolo
+            chips.length ? h('span.meta.org-chips__note', { 'data-keep': '' }, 'Parametri che respirano: chiari seguono, ↓ al contrario, spenti esclusi') : null,
+            Array.from({ length: Math.ceil(chips.length / 4) }, (_, i) => h('div.org-chips', { role: 'group', 'aria-label': 'Parametri che respirano' }, chips.slice(i * 4, i * 4 + 4)))];
         })] : h('p.meta', null, 'Aggiungi una materia: il respiro muove le materie.'),
     ];
   }

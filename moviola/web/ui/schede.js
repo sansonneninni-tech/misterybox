@@ -107,6 +107,8 @@ export function pager(blocks, { start = 0, onPage, label = 'Pagine' } = {}) {
   }
 
   function drawNav() {
+    // con tante pagine restano le frecce e «3 di 12»: i trattini non ci starebbero
+    dots.hidden = pages.length > 7;
     dots.replaceChildren(...pages.map((_, i) => h('button.pager__dot', { type: 'button', 'aria-label': `Pagina ${i + 1} di ${pages.length}`, onclick: () => go(i) }, h('i'))));
   }
 
