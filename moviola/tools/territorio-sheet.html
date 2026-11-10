@@ -1,0 +1,62 @@
+<!doctype html><meta charset="utf-8"><title>Foglio territori</title>
+<body style="margin:0;background:#111;color:#ccc;font:12px monospace">
+<canvas id="c" style="display:none"></canvas>
+<script type="module">
+// Controllo visivo di mappa e contagio: due materie a strati su una foto.
+// ?f=url  ?a=argilla ?b=mercurio  ?t=0,2,4,6  ?w=640  ?car=0  ?map=cielo|luce|nessuna
+// ?c=json (parametri del contagio)  ?nocont=1
+import { Renderer } from '../web/engine/renderer.js';
+import { defaultParams } from '../web/engine/processes.js';
+import { defaultClip } from '../web/engine/clip.js';
+import { defaultContagio, defaultConfine, rememberDecoded, prepareTerritori } from '../web/engine/territorio.js';
+const q = new URLSearchParams(location.search);
+const W = Number(q.get('w') || 640), fps = 24;
+const times = (q.get('t') || '0,2,4,6').split(',').map(Number);
+console.warn('inizio');
+const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = q.get('f'); });
+const r = new Renderer(document.getElementById('c'));
+const H = Math.round(W * 9 / 16 / 2) * 2;
+r.setSize(W, H);
+r.setSources([{ el: im, w: im.naturalWidth, h: im.naturalHeight, kind: 'image' }]);
+const A = q.get('a') || 'argilla', B = q.get('b') || 'mercurio';
+const clip = defaultClip(); clip.seed = Number(q.get('seed') || 7); clip.format.duration = 8; clip.motion.mode = 'fermo';
+const pB = { ...defaultParams(B), ...JSON.parse(q.get('pb') || '{}') };
+const mB = { proc: B, mix: 1, params: pB, confine: { ...defaultConfine(), carattere: Number(q.get('car') || 0), ...(JSON.parse(q.get('conf') || '{}')) } };
+if (!q.get('nocont')) mB.contagio = { ...defaultContagio(), ...(JSON.parse(q.get('c') || '{}')) };
+const mapKind = q.get('map') || 'cielo';
+if (mapKind === 'cielo') {
+  // mappa dipinta a mano simulata: la parte alta della foto (cielo), bordo irregolare largo
+  const mw = 640, mh = Math.round(640 * im.naturalHeight / im.naturalWidth);
+  const d = new Uint8Array(mw * mh * 4);
+  for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++) {
+    const i = (y * mw + x) * 4, edge = mh * (0.38 + 0.05 * Math.sin(x / 40));
+    d[i] = y < edge ? 255 : 0; d[i + 3] = 255;
+  }
+  const cv = document.createElement('canvas'); cv.width = mw; cv.height = mh;
+  cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(d.buffer), mw, mh), 0, 0);
+  const png = cv.toDataURL('image/png');
+  rememberDecoded(png, mw, mh, d);
+  mB.mappa = { w: mw, h: mh, png, rev: 1, segui: false, gen: { modo: 'nessuno', soglia: 0.5, morbidezza: 0.1, inverti: 0, tinta: 0.5, ampiezza: 0.1 } };
+}
+clip.materie = [{ proc: A, mix: 1, params: defaultParams(A) }, mB];
+clip.chain = [
+  { id: 'a', proc: A, on: true, mix: 1, blend: 'normale', layer: 0, params: defaultParams(A) },
+  { id: 'b', proc: B, on: true, mix: 1, blend: 'normale', layer: 1, params: pB },
+];
+await prepareTerritori(clip);
+const shots = [];
+const last = Math.round(Math.max(...times) * fps);
+const want = new Set(times.map((t) => Math.round(t * fps)));
+const t0 = performance.now();
+for (let f = 0; f <= last; f++) {
+  r.render(clip, f / fps, f, null, { display: want.has(f) }); if (f % 6 === 0) console.warn('fotogramma', f, Math.round(performance.now() - t0));
+  if (want.has(f)) shots.push(r.canvas.toDataURL('image/jpeg', 0.88));
+}
+const ms = Math.round((performance.now() - t0) / (last + 1));
+// determinismo: rifà il fotogramma finale saltando dal fotogramma 0
+r.prune([]); r.render(clip, last / fps, last, null, { display: true });
+const again = r.canvas.toDataURL('image/jpeg', 0.88);
+window.RESULT = { shots, ms, same: again === shots[shots.length - 1], err: [...r.errors.entries()] };
+document.body.innerHTML = `<div>${ms} ms/fotogramma · stesso fotogramma rifatto: ${window.RESULT.same} · ${JSON.stringify(window.RESULT.err)}</div>` + shots.map((s) => `<img src="${s}" style="width:${W}px;display:block;margin:2px">`).join('');
+window.DONE = true;
+</script>

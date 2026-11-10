@@ -18,6 +18,7 @@ import { analyse } from '../engine/analysis.js';
 import { localCritique } from '../engine/critic.js';
 import { mainPlayer, syncPlayer } from '../app.js';
 import { qrSvg } from './qr.js';
+import { territorioSection } from './territorio.js';
 
 const MAX = 4;
 const fmtVal = (v, d) => (d.step >= 1 ? String(Math.round(v)) : Math.abs(d.max - d.min) <= 2 ? v.toFixed(2) : v.toFixed(1));
@@ -344,6 +345,7 @@ export const trasforma = {
             h('p.about', null, proc.about),
             h('label.ctl', null, h('span.ctl__lbl', null, 'Quantità', h('span.meta', null, 'quanto questo strato copre quello sotto')), mixIn),
             h('div.layer__prms', null, rows),
+            territorioSection({ index: i, layer: cur_, changed: () => { syncPlayer(); scheduleRead(); }, redrawPanel: () => drawPanel() }),
             h('button.link', { onclick: () => { const mm = cur_(); mm.params = Object.fromEntries(proc.params.map((d) => [d.id, d.def])); mm.mix = 1; rebuild({ materie: work().materie }); drawPanel(); } }, 'Rimetti i valori di partenza'));
         }));
     }

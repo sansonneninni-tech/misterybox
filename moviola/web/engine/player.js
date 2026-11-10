@@ -5,6 +5,7 @@ import { Renderer } from './renderer.js';
 import { dims } from './clip.js';
 import { byId } from './processes.js';
 import { loadMedia, seekVideo, videoTime } from '../media.js';
+import { prepareTerritori } from './territorio.js';
 
 export class Player {
   constructor(canvas, { previewLong = 960, onFrame } = {}) {
@@ -56,6 +57,7 @@ export class Player {
     } else {
       this.srcs.forEach((s, i) => { s.speed = clip.sources[i]?.speed ?? 1; s.start = clip.sources[i]?.start || 0; });
     }
+    await prepareTerritori(clip);
     const { w, h } = this.size();
     this.r.setSize(w, h);
     this.r.prune(clip.chain);

@@ -5,6 +5,7 @@
 import { VERT, PRELUDE, POSTLUDE, COPY_FRAG, BASE_FRAG } from './glsl.js';
 import { byId, fragmentFor, simFragmentFor, BLENDS } from './processes.js';
 import { passValues } from './motion.js';
+import { updateTerritori, bindTerritorio, pruneTerritori, destroyTerritori } from './territorio.js';
 
 const BLEND_INDEX = Object.fromEntries(BLENDS.map((b, i) => [b.id, i]));
 
@@ -222,6 +223,7 @@ export class Renderer {
   prune(chain) {
     const ids = new Set(chain.map((p) => p.id));
     for (const [id, st] of this.passState) if (!ids.has(id)) { this._freePass(st); this.passState.delete(id); }
+    pruneTerritori(this, chain);
   }
 
   // ------------------------------------------------------------- sorgenti
@@ -291,6 +293,9 @@ export class Renderer {
 
     const sAsp = [0, 1, 2, 3].map((i) => (this.sources[i] ? (this.sources[i].w / this.sources[i].h) / outAsp : 1));
     const ns = this.sources.filter((s) => s.uploaded).length;
+
+    // dove sta ogni materia e come si muovono i confini (territorio.js)
+    updateTerritori(this, clip, frame);
 
     for (const pass of clip.chain) {
       if (!pass.on) continue;
@@ -386,6 +391,7 @@ export class Renderer {
       gl.uniform1f(L.u_histCap, st.hist ? st.hist.cap : 1);
       gl.uniform1f(L.u_mix, pass.mix ?? 1);
       gl.uniform1i(L.u_blend, BLEND_INDEX[pass.blend] ?? 0);
+      bindTerritorio(this, L, pass);
       this._draw(prog, out, this.w, this.h);
       if (st.fb) st.fb.reverse(); // ora fb[1] è l'uscita appena scritta
       stream = st.fb ? st.fb[1] : out;
@@ -477,6 +483,7 @@ export class Renderer {
 
   destroy() {
     this._freeAll();
+    destroyTerritori(this);
     const ext = this.gl.getExtension('WEBGL_lose_context');
     if (ext) ext.loseContext();
   }
