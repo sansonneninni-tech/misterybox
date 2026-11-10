@@ -2,6 +2,7 @@
 // inchiostro, miele, cera, ferrofluido. Niente luce aggiunta: solo spessore,
 // rifrazione e trasporto della materia.
 import { P } from './comune.js';
+import { MATERIA as ferrofluido } from './liquide/ferrofluido.js';
 
 // Miele e cera usano lo stato della simulazione come mappa di trasporto: per
 // ogni punto, lo scostamento (xy, in uv) verso il punto della foto da cui la
@@ -346,112 +347,6 @@ vec3 fx(vec2 uv) {
   return clamp(c, 0.0, 1.0);
 }`,
   },
-  // ------------------------------------------------------------- ferrofluido
-  {
-    id: 'ferrofluido', code: 'Ff', name: 'Ferrofluido', family: 'liquidi', ref: 'Brakhage, limatura di ferro sotto magneti',
-    about: 'Un ferrofluido sotto magneti che si spostano: si raccoglie nei bui più profondi della foto come un corpo scuro che specchia l’immagine, si allunga verso i magneti e lì si alza in un campo di punte strette, piramidi scure che si piegano verso il magnete.',
-    params: [
-      P('copertura', 'Copertura dal buio', 0, 1, 0.5, 0.3),
-      P('magneti', 'Forza dei magneti', 0, 2, 1, 0.5),
-      P('punte', 'Misura delle punte', 8, 40, 20, 0.1),
-      P('altezza', 'Altezza delle punte', 0, 2, 1, 0.4),
-      P('attrazione', 'Stiramento', 0, 1, 0.55, 0.4),
-      P('varieta', 'Varietà delle punte', 0, 1, 0.6, 0.2),
-      P('riflesso', 'Riflesso della foto', 0, 1, 0.7, 0.3),
-      P('velocita', 'Velocità', 0, 1, 0.1, 0.2),
-    ],
-    glsl: RING + `
-vec4 ffHex(vec2 p) {
-  const vec2 s = vec2(1.0, 1.7320508);
-  vec4 hc = floor(vec4(p, p - vec2(0.5, 1.0)) / s.xyxy) + 0.5;
-  vec4 h = vec4(p - hc.xy * s, p - (hc.zw + 0.5) * s);
-  return dot(h.xy, h.xy) < dot(h.zw, h.zw) ? vec4(h.xy, hc.xy) : vec4(h.zw, hc.zw + 9.43);
-}
-// campo dei tre magneti; tw punta verso dove il campo tira
-float ffField(vec2 p, float z, out vec2 tw) {
-  float f = 0.0; tw = vec2(0.0);
-  for (int i = 0; i < 3; i++) {
-    float fi = float(i);
-    vec2 c = vec2(sin(TAU * (z * (1.0 + mod(fi, 2.0)) + hash11(S(fi + 1.0)))) * 0.42 * ASPECT,
-                  cos(TAU * (z + hash11(S(fi + 5.0)))) * 0.36);
-    vec2 q = c - p;
-    float w = 1.0 / (1.0 + dot(q, q) * 10.0);
-    f += w; tw += q * w * w;
-  }
-  return f * magneti;
-}
-// punte di Rosensweig: piramidi a sei facce su un reticolo esagonale deformato,
-// strette e a contatto dove il campo è forte, più basse e rade verso il bordo
-float ffSpk(vec2 uv, vec2 lean, float dens, float z, float Pz) {
-  vec2 px = uv * u_res / (punte * K1080);
-  vec2 w = vec2(gnoise(vec3(px * 0.11, z), Pz), gnoise(vec3(px * 0.11 + 5.3, z), Pz));
-  vec4 hx = ffHex(px + w * 1.1);
-  vec2 hj = hash22(hx.zw + S(4.0));
-  float pres = smoothstep(hj.y * 0.9, hj.y * 0.9 + 0.2, dens);
-  float sz = mix(1.0, 0.55 + 0.6 * hj.x, varieta) * (0.35 + 0.65 * dens);
-  vec2 o = hx.xy;
-  vec2 q0 = abs(o);
-  float r0 = max(q0.x, abs(0.5 * o.x) + 0.866 * q0.y) / 0.5;
-  // la punta si piega verso il magnete, la base resta sul reticolo
-  o -= lean * 0.32 * max(1.0 - r0, 0.0);
-  vec2 q = abs(o);
-  float hd = max(q.x, abs(0.5 * o.x) + 0.866 * q.y) / 0.5;
-  float k = max(1.0 - hd, 0.0);
-  return pow(k, 1.25) * sz * pres;
-}
-vec3 fx(vec2 uv) {
-  float z = ztime(velocita), Pz = period(velocita);
-  vec2 a = vec2(ASPECT, 1.0);
-  vec2 p = (uv - 0.5) * a;
-  vec2 tw;
-  float fld = ffField(p, z, tw);
-  vec3 img = IN(uv);
-  // il corpo si allunga verso i magneti: legge il buio dal lato opposto
-  vec2 su = uv - tw / a * attrazione * 0.5;
-  su += vec2(gnoise(vec3(p * 4.0, z), Pz), gnoise(vec3(p * 4.0 + 3.7, z), Pz)) * 0.006;
-  vec3 rl = ringL(su, 14.0 * K1080);
-  float l = mix(luma(IN(su)), rl.z, 0.7);
-  // soglia relativa alla foto: il fluido prende i bui più profondi di questa immagine
-  float mean = 0.0;
-  for (int i = 0; i < 12; i++) {
-    float fi = float(i);
-    mean += luma(IN(vec2(mod(fi, 4.0) + 0.5, floor(fi / 4.0) + 0.5) / vec2(4.0, 3.0)));
-  }
-  mean /= 12.0;
-  float thr = mean * mix(0.3, 1.15, copertura) * (1.0 + fld * 0.3 * attrazione);
-  float mass = smoothstep(thr + 0.05, thr - 0.07, l);
-  if (mass < 0.002) return img;
-  // punte solo dove il campo è forte e il fluido è profondo
-  float dens = smoothstep(0.45, 1.1, fld) * smoothstep(0.3, 0.9, mass);
-  vec2 lean = tw * 5.0;
-  lean = lean / max(1.0, length(lean));
-  float e = 0.12;
-  vec2 ep = vec2(e * punte * K1080) * PX;
-  float c0 = 0.0;
-  vec2 gc = vec2(0.0);
-  if (dens > 0.01 && altezza > 0.001) {
-    c0 = ffSpk(uv, lean, dens, z, Pz);
-    gc = vec2(ffSpk(uv + vec2(ep.x, 0.0), lean, dens, z, Pz) - c0, ffSpk(uv + vec2(0.0, ep.y), lean, dens, z, Pz) - c0) / e * altezza;
-  }
-  // il corpo: menisco al bordo, superficie scura che specchia la foto piegata
-  vec2 gb = rl.xy * 6.0 * mass * (1.0 - mass) * 4.0;
-  vec3 nb = normalize(vec3(-gb, 1.0));
-  vec3 n = normalize(vec3(-(gc * 0.35 + gb), 1.0));
-  float slope = clamp(1.0 - nb.z, 0.0, 1.0);
-  vec2 ro = n.xy * 0.22 + vec2(0.0, 0.1);
-  vec3 env = IN(uv + ro);
-  float fres = 0.34 + 0.6 * smoothstep(0.0, 0.7, slope);
-  vec3 ff = vec3(0.022, 0.021, 0.02) + env * fres * riflesso;
-  float lam = dot(nb, normalize(vec3(-0.35, 0.6, 0.72)));
-  ff *= 0.6 + 0.6 * clamp(lam, 0.0, 1.0);
-  // le facce delle punte: una appena più chiara, l'opposta più scura, a basso contrasto
-  float gl = length(gc);
-  float face = dot(-gc / max(gl, 1e-4), normalize(vec2(-0.55, 0.83))) * smoothstep(0.0, 0.6, gl);
-  ff *= 1.0 + 0.3 * face;
-  ff *= mix(1.0, mix(0.8, 1.0, smoothstep(0.0, 0.12, c0)), smoothstep(0.0, 0.3, dens));
-  ff = min(ff, env);
-  vec3 c = mix(img, ff, smoothstep(0.0, 0.55, mass));
-  return clamp(c, 0.0, 1.0);
-}`,
-  },
+  // ferrofluido: liquido e spine simulati, nel suo file
+  ferrofluido,
 ];
