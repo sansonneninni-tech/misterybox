@@ -1,0 +1,63 @@
+<!doctype html><meta charset="utf-8"><title>Prova delle materie liquide</title>
+<body style="margin:0;background:#111;color:#ccc;font:12px monospace">
+<canvas id="c" style="display:none"></canvas>
+<script type="module">
+// Prova di Bolle e Ferrofluido in movimento, con la scheda video vera.
+// Disegna ogni fotogramma (come l'anteprima) e ne tiene alcuni come JPEG per
+// farne un filmato; misura i millisecondi per fotogramma.
+// ?f=foto ?p=materia ?w=larghezza ?s=secondi ?da=secondo da cui tenere ?ogni=tieni 1 ogni n
+// ?tutto=1 accende tutta la catena (strati, contagio, Scolpisci, Macro, Respiro,
+// Tempo geologico, Gravità e vento); ?dito=1 aggiunge un dito che si muove.
+import { Renderer } from '../web/engine/renderer.js';
+import { buildClip } from '../web/engine/recipes.js';
+import { defaultContagio } from '../web/engine/territorio.js';
+import { FORZE_BASE } from '../web/engine/forze.js';
+import { TEMPO_BASE } from '../web/engine/tempo.js';
+import { RESPIRO_BASE } from '../web/engine/respiro.js';
+import { defaultMacro } from '../web/engine/corpo/macro.js';
+import { defaultScolpire } from '../web/engine/corpo/gesti.js';
+const q = new URLSearchParams(location.search);
+const W = Number(q.get('w') || 960), H = Math.round(W * 9 / 16 / 2) * 2;
+const id = q.get('p') || 'bolle';
+const S = Number(q.get('s') || 6), da = Number(q.get('da') || 0), ogni = Number(q.get('ogni') || 1);
+const load = (u) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; });
+const im = await load(q.get('f'));
+const r = new Renderer(document.getElementById('c'));
+r.setSize(W, H);
+const gl = r.gl;
+const src = { id: 'f1', kind: 'image', w: im.naturalWidth, h: im.naturalHeight };
+r.setSources([{ el: im, w: im.naturalWidth, h: im.naturalHeight, kind: 'image' }]);
+const c = buildClip({ style: 'nudo', sources: [src], format: { duration: S + 2, fps: 24, aspect: '16:9' }, seed: 7, materie: q.get('tutto') ? [{ proc: id }, { proc: 'marmo', mix: 0.8 }] : [{ proc: id }] });
+c.format.loop = false;
+if (q.get('tutto')) {
+  c.materie[1].contagio = defaultContagio();
+  c.forze = { ...structuredClone(FORZE_BASE), on: true, gravita: { forza: 0.8, direzione: 270 }, vento: { forza: 0.4, direzione: 30, raffiche: 0.4, misura: 0.5 } };
+  c.tempo = { ...structuredClone(TEMPO_BASE), on: true, punti: [[0, 2], [1, 6]] };
+  c.respiro = { ...structuredClone(RESPIRO_BASE), on: true };
+  c.macro = { ...defaultMacro(), on: true }; c.macro.params.ingrandimento = 2;
+}
+if (q.get('tutto') || q.get('dito')) {
+  // un dito appoggiato che traccia un arco lento e poi si stacca
+  c.scolpire = defaultScolpire();
+  const pts = [];
+  for (let k = 0; k <= 40; k++) { const t = 0.5 + k * 0.06, a = k / 40 * Math.PI; pts.push([+t.toFixed(3), +(0.62 + 0.18 * Math.cos(a)).toFixed(4), +(0.45 + 0.2 * Math.sin(a)).toFixed(4), 0.7, 0.06]); }
+  c.scolpire.gesti = [{ id: 'g1', strumento: 'pizzica', dimensione: 0.08, forza: 0.9, pts }];
+}
+r.prune(c.chain); r.reset();
+const frames = [];
+const n = Math.round(S * 24);
+let glErr = 0;
+const t0 = performance.now();
+for (let f = 0; f < n; f++) {
+  r.render(c, f / 24, f, null, { display: true });
+  const e = gl.getError(); if (e) glErr = e;
+  if (f / 24 >= da && (f - Math.round(da * 24)) % ogni === 0) { gl.finish(); frames.push(r.canvas.toDataURL('image/jpeg', 0.9)); }
+}
+gl.finish();
+// il tempo vero di un fotogramma, senza le copie in JPEG: un secondo ridisegnato
+const t1 = performance.now();
+for (let f = n; f < n + 24; f++) r.render(c, f / 24, f, null, { display: true });
+gl.finish();
+const ms = (performance.now() - t1) / 24;
+window.__out = { id, W, H, ms: +ms.toFixed(1), total: Math.round(performance.now() - t0), glErr, errors: [...r.errors.entries()].map(([k, v]) => k + ': ' + v.slice(0, 300)), frames };
+</script>
