@@ -25,7 +25,8 @@ float ghThaw() { return disgelo > 0.001 ? u_T * (1.0 - 0.75 * disgelo) : 1e9; }
 // spessore della lastra (0..1) per un punto gelato da «age» secondi, con la fusione
 float ghThick(float age, float lum) {
   float tg = min(age, ghThaw() - (u_t - age));          // il gelo si ferma quando comincia il disgelo
-  float th = sqrt(max(tg, 0.0) * (0.12 + 0.5 * gelo)) * (0.65 + 0.55 * (1.0 - lum));
+  // il bordo appena gelato è un menisco tondo, non uno scalino
+  float th = sqrt(max(tg, 0.0) * (0.12 + 0.5 * gelo)) * (0.65 + 0.55 * (1.0 - lum)) * smoothstep(0.0, 0.9, tg);
   float melt = max(0.0, u_t - ghThaw()) * 0.16 * (0.4 + disgelo);
   return clamp(th, 0.0, 1.0) - melt;
 }
@@ -127,7 +128,8 @@ vec3 fx(vec2 uv) {
   float onS = smoothstep(0.0, 0.3, th);
   sg = (sl + 0.2 * sf * (1.0 - 0.8 * wet)) * onS;
   // lo scalino del margine pesa poco: il ghiaccio sottile al bordo devia appena
-  gS = clamp(gS * 0.05, -0.6, 0.6) + sg * 0.05 * (0.3 + spessore);
+  // il menisco del bordo fa da lente: comprime la foto in una fascia; le gobbe la piegano piano
+  gS = clamp(gS * 0.25, -2.5, 2.5) + sg * 0.05 * (0.3 + spessore);
   // ---- la foto vista attraverso lo spessore: deviata dove la lastra pende, ingrandita dove è spessa
   vec2 ofs = -gS * 0.03 - (uv - 0.5) * 0.02 * H;
   // ---- crepe: piani interni, ognuno sposta la foto da un lato e brilla sul filo
@@ -180,18 +182,18 @@ vec3 fx(vec2 uv) {
   // ---- il cuore lattiginoso: il ghiaccio che ha gelato per ultimo, a veli
   float late = smoothstep(2.0, 9.0, ta) * iceM;
   float vf = fbm(rot(atan(gd.y, gd.x)) * p * vec2(3.0, 14.0), 2.0, 0.0, 4);
-  float milk = latte * late * smoothstep(-0.25, 0.45, vf + 0.3 * late) * (0.4 + 0.6 * th);
+  float milk = latte * (0.25 + 0.75 * late) * smoothstep(-0.15, 0.5, vf + 0.3 * late) * (0.3 + 0.7 * th) * iceM;
   c = mix(c, mix(vec3(luma(c)), c, 0.4) * 0.55 + vec3(0.42, 0.45, 0.48), milk * 0.75);
   // ---- bollicine in file, allineate con la crescita; più fitte dove il ghiaccio è lattiginoso
   if (bolle > 0.001 && iceM > 0.0) {
     mat2 R = mat2(gd.x, gd.y, -gd.y, gd.x);
-    vec2 bq = R * p * 1080.0 / vec2(13.0, 30.0);
+    vec2 bq = R * p * 1080.0 / vec2(22.0, 46.0);
     vec2 bi = floor(bq), bf = fract(bq) - 0.5;
     vec3 bh = hash33(vec3(bi, S(89.0)));
     float dens = bolle * (0.15 + 0.85 * smoothstep(0.5, 6.0, ta)) * smoothstep(0.1, 0.4, th);
-    if (bh.z < dens * 0.45) {
+    if (bh.z < dens * 0.65) {
       vec2 bc = bf - (bh.xy - 0.5) * vec2(0.3, 0.5);
-      float br = 0.1 + 0.3 * bh.x * bh.x;
+      float br = 0.14 + 0.26 * bh.x * bh.x;
       vec2 dv = bc / vec2(br, br * (1.3 + 1.5 * bh.y));
       float dd = length(dv);
       if (dd < 1.0) {
@@ -207,26 +209,23 @@ vec3 fx(vec2 uv) {
     }
   }
   // ---- il corpo del ghiaccio: un velo freddo riflesso dalla superficie (Fresnel), più dove è spesso
-  c = mix(c, c * 0.9 + vec3(0.07, 0.085, 0.1), iceM * (0.35 + 0.4 * H));
+  c = mix(c, mix(vec3(luma(c)), c, 0.8) * 0.88 + vec3(0.08, 0.1, 0.12), iceM * (0.6 + 0.4 * H));
   // ---- le crepe: il filo brilla, il piano è un po' più chiaro
   c = mix(c, c * 0.75 + vec3(0.33, 0.36, 0.4), cr * 0.85);
   // ---- la superficie: riflessi netti e freddi di una finestra, che scorrono sulla pendenza
   float la = luce * TAU;
-  // una finestra sola, grande, vista riflessa nella lastra: le gobbe larghe la piegano
-  vec2 nr = sl * onS * 0.12 * (0.4 + spessore);
-  vec2 wc = 0.5 * a + vec2(cos(la), sin(la)) * vec2(0.42 * ASPECT, 0.3);
-  vec2 wq = (p - wc) + nr;
-  float px1 = 1.5 / u_res.y;
-  float box = max(abs(wq.x) - 0.2, abs(wq.y) - 0.14);
-  float win = (1.0 - smoothstep(-px1, px1, box)) * smoothstep(0.004, 0.006, abs(wq.x)) * smoothstep(0.004, 0.006, abs(wq.y + 0.02));
-  win *= 0.55 + 0.45 * smoothstep(-0.14, 0.14, wq.y);
-  // il cielo freddo riflesso, debole, più forte dove la lastra si inclina verso la luce
-  win += 0.12 * smoothstep(-0.3, 0.6, dot(normalize(nr + 1e-5), vec2(cos(la), sin(la)))) * length(nr) * 4.0;
-  float spec = win * (0.22 + 0.5 * wet) * riflessi * iceM;
+  // riflessi: fili netti e freddi sulle creste delle increspature rimaste prese nel ghiaccio,
+  // che scorrono quando la luce gira; più larghi e lucidi quando la superficie si bagna
+  vec3 nn = normalize(vec3(-(sl * 0.05 + sf * 0.012 * (1.0 - 0.8 * wet)) * onS * (0.4 + spessore), 1.0));
+  vec3 Lr = normalize(vec3(cos(la), sin(la), 0.9));
+  float win = pow(max(dot(nn, normalize(Lr + vec3(0.0, 0.0, 1.0))), 0.0), mix(900.0, 250.0, wet));
+  float spec = win * (0.5 + 0.4 * wet) * riflessi * iceM;
   c += vec3(0.82, 0.9, 1.0) * spec;
   // il bordo della lastra: un filo scuro e uno chiaro (il menisco); più tondo quando si scioglie
   float rim = smoothstep(0.0, 0.03 + 0.05 * wet, th) * (1.0 - smoothstep(0.03 + 0.05 * wet, 0.1 + 0.1 * wet, th));
-  c = mix(c, c * 0.72, rim * 0.7 * iceM);
+  c = mix(c, c * 0.8, rim * 0.35 * iceM * (1.0 - wet));
+  // quando fonde, sul filo dell'acqua resta una riga di luce sottile
+  c += vec3(0.8, 0.88, 0.95) * rim * wet * 0.12 * iceM;
   // gli aghi davanti al fronte: cristalli sottili e dritti che corrono avanti
   float front = smoothstep(-0.8, 0.0, age) * (1.0 - iceM);
   if (front > 0.0) {
@@ -241,7 +240,7 @@ vec3 fx(vec2 uv) {
     c = mix(c, c * 0.7 + vec3(0.32, 0.35, 0.38), needle * front * 0.8);
   }
   // ---- l'acqua di fusione: la foto bagnata, più scura e satura, liscia
-  vec3 wetC = mix(vec3(luma(img)), img, 1.25) * 0.78;
+  vec3 wetC = clamp(mix(vec3(luma(img)), img, 1.2) * 0.86, 0.0, 1.0);
   c = mix(c, wetC, water);
   c = mix(img, c, max(iceM, water));
   // il rilievo, per la messa a fuoco della Macro

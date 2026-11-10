@@ -125,8 +125,8 @@ vec4 sim(vec2 uv) {
   float du = BR_DT * 0.9 * lapu + K * dphi;
   // il vetro continua a raffreddarsi (la brina avanza piano anche dopo), o si scalda nel disgelo
   float warm = smoothstep(brThaw(), brThaw() + 2.0, u_t);
-  float target = mix(u0, 1.35, warm) + 0.25 * max(RESPIRO, 0.0);
-  du += BR_DT * (0.05 + 0.25 * gelo + 40.0 * warm) * (target - s.g);
+  float target = mix(u0, 1.22, warm) + 0.25 * max(RESPIRO, 0.0);
+  du += BR_DT * (0.05 + 0.25 * gelo + 12.0 * warm) * (target - s.g);
   float phi = clamp(ph + dphi, 0.0, 1.0);
   float wat = s.a + max(0.0, ph - phi) * 1.5;
   wat *= 1.0 - BR_DT * 0.15;
@@ -197,16 +197,17 @@ vec3 fx(vec2 uv) {
   float gl = pow(max(dot(fn, Hh), 0.0), 160.0) * smoothstep(0.5, 0.9, hC);
   c += gl * scintilla * 0.9;
   // gocce di fusione: piccole lenti che capovolgono la foto, con l'orlo scuro
-  if (s.a > 0.02) {
-    vec2 q = uv * a * 1080.0 / 9.0;
+  if (s.a > 0.08) {
+    vec2 q = uv * a * 1080.0 / 17.0;
     vec2 id = floor(q), fq = fract(q) - 0.5;
     vec2 hh = hash22(id + S(38.0));
-    float r = (0.18 + 0.3 * hh.x) * smoothstep(0.02, 0.4, s.a);
+    float r = hh.y < 0.55 ? (0.14 + 0.3 * hh.x) * smoothstep(0.08, 0.6, s.a) : 0.0;
     vec2 dv = fq - (hh - 0.5) * 0.35;
     float dd = length(dv) / max(r, 1e-3);
     if (dd < 1.0) {
       float z = sqrt(1.0 - dd * dd);
-      vec3 lens = IN(uv - dv * 0.02 * (1.0 - z) - vec2(0.0, 0.004));
+      // la goccia è una lente: rovescia e rimpicciolisce la foto che ha dietro
+      vec3 lens = IN(uv - dv * 17.0 * 3.0 * K1080 / u_res);
       vec3 dc = mix(lens, lens * 0.55, smoothstep(0.6, 1.0, dd));
       dc += pow(max(dot(normalize(vec3(dv, z)), L), 0.0), 60.0) * 0.5;
       c = mix(c, dc, (1.0 - ice) * smoothstep(1.0, 0.85, dd));
