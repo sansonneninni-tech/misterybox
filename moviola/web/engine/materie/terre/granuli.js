@@ -19,7 +19,7 @@ const COMUNE = ATLANTE + `
 // tangente dell'angolo di riposo: la sabbia umida tiene pendenze più ripide
 float grTan() { return tan(radians(clamp(riposo + coesione * 16.0, 5.0, 75.0))); }
 // direzione della spinta (verso cui va la sabbia), nel quadro
-vec2 grW() { float a = radians(direzione); return vec2(cos(a), sin(a)); }
+vec2 grW() { float a = radians(direzione); return VERSO_VENTO(vec2(cos(a), sin(a))); } // il vento disegnato, se soffia, comanda
 // quanto la foto ha già ceduto in un punto (0 = tiene ancora, 1 = sabbia sciolta)
 float grFree(vec2 uv, float L, float t) {
   float nz = gnoise(vec3(uv * vec2(ASPECT, 1.0) * 3.1, 7.3 + S(5.0)), 0.0) * 0.5

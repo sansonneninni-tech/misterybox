@@ -71,6 +71,8 @@ const PER_FAMIGLIA = {
   minerali: T(0.95, 20, 0, 'cristalli'),
   organismi: T(0.5, 4, 0.3, 'pori'),
   corpi: T(0.2, 2, 0.6, 'fibre'),
+  terre: T(0.75, 6, 0.2, 'grana'),       // sabbia, stoffa, terra: cedono e tengono il segno
+  fluide: T(0.06, 1.4, 1, 'microbolle'), // inchiostro e vetro molle: si richiudono
 };
 
 // la foto senza materie: una superficie morbida, a metà strada

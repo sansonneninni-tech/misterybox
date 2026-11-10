@@ -80,6 +80,13 @@ Trentotto processi nati dalla ricerca su Clipson (strati in macchina, zoom, macr
 
 Sono simulazioni a retroazione: lo stesso seme dà sempre la stessa clip, ma il loop non si chiude in modo esatto (l’interfaccia lo dice). Lo stato della simulazione ha la stessa misura in anteprima e nel render 4K, quindi la materia si muove allo stesso modo; il 4K aggiunge solo nitidezza a grani, filato e grana della terra.
 
+**Materie fluide** (fluidodinamica vera e masse trasparenti)
+
+| Materia | Che cosa diventa la foto | Da |
+|---|---|---|
+| Inchiostro in acqua (Ia) · *cresce* | La foto è inchiostro posato sul vetro di una vasca: si stacca, scende nell’acqua per il suo peso e si apre in pennacchi, anelli e dita sottili, portando con sé la trama dell’immagine. È una simulazione di fluido vera (pressione, vortici, galleggiamento): ogni seme dà le sue volute, sempre le stesse. Più inchiostro, più scuro e saturo (assorbimento, non trasparenza). 12 parametri. | Macro di inchiostro in acqua, Chris Parks, liquid light show |
+| Vetro fuso (Vf) · *cresce* | Una massa di vetro spesso e ancora molle colata sopra la foto: scorre lentissima, la deforma come un fondo di bottiglia, si tinge dove è più spessa (chiaro, bottiglia, ambra, fumo, cobalto), riflette un ambiente buio sui fianchi ripidi e trattiene bolle d’aria che salgono piano o restano ferme. 14 parametri. | Vetro di Murano colato, fondi di bottiglia |
+
 **Liquidi**
 
 | Materia | Che cosa diventa la foto | Da |

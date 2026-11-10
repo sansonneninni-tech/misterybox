@@ -1,5 +1,5 @@
 // I processi di MOVIOLA. Tutti locali, tutti gratuiti, tutti in GLSL.
-// Ogni processo: codice di due lettere, nome, famiglia, parametri (max 12),
+// Ogni processo: codice di due lettere, nome, famiglia, parametri (max 16),
 // e il corpo GLSL di `vec3 fx(vec2 uv)`. I nomi dei parametri diventano
 // costanti nel GLSL (es. `scala`), lette da u_p[].
 //

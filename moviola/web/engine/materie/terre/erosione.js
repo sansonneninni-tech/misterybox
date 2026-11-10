@@ -21,7 +21,7 @@ const COMUNE = ATLANTE + `
 // colore in luce + due assi di colore, e ritorno
 vec3 erYCC(vec3 c) { return vec3(dot(c, vec3(0.25, 0.5, 0.25)), dot(c, vec3(0.5, 0.0, -0.5)), dot(c, vec3(-0.25, 0.5, -0.25))); }
 vec3 erRGB(vec3 y) { return vec3(y.x + y.y - y.z, y.x + y.z, y.x - y.y - y.z); }
-vec2 erDir() { float a = radians(direzione); return vec2(cos(a), sin(a)); }
+vec2 erDir() { float a = radians(direzione); return GIU(vec2(cos(a), sin(a))); } // rispetto alla gravità
 `;
 
 export const MATERIA = {

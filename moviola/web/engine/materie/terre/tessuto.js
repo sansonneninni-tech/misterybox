@@ -118,7 +118,8 @@ vec4 sim(vec2 uv0) {
   float h0 = tsH0();
   // forze: peso (verso il basso e un poco verso il muro) e respiro dell'aria
   float g = 0.5 + 1.4 * peso;
-  vec3 acc = vec3(0.0, -g * (1.0 + 0.5 * wet), -0.03 * g);
+  vec2 gd = GIU(vec2(0.0, -1.0)) * g * (1.0 + 0.5 * wet) * GRAVITA; // con Gravità e vento il peso segue la gravità
+  vec3 acc = vec3(gd, -0.03 * g);
   // l'aria: soffi lenti che gonfiano la stoffa e la spostano di lato
   float gust = moto * (0.55 + 0.45 * sin(t * 0.6 + 1.3)) / (0.45 + peso);
   acc.z += gust * 3.0 * (0.35 + gnoise(vec3(A.xy * 1.6, t * 0.4 + S(49.0)), 0.0));
