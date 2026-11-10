@@ -82,3 +82,10 @@
   .corpo__key { width: 44px; height: 44px; }
   .corpo__prm { grid-template-columns: minmax(0, 1fr) auto 44px; }
 }
+
+/* Nel pannello la Macro sta dentro un .layer, che ha due colonne: la chiave ◆
+   torna accanto al valore invece di scendere su una riga sua. */
+.layer .prm.corpo__prm { grid-template-columns: minmax(0, 1fr) auto auto; }
+.corpo__prm .range, .corpo__prm .corpo__hint { grid-column: 1 / -1; }
+/* sei microdettagli: tre per riga, invece di uno solo che va a capo */
+.corpo__sec > .ctl .seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }

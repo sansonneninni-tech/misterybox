@@ -515,10 +515,10 @@ export function attachOrganismo({ screen, timeline, player, work, changed }) {
     live.length = 0;
     const toggle = (id, extra) => (on) => { c[id].on = on; if (on) open[id] = true; if (id === 'forze' && !on) setTool(null); changed({ restart: id !== 'respiro' }); drawOverlay(); drawStrip(); redrawPanel(); extra && extra(on); };
     fill(host,
-      h('div.org__head', null, h('span.label', null, 'Tutta la catena'), h('span.meta', null, 'agiscono su tutte le materie insieme')),
+      h('div.org__head.grp__head', null, h('span.label', null, 'Tutta la catena'), h('span.meta', null, 'agiscono su tutte le materie insieme')),
       section('respiro', 'Respiro', c.respiro.on, toggle('respiro'), c.respiro.on ? respiroBody(c) : h('p.about', null, 'Un solo ritmo lento e irregolare per tutte le materie: la clip diventa un organismo che respira.'), c.respiro.on ? `${fmt(c.respiro.frequenza)} al minuto` : ''),
       section('tempo', 'Tempo geologico', c.tempo.on, toggle('tempo'), c.tempo.on ? tempoBody(c) : h('p.about', null, 'Ore di trasformazione compresse in pochi secondi, con una curva di velocità che disegni sulla timeline.'), c.tempo.on ? `fino a ×${c.tempo.massimo}` : ''),
-      section('forze', 'Gravità e vento', c.forze.on, toggle('forze'), c.forze.on ? forzeBody(c) : h('p.about', null, 'Gravità, vento con raffiche, correnti e vortici disegnati sul quadro: tutte le materie li sentono.'), c.forze.on ? `${c.forze.locali.length ? c.forze.locali.length + ' forze sul quadro' : 'gravità e vento'}` : ''));
+      section('forze', 'Gravità e vento', c.forze.on, toggle('forze'), c.forze.on ? forzeBody(c) : h('p.about', null, 'Gravità, vento con raffiche, correnti e vortici disegnati sul quadro: tutte le materie li sentono.'), c.forze.on && c.forze.locali.length ? `${c.forze.locali.length} forze sul quadro` : ''));
     requestAnimationFrame(() => { drawBreath(); drawQuality(); });
   }
 

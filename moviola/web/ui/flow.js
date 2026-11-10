@@ -26,6 +26,8 @@ import { ricetteGroup, openSalva, openGestione, ricettaBlock, openIntera, clipFr
 import { openDeriva } from './deriva.js';
 
 const MAX = 4;
+// Intestazione di un gruppo del pannello: nome in maiuscoletto e una riga sotto.
+const grpHead = (name, line) => h('div.grp__head', null, h('span.label', null, name), line ? h('span.meta', null, line) : null);
 const nameOf = (clip) => styleName(clip, recipeById);
 const fmtVal = (v, d) => (d.step >= 1 ? String(Math.round(v)) : Math.abs(d.max - d.min) <= 2 ? v.toFixed(2) : v.toFixed(1));
 const MOVES = [
@@ -237,6 +239,13 @@ export const trasforma = {
     const panel = h('div.flow__panel');
     const more = h('div.flow__panel.flow__panel--more');
     const kept = h('div.kept');
+    // una sezione grande aperta alla volta (strati, Scolpisci, Macro, Respiro,
+    // Tempo, Gravità): aprirne una chiude le altre, così il pannello resta corto
+    panel.addEventListener('toggle', (e) => {
+      const d = e.target;
+      if (!d.open || !d.matches('details.layer, details.org-sec') || d.parentElement.closest('details')) return;
+      for (const o of panel.querySelectorAll('details.layer[open], details.org-sec[open]')) if (o !== d && !o.parentElement.closest('details')) o.open = false;
+    }, true);
     const action = cta('Tieni questa', () => keep());
     corpo = corpoUI({ player, screen, redraw: (what) => { if (ready) drawPanel(); if (what === 'play') drawUsing(); } });
     stage.append(using, screen, corpo.bar, timeline, styles, mats);
@@ -336,8 +345,8 @@ export const trasforma = {
     function materiaPanel(c) {
       const list = c.materie || [];
       if (!list.length) return null;
-      return h('div.layers', null,
-        h('span.label', null, 'Materie a strati'),
+      return h('section.grp.layers', null,
+        grpHead('Materie a strati', 'dalla prima, in fondo, all’ultima, in superficie'),
         list.map((m, i) => {
           const proc = byId[m.proc];
           const cur_ = () => work().materie[i] || m;
@@ -439,7 +448,7 @@ export const trasforma = {
           seg(MOVES, c.motion.mode, (v) => { rebuild({ motion: { mode: v } }); drawPanel(); }, { label: 'Movimento' }),
           c.motion.mode === 'ritmico' ? h('div.row', null, bpm, h('span.meta', null, 'battiti al minuto')) : null),
         materiaPanel(c),
-        corpo.panel(),
+        h('section.grp', null, grpHead('Il gesto e lo sguardo', 'valgono per ogni materia'), corpo.panel()),
         org.panel());
       fill(more,
         h('details.fmt', { open: fmtOpen, ontoggle: (e) => { fmtOpen = e.target.open; } },
@@ -450,11 +459,11 @@ export const trasforma = {
             seg(Object.keys(ASPECTS).map((a) => ({ id: a, label: a })), c.format.aspect, (v) => { rebuild({ format: { aspect: v } }); drawStyles(); drawPanel(); }, { label: 'Proporzioni' })),
           h('div.ctl', null, h('span.ctl__lbl', null, 'Fotogrammi al secondo'),
             seg([{ id: 24, label: '24' }, { id: 30, label: '30' }], c.format.fps, (v) => { rebuild({ format: { fps: v } }); drawPanel(); }, { label: 'Fotogrammi al secondo' }))),
-        h('div.flow__more', null,
+        h('section.grp', null, grpHead('Altre strade', 'varianti, mutazioni e ricette di questa clip'), h('div.flow__more', null,
           h('button.btn', { onclick: () => { rebuild({ seed: newSeed() }); toast('Un’altra versione dello stesso stile'); } }, 'Un’altra versione'),
           h('button.btn', { onclick: () => openProvino({ onOpen: () => { syncPlayer().then(() => player.restart()); drawPanel(); drawStyles(); drawMats(); scheduleRead(); } }) }, 'Mostrami 6 versioni'),
           h('button.btn', { onclick: () => deriva(), title: 'Nove mutazioni vive: ne scegli una e si riparte da lei' }, 'Deriva · 9 mutazioni'),
-          h('button.btn', { onclick: () => ricetteOn.save() }, 'Salva come ricetta')),
+          h('button.btn', { onclick: () => ricetteOn.save() }, 'Salva come ricetta'))),
         h('button.switch', { role: 'switch', 'aria-checked': 'false', onclick: () => app.go('vivo') },
           h('span.switch__knob'), h('span.stack', null, h('span', null, 'Anteprima dal vivo'), h('span.meta', null, 'la suoni col dito o col mouse, in tempo reale'))),
         claude,
