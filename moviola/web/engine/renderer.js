@@ -323,7 +323,7 @@ export class Renderer {
       else out = this.scratch[0] === stream ? this.scratch[1] : this.scratch[0];
 
       const vals = passValues(clip, pass, t, live);
-      const arr = new Float32Array(8); vals.forEach((v, i) => { arr[i] = v; });
+      const arr = new Float32Array(16); vals.forEach((v, i) => { arr[i] = v; });
       const common = (L, w, h) => {
         this._bind(0, stream.tex); gl.uniform1i(L.u_in, 0);
         for (let i = 0; i < 4; i++) {
