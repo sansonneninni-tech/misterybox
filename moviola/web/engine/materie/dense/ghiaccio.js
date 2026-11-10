@@ -1,226 +1,251 @@
-// Materia densa: ghiaccio. La foto è congelata in fondo a un blocco spesso,
-// visto da vicinissimo: strati a profondità diverse (bolle, veli lattiginosi,
-// piani di frattura) che scorrono in parallasse, e sopra una superficie vera
-// (campo d'altezza: conche di fusione, crepe, un velo d'acqua che cola).
-// Tutto procedurale e periodico: il loop si chiude.
+// Materia densa: ghiaccio. La foto è acqua che gela: una lastra di ghiaccio
+// vero, trasparente e spessa, si forma sopra l'immagine e la deforma.
+//
+// Come gela davvero: il ghiaccio parte dai bordi e dai punti più freddi (qui
+// gli scuri della foto) e avanza con un fronte frastagliato di aghi; dietro
+// il fronte si ispessisce, prima in fretta e poi sempre più piano (lo
+// spessore cresce come la radice del tempo, legge di Stefan). L'aria disciolta
+// resta intrappolata in file di bollicine allineate con la direzione di
+// crescita, e il ghiaccio che gela per ultimo, al centro, è lattiginoso.
+// Raffreddandosi si crepa: fratture quasi dritte che scattano in un attimo e
+// si fermano contro le crepe più vecchie (giunzioni a T). Sciogliendosi si
+// assottiglia dappertutto ma sparisce prima dove è sottile, cioè ai margini:
+// i bordi si arrotondano, la superficie diventa lucida e resta l'acqua.
+//
+// Stato (16 bit, lato lungo 512, sempre la stessa misura):
+//   r = istante in cui il fronte di gelo arriva (tempo della materia)
+// Tutto il resto (spessore, bolle, crepe, fusione) si ricava nel disegno dal
+// tempo d'arrivo, così è nitido a qualsiasi risoluzione.
 import { P } from '../comune.js';
 
+const COMUNE = `
+float ghTX(vec2 uv) { return min(texture(u_st, uv).r, u_t + 1.0); }
+// tempo della materia in cui comincia a sciogliersi (mai, se Disgelo è zero)
+float ghThaw() { return disgelo > 0.001 ? u_T * (1.0 - 0.75 * disgelo) : 1e9; }
+// spessore della lastra (0..1) per un punto gelato da «age» secondi, con la fusione
+float ghThick(float age, float lum) {
+  float tg = min(age, ghThaw() - (u_t - age));          // il gelo si ferma quando comincia il disgelo
+  float th = sqrt(max(tg, 0.0) * (0.12 + 0.5 * gelo)) * (0.65 + 0.55 * (1.0 - lum));
+  float melt = max(0.0, u_t - ghThaw()) * 0.16 * (0.4 + disgelo);
+  return clamp(th, 0.0, 1.0) - melt;
+}
+`;
+
 export const MATERIA = {
-  id: 'ghiaccio', code: 'Gh', name: 'Ghiaccio', family: 'dense', ref: 'Viola, l’acqua e la lentezza; Clipson, macro',
-  about: 'La foto è congelata in fondo a un blocco di ghiaccio spesso visto da vicinissimo: sciami di bolle, veli lattiginosi e piani di frattura a profondità diverse scorrono in parallasse, i piani di frattura avanzano a scatti e sulla superficie a conche cola un velo d’acqua di fusione.',
+  id: 'ghiaccio', code: 'Gh', name: 'Ghiaccio', family: 'dense', ref: 'L’acqua che gela su una lastra; Viola, l’acqua e la lentezza',
+  about: 'La foto è acqua che gela: il ghiaccio parte dai bordi e dagli scuri, avanza con un fronte di aghi e si ispessisce. È trasparente e spesso: deforma la foto più dove è spesso, tiene dentro file di bollicine e veli lattiginosi, si crepa con scatti improvvisi lungo linee quasi dritte. Col disgelo si assottiglia, i bordi si arrotondano, diventa lucido e lascia l’acqua.',
+  steps: 2, simLong: 512, simFixed: true, noloop: true,
   params: [
-    P('materia', 'Ghiaccio', 0, 1, 0.85, 0.2),
-    P('spessore', 'Spessore del blocco', 0, 1, 0.6, 0.3),
+    P('gelo', 'Velocità del gelo', 0, 1, 0.5, 0.2),
+    P('spessore', 'Spessore', 0, 1, 0.6, 0.3),
     P('bolle', 'Bolle d’aria', 0, 1, 0.55, 0.2),
-    P('fratture', 'Fratture', 0, 1, 0.6, 0.3),
-    P('latte', 'Lattiginoso', 0, 1, 0.42, 0.4),
-    P('fusione', 'Acqua di fusione', 0, 1, 0.5, 0.3),
-    P('deriva', 'Deriva degli strati', 0, 1, 0.5, 0.3),
-    P('luce', 'Direzione delle ombre', 0, 1, 0.12, 0),
+    P('latte', 'Cuore lattiginoso', 0, 1, 0.45, 0.3),
+    P('crepe', 'Crepe', 0, 1, 0.5, 0),
+    P('riflessi', 'Riflessi', 0, 1, 0.5, 0.3),
+    P('disgelo', 'Disgelo', 0, 1, 0, 0.2),
+    P('luce', 'Direzione della luce', 0, 1, 0.15, 0),
   ],
-  glsl: `
-// Piano di frattura interno: una lunga linea curva; da un lato la foto è spostata, appena
-// ruotata e ingrandita (la discontinuità sta solo sulla linea), quel lato è di poco più
-// pallido e porta le onde concoidi che si spengono allontanandosi. Nessuna riga disegnata.
-// Restituisce il pallore; aggiunge a ofs lo spostamento della foto.
-float ghFrac(vec2 q, float fi, float T, inout vec2 ofs) {
-  vec3 h = hash33(vec3(fi * 7.31 + 1.3, S(51.0), 2.17));
-  vec3 h2 = hash33(vec3(fi * 3.17 + 5.1, 9.71, S(52.0)));
-  q += 0.02 * sin(q.yx * vec2(5.0, 6.0) + fi * 2.1) + 0.004 * sin(q.yx * vec2(29.0, 23.0) + fi);
-  float R = 0.42 + 0.45 * h.z;
-  vec2 o = vec2((0.25 + 0.5 * h.x) * ASPECT, 0.25 + 0.5 * h.y);
-  float th = h2.x * TAU;
-  vec2 c = o - R * vec2(cos(th), sin(th));
-  vec2 d = q - c;
-  float r = length(d);
-  vec2 nrm = d / max(r, 1e-4);
-  float da = mod(atan(d.y, d.x) - th + PI, TAU) - PI;
-  // la frattura parte dal punto d'innesco e avanza a scatti nei due versi, poi il gelo la richiude
-  float ph = fract(T + h2.z);
-  float g0 = smoothstep(0.0, 0.65, ph) * 4.0;
-  float gr = (floor(g0) + smoothstep(0.75, 1.0, fract(g0))) / 4.0;
-  float len = min(0.75 + 0.5 * h2.y, R * 2.4) * (0.4 + 0.6 * gr);
-  float life = smoothstep(0.0, 0.03, ph) * (1.0 - smoothstep(0.92, 1.0, ph));
-  float u = abs(da * R + (h2.y - 0.5) * 0.3 * len);
-  if (u > len) return 0.0;
-  float un = u / len;
-  float mu = (1.0 - smoothstep(0.45, 1.0, un)) * life;
-  float side = h.y > 0.5 ? 1.0 : -1.0;
-  float t = -(r - R) * side / ((0.16 + 0.14 * h.x) * (0.35 + 0.65 * sqrt(1.0 - un)));
-  if (t <= 0.0) return 0.0;
-  float fall = (1.0 - smoothstep(0.0, 1.0, t));
-  fall *= fall;
-  // onde concoidi: concentriche attorno all'innesco, morbide
-  float rib = sin(t * 26.0 + un * 7.0 + 2.0 * sin(u * 9.0 + fi)) * exp(-t * 3.5);
-  float wt = fall * mu;
-  vec2 tg = vec2(-nrm.y, nrm.x);
-  vec2 rel = q - o;
-  float am = 0.8 + 1.2 * fratture;
-  ofs += wt * am * (nrm * side * 0.03 + tg * (h.z > 0.5 ? 0.03 : -0.03) + vec2(-rel.y, rel.x) * 0.06 * (h2.x - 0.5) - rel * 0.06)
-       + nrm * rib * mu * 0.004 * am;
-  return wt * (0.75 + 0.25 * rib) + 0.25 * rib * mu * fall;
-}
-// Uno sciame di bolle attorno a un centro (q è già relativo al centro, R = raggio dello sciame):
-// ogni bolla è una piccola lente con un orlo scuro sottile dal lato in ombra, nessun corpo chiaro.
-// Fuori dallo sciame non c'è niente. Restituisce (orlo, dentro).
-vec2 ghSwarm(vec2 q, float cs, float R, float T, float sd, vec2 Lr, float prob, inout vec2 ofs) {
-  vec2 id = floor(q / cs);
-  vec3 n = hash33(vec3(id, S(sd)));
-  vec2 hn = hash22(id + S(sd + 1.0));
-  // strisciano piano
-  vec2 c = (id + 0.5 + (n.xy - 0.5) * 0.28 + 0.03 * vec2(sin(TAU * (T + hn.x)), cos(TAU * (T + hn.y)))) * cs;
-  float dc = length(c) / R;
-  if (dc > 1.15 || n.z > prob * exp(-dc * dc * 2.2)) return vec2(0.0);
-  // tonde e ovali, qualcuna allungata
-  float el = hn.x > 0.72 ? 1.5 + 1.2 * hn.y : 1.0 + 0.35 * hn.y;
-  float ry = cs * (0.12 + 0.22 * hn.y * (1.2 - dc));
-  float r = ry / el;
-  vec2 dd = (q - c) / vec2(r, ry);
-  float g = 1.0 - dot(dd, dd);
-  if (g <= 0.0) return vec2(0.0);
-  ofs += -(q - c) * smoothstep(0.0, 0.5, g) * 0.6;
-  float side = 0.5 - 0.5 * dot(dd, Lr) / max(length(dd), 1e-3);
-  float rim = smoothstep(0.0, 0.14, g) * (1.0 - smoothstep(0.16, 0.55, g)) * (0.4 + 0.6 * side);
-  return vec2(rim, smoothstep(0.0, 0.15, g));
-}
-// Superficie: ondulazioni di fusione, conche a scodella, velo d'acqua con i fronti che scendono.
-// chn = quanto il punto è in un canale d'acqua (calcolato una volta sola). cup: 1 in fondo alla conca.
-float ghSurf(vec2 p, float z, float Pz, float T, float chn, out float cup, out float wat) {
-  float n1 = gnoise(vec3(p * 1.7, z), Pz);
-  float n2 = sin(p.x * 7.1 + 3.0 * n1 + 1.7) * sin(p.y * 6.3 - 2.0 * n1 + TAU * T);
-  vec2 wq = p * 5.0 + vec2(n1, n2 * 0.5) * 0.9;
-  // 3x3 celle: con meno, ai bordi delle celle restano gradini dritti nel rilievo
-  vec2 wi = floor(wq) - 1.0;
-  float d1 = 0.0;
-  for (int k = 0; k < 9; k++) {
-    vec2 id = wi + vec2(float(k - (k / 3) * 3), float(k / 3));
-    vec2 cc = id + 0.5 + (hash22(id + S(55.0)) - 0.5) * 0.6 + 0.1 * sin(TAU * T + id.yx * 2.3);
-    vec2 dv = wq - cc;
-    d1 += exp(-14.0 * dot(dv, dv));
+  sim: COMUNE + `
+const ivec2 GH_O[16] = ivec2[16](ivec2(1, 0), ivec2(-1, 0), ivec2(0, 1), ivec2(0, -1),
+  ivec2(1, 1), ivec2(-1, -1), ivec2(1, -1), ivec2(-1, 1),
+  ivec2(2, 1), ivec2(1, 2), ivec2(-1, 2), ivec2(-2, 1), ivec2(-2, -1), ivec2(-1, -2), ivec2(1, -2), ivec2(2, -1));
+vec4 sim(vec2 uv) {
+  ivec2 c = ivec2(floor(uv * u_stRes));
+  vec2 cf = vec2(c) + 0.5;
+  float l = luma(IN(uv));
+  if (u_init > 0.5) {
+    // il gelo comincia dai bordi del quadro e dai punti più scuri della foto
+    float b = min(min(cf.x, u_stRes.x - cf.x), min(cf.y, u_stRes.y - cf.y));
+    float t0 = 1e4;
+    if (b < 1.5) t0 = 0.1 + 0.6 * hash12(floor(cf / 9.0) + S(81.0));
+    vec2 bc = floor(cf / 20.0);
+    vec2 ctr = (bc + 0.2 + 0.6 * hash22(bc + S(82.0))) * 20.0;
+    float ld = luma(IN(ctr / u_stRes));
+    if (length(cf - ctr) < 1.5 && ld < 0.18 && hash12(bc + S(83.0)) < 0.5) t0 = 0.3 + 2.0 * hash12(bc + S(84.0)) + 6.0 * ld;
+    return vec4(t0, 0.0, 0.0, 1.0);
   }
-  d1 = -log(d1 + 1e-5) / 14.0;
-  cup = 1.0 - clamp(d1 * 1.6, 0.0, 1.0);
-  float wv = 0.5 + 0.5 * sin(p.y * 26.0 + TAU * 3.0 * T + 5.0 * n1 + 2.0 * n2 + 2.0 * sin(p.x * 7.0));
-  wv *= wv;
-  wat = chn * fusione * (0.4 + 0.6 * wv);
-  return n1 * 0.05 + n2 * 0.007 - cup * 0.034 * (1.0 - 0.7 * chn * fusione) + wat * 0.02;
+  vec4 me = texelFetch(u_st, c, 0);
+  float tn = u_t;
+  if (me.r <= tn) return me;
+  // il fronte: più veloce negli scuri (più freddi), frastagliato a piccola scala
+  vec2 p = uv * vec2(ASPECT, 1.0);
+  float rough = gnoise(vec3(p * 22.0, 3.0 + S(85.0)), 0.0) * 0.3 + gnoise(vec3(p * 6.0, 7.0 + S(86.0)), 0.0) * 0.6;
+  float v = (0.02 + 0.08 * gelo) * (0.25 + 1.5 * (1.0 - l) * (1.0 - l)) * (0.55 + 0.9 * smoothstep(-0.5, 0.6, rough));
+  if (u_t > ghThaw()) v = 0.0;
+  float best = me.r;
+  float px = 1.0 / u_stRes.y;
+  for (int k = 0; k < 16; k++) {
+    float tk = texelFetch(u_st, clamp(c + GH_O[k], ivec2(0), ivec2(u_stRes) - 1), 0).r;
+    if (tk > tn) continue;
+    best = min(best, tk + length(vec2(GH_O[k])) * px / max(v, 1e-5));
+  }
+  return vec4(best, 0.0, 0.0, 1.0);
+}`,
+  glsl: COMUNE + `
+// una crepa: una retta che parte da o in direzione d e scatta in un attimo in entrambi
+// i versi; si ferma contro le crepe nate prima (giunzioni a T)
+#define GH_NC 9
+vec4 ghCrack(int k) {
+  float fk = float(k);
+  vec3 h = hash33(vec3(fk * 3.7 + 1.0, S(87.0), 5.3));
+  vec2 o = vec2((0.1 + 0.8 * h.x) * ASPECT, 0.1 + 0.8 * h.y);
+  float an = h.z * PI;
+  return vec4(o, cos(an), sin(an));
 }
+float ghBirth(int k) { return 1.5 + (float(k) + hash11(float(k) * 7.1 + S(88.0))) * (u_T * 0.8 / float(GH_NC)) / (0.3 + crepe); }
 vec3 fx(vec2 uv) {
   vec2 a = vec2(ASPECT, 1.0);
   vec2 p = uv * a;
-  float m = materia;
-  float T = ztime(0.12), z = T, Pz = period(0.12);
-  float sp = spessore * m;
-  float w1 = TAU * T;
-  // ---- superficie: tre prese della stessa altezza per pendenza e cavità
-  // rivoli d'acqua: uno o due fili che serpeggiano giù tra le conche, larghezza irregolare, bordi morbidi
-  float mw = gnoise(vec3(p * vec2(1.3, 0.8) + 4.0, z * 0.5 + 9.0), Pz);
-  float mx = p.x + 0.16 * mw + 0.035 * sin(p.y * 9.0 + 3.0 * mw) + 0.015 * sin(p.y * 23.0 + p.x * 5.0);
-  // (fuori dai nodi del reticolo del rumore, che lì vale zero e darebbe rivoli dritti)
-  float rv = gnoise(vec3(mx * 0.8 + 0.37, p.y * 0.7 + 0.21, 13.37), 0.0) + 0.4 * gnoise(vec3(p * vec2(2.1, 1.3) + 5.53, 7.71), 0.0);
-  float wid = (0.025 + 0.06 * fusione) * (0.45 + 0.9 * (0.5 + 0.5 * sin(p.y * 4.3 + mw * 3.0)));
-  float chn = (1.0 - smoothstep(wid * 0.2, wid * 1.3, abs(rv))) * smoothstep(-0.3, 0.2, gnoise(vec3(p * 0.9 + 3.3, 21.7), 0.0) + 0.1);
-  float e = 2.0 / 1080.0;
-  float cup, wat, t1, t2;
-  float h0 = ghSurf(p, z, Pz, T, chn, cup, wat);
-  vec2 g = vec2(ghSurf(p + vec2(e, 0.0), z, Pz, T, chn, t1, t2) - h0, ghSurf(p + vec2(0.0, e), z, Pz, T, chn, t1, t2) - h0) / e;
-  float la = luce * TAU;
-  vec2 L = vec2(cos(la), sin(la));
-  // ---- parallasse: la deriva lenta del blocco e la rifrazione della superficie
-  vec2 cam = deriva * 0.05 * sp * vec2(sin(w1) + 0.4 * sin(2.0 * w1 + 1.3), 0.6 * cos(w1) + 0.3 * sin(2.0 * w1 + 0.4));
-  vec2 sh = cam - g * 0.09 * sp;
-  // ---- sciami di bolle: da 2 a 4, il seme decide dove; attorno a loro il ghiaccio è torbido
-  vec2 bo = vec2(0.0);
-  vec2 bS = vec2(0.0), bD = vec2(0.0);       // sciami vicini alla superficie, sciami profondi
-  float coreA = 0.0, coreB = 0.0;
-  for (int i = 0; i < 4; i++) {
-    float fi = float(i);
-    vec3 hc = hash33(vec3(fi * 5.3 + 0.7, S(61.0), 4.1));
-    float on = smoothstep(fi * 0.22 - 0.2, fi * 0.22 - 0.05, bolle);
-    bool deep = (i == 1 || i == 3);
-    float dp = deep ? 0.62 : 0.18;
-    vec2 ctr = vec2((0.14 + 0.72 * fract(hc.x + fi * 0.37)) * ASPECT, 0.16 + 0.68 * hc.y);
-    float Rc = 0.13 + 0.08 * hc.z;
-    // il velo torbido attorno allo sciame sta a un'altra profondità: scorre contro di lui
-    vec2 dv = p + sh * (deep ? 0.85 : 0.3) - ctr;
-    float bump = exp(-dot(dv, dv) / (Rc * Rc * 3.2)) * on;
-    if (deep) coreB += bump; else coreA += bump;
-    vec2 q = p + sh * dp - ctr;
-    if (on <= 0.0 || dot(q, q) > Rc * Rc * 1.7) continue;
-    float ang = hc.z * 5.0;
-    mat2 Rm = rot(ang);
-    vec2 lo = vec2(0.0);
-    vec2 ql = Rm * q;
-    float k = deep ? 0.75 : 1.0;
-    vec2 b = ghSwarm(ql, 0.046 * k, Rc, T, 62.0 + fi, Rm * L, 0.85, lo);
-    b = max(b, ghSwarm(ql + 0.37, 0.016 * k, Rc * 1.2, T, 66.0 + fi, Rm * L, 0.5, lo) * 0.8);
-    bo += rot(-ang) * lo * on;
-    if (deep) bD = max(bD, b * on * 0.75); else bS = max(bS, b * on);
+  vec3 img = IN(uv);
+  float lum = luma(img);
+  float ta = ghTX(uv);
+  float age = u_t - ta;
+  float th0 = ghThick(age, lum);
+  // il margine sottile si scioglie per primo; l'acqua resta dove c'era il ghiaccio
+  float water = (age > 0.0 && th0 <= 0.0) ? 1.0 : 0.0;
+  float th = max(th0, 0.0);
+  float iceM = smoothstep(0.0, 0.04, th);
+  // pendenza della lastra: dallo spessore attorno (in uv)
+  vec2 sp = 1.5 / u_stRes;
+  float tE = max(ghThick(u_t - ghTX(uv + vec2(sp.x, 0.0)), lum), 0.0), tW = max(ghThick(u_t - ghTX(uv - vec2(sp.x, 0.0)), lum), 0.0);
+  float tN = max(ghThick(u_t - ghTX(uv + vec2(0.0, sp.y)), lum), 0.0), tS = max(ghThick(u_t - ghTX(uv - vec2(0.0, sp.y)), lum), 0.0);
+  vec2 gH = vec2(tE - tW, tN - tS) / (2.0 * sp.y);
+  float H = th * spessore;
+  vec2 gS = gH * spessore;
+  // la direzione in cui il ghiaccio è cresciuto (verso dove il tempo d'arrivo aumenta)
+  vec2 gT = vec2(ghTX(uv + vec2(sp.x, 0.0)) - ghTX(uv - vec2(sp.x, 0.0)), ghTX(uv + vec2(0.0, sp.y)) - ghTX(uv - vec2(0.0, sp.y)));
+  vec2 gd = length(gT) > 1e-5 ? normalize(gT) : vec2(0.0, 1.0);
+  // ---- la superficie: piatta come l'acqua che ha gelato, con le increspature rimaste prese
+  // nel ghiaccio e qualche gobba larga; si arrotonda e si fa liscia quando fonde
+  float wet = smoothstep(ghThaw(), ghThaw() + 2.0, u_t);
+  float rz = 3.0 + S(91.0);
+  vec2 sg = vec2(0.0);
+  float e2 = 0.004;
+  float s0 = fbm(p * 2.2, rz, 0.0, 2), f0 = gnoise(vec3(p * 13.0, rz), 0.0);
+  vec2 sl = vec2(fbm((p + vec2(e2, 0.0)) * 2.2, rz, 0.0, 2) - s0, fbm((p + vec2(0.0, e2)) * 2.2, rz, 0.0, 2) - s0) / e2;
+  vec2 sf = vec2(gnoise(vec3((p + vec2(e2, 0.0)) * 13.0, rz), 0.0) - f0, gnoise(vec3((p + vec2(0.0, e2)) * 13.0, rz), 0.0) - f0) / e2;
+  float onS = smoothstep(0.0, 0.3, th);
+  sg = (sl + 0.2 * sf * (1.0 - 0.8 * wet)) * onS;
+  // lo scalino del margine pesa poco: il ghiaccio sottile al bordo devia appena
+  gS = clamp(gS * 0.05, -0.6, 0.6) + sg * 0.05 * (0.3 + spessore);
+  // ---- la foto vista attraverso lo spessore: deviata dove la lastra pende, ingrandita dove è spessa
+  vec2 ofs = -gS * 0.03 - (uv - 0.5) * 0.02 * H;
+  // ---- crepe: piani interni, ognuno sposta la foto da un lato e brilla sul filo
+  float cr = 0.0, crSide = 0.0;
+  if (crepe > 0.001) {
+    for (int k = 0; k < GH_NC; k++) {
+      float tb = ghBirth(k);
+      if (u_t < tb) break;
+      vec4 C = ghCrack(k);
+      vec2 o = C.xy, d = C.zw;
+      // estensione: fino alla crepa più vicina nata prima, in entrambi i versi
+      float e1 = 3.0, e2 = 3.0;
+      for (int j = 0; j < GH_NC; j++) {
+        if (j >= k) break;
+        vec4 D = ghCrack(j);
+        float den = d.x * D.w - d.y * D.z;
+        if (abs(den) < 1e-3) continue;
+        vec2 w = D.xy - o;
+        float s = (w.x * D.w - w.y * D.z) / den;
+        if (s > 0.0) e1 = min(e1, s); else e2 = min(e2, -s);
+      }
+      // lo scatto: la crepa corre in pochi centesimi di secondo
+      float run = smoothstep(0.0, 0.12, u_t - tb) * 3.0;
+      vec2 q = p - o;
+      float u = dot(q, d);
+      // lieve zigzag: il ghiaccio si spacca quasi dritto
+      float wv = dot(q, vec2(-d.y, d.x)) + 0.0015 * floor(u * 9.0 + hash11(float(k))) * (hash11(floor(u * 9.0) + float(k)) - 0.5);
+      if (u > min(e1, run) || -u > min(e2, run)) continue;
+      // il piano della crepa è inclinato: lo si vede come una banda sottile
+      float wd = (1.2 + 2.5 * th) / 1080.0;
+      float band = 1.0 - smoothstep(wd * 0.4, wd * 1.4, abs(wv + wd * 0.5));
+      float line = 1.0 - smoothstep(0.35 / 1080.0, 1.4 / 1080.0, abs(wv));
+      float on = smoothstep(0.05, 0.15, th);
+      cr = max(cr, (line * 0.8 + band * 0.35) * on);
+      crSide += step(0.0, wv) * on * smoothstep(0.0, 0.03, min(min(e1, run) - u, min(e2, run) + u));
+    }
   }
-  // ---- due veli torbidi a profondità diverse, locali; altrove il ghiaccio è limpido
-  vec2 qA = p + sh * 0.3, qB = p + sh * 0.85;
-  float vA = fbm(rot(0.5) * qA * vec2(1.3, 2.0) + 2.0, z, Pz, 2);
-  float vB = fbm(rot(-0.35) * qB * vec2(2.2, 1.3) + 9.0, z + 4.0, Pz, 2);
-  float breath = sin(w1 + 2.0 * vB);
-  float lt = latte * m;
-  float thr = mix(0.85, 0.05, lt) - 0.06 * breath;
-  // ---- piani di frattura (pochi, grandi) a tre profondità
-  vec2 ofs = vec2(0.0), o1 = vec2(0.0), o2 = vec2(0.0);
-  float k0 = smoothstep(0.0, 0.15, fratture), k1 = smoothstep(0.25, 0.4, fratture), k2 = smoothstep(0.7, 0.85, fratture);
-  float f0 = ghFrac(p + sh * 0.4, 0.0, T, ofs) * k0;
-  float f1 = ghFrac(p + sh * 0.7, 1.0, T, o1) * k1;
-  float f2 = ghFrac(p + sh * 0.55, 2.0, T, o2) * k2;
-  ofs = (ofs * k0 + o1 * k1 + o2 * k2) * m;
-  ofs += bo * m;
-  // ---- la foto in fondo: rifratta dallo spessore, nitida nel limpido, sfocata nel torbido
-  float zoom = 1.0 - 0.1 * sp * deriva;
-  vec2 uq = 0.5 + (uv - 0.5) * zoom + (sh + ofs) / a;
-  float l0 = luma(IN(uq));
-  float on = smoothstep(0.0, 0.2, lt);
-  float aA = smoothstep(thr, thr + 0.4, vA * 0.75 + coreA * 0.85 + (l0 - 0.5) * 0.1) * on;
-  float aB = smoothstep(thr, thr + 0.4, vB * 0.75 + coreB * 0.85 + (l0 - 0.5) * 0.14) * on;
-  float band = sin(dot(qB, vec2(0.35, 0.94)) * 38.0 + 6.0 * vB + 2.0 * sin(qB.x * 5.0));
-  aB *= 0.88 + 0.12 * band;
-  float fs = max(f0, max(f1, f2));
-  float Rb = sp * (1.2 + 15.0 * max(aA, aB) + 5.0 * fs) * K1080;
+  ofs += vec2(0.004, -0.003) * mod(crSide, 2.0) * spessore;
+  vec2 uq = uv + ofs / a * iceM;
+  // dentro il ghiaccio la foto è appena diffusa, più dove è spesso
   vec3 c = vec3(0.0);
-  for (int i = 0; i < 8; i++) {
-    float fi = float(i) + 0.5;
-    float an = fi * 2.39996;
-    c += IN(uq + vec2(cos(an), sin(an)) * sqrt(fi / 8.0) * Rb * PX);
+  float rb = (0.6 + 2.5 * H) * K1080 * iceM;
+  for (int i = 0; i < 6; i++) {
+    float an = float(i) * 1.0472 + 0.3;
+    c += IN(uq + vec2(cos(an), sin(an)) * rb * PX);
   }
-  c /= 8.0;
-  // lo spessore: il ghiaccio limpido assorbe e raffredda appena, senza togliere i colori
-  c = mix(c, vec3(luma(c)), 0.12 * sp) * mix(vec3(1.0), vec3(0.8, 0.89, 0.95), sp);
-  vec3 milkC = vec3(0.36, 0.395, 0.425);
-  // ---- composizione dal fondo alla superficie
-  float bk = bolle > 0.0 ? m : 0.0;
-  // oltre il piano di frattura: appena più pallido e più freddo
-  c = mix(c, c * vec3(0.74, 0.8, 0.86) + milkC * 0.42, 0.42 * fs * m);
-  float dB = step(0.93, hash12(floor(qB * 1080.0 / 4.0) + S(71.0)));
-  float dA = step(0.95, hash12(floor(qA * 1080.0 / 5.0) + S(72.0)));
-  c = mix(c, mix(vec3(luma(c)), c, 0.55) * 0.5 + milkC, aB * 0.7);
-  c = mix(c, c * 0.6 + milkC * 0.75, 0.15 * dB * aB);
-  c *= 1.0 - (0.5 * bD.x + 0.1 * bD.y) * bk;
-  c = mix(c, mix(vec3(luma(c)), c, 0.6) * 0.52 + milkC, aA * 0.62);
-  c += 0.02 * dA * aA;
-  c *= 1.0 - (0.62 * bS.x + 0.12 * bS.y) * bk;
-  // ---- la superficie: pelle asciutta di brina fine, velo d'acqua liscio e limpido
-  float dry = (1.0 - smoothstep(0.0, 0.2, wat)) * m;
-  float df = clamp(dot(g, L) * 1.6, -1.0, 1.0);
-  // grana della pelle: fossette minuscole prese di taglio dalla luce
-  vec2 gc = p * 1080.0 / 3.0;
-  float emb = hash12(floor(gc) + S(73.0)) - hash12(floor(gc + L * 0.9) + S(73.0));
-  // la pelle opaca prende la luce radente da sé: il rilievo si legge anche sul buio
-  float skin = (0.2 + 0.1 * emb) * dry * (0.4 + 0.6 * spessore);
-  c = mix(c, milkC * (0.8 + 0.55 * df - 0.5 * cup * cup), skin);
-  c *= 1.0 + 0.09 * emb * dry;
-  c *= 1.0 - 0.06 * (1.0 - dry) * m;
-  float shade = df > 0.0 ? 0.09 * df : 0.55 * df;
-  // cavità: il fondo delle conche e il lato in ombra sotto le creste
-  shade -= 0.34 * cup * cup * (1.0 - 0.5 * wat);
-  shade -= 0.14 * smoothstep(0.1, 0.5, -df) * (1.0 - cup);
-  c *= 1.0 + shade * m * (0.4 + 0.6 * spessore);
-  return mix(IN(uv), c, smoothstep(0.0, 0.15, m));
+  c /= 6.0;
+  // assorbimento: il ghiaccio spesso è appena ciano e un poco più scuro
+  c *= mix(vec3(1.0), vec3(0.83, 0.93, 0.98), H * iceM);
+  // ---- il cuore lattiginoso: il ghiaccio che ha gelato per ultimo, a veli
+  float late = smoothstep(2.0, 9.0, ta) * iceM;
+  float vf = fbm(rot(atan(gd.y, gd.x)) * p * vec2(3.0, 14.0), 2.0, 0.0, 4);
+  float milk = latte * late * smoothstep(-0.25, 0.45, vf + 0.3 * late) * (0.4 + 0.6 * th);
+  c = mix(c, mix(vec3(luma(c)), c, 0.4) * 0.55 + vec3(0.42, 0.45, 0.48), milk * 0.75);
+  // ---- bollicine in file, allineate con la crescita; più fitte dove il ghiaccio è lattiginoso
+  if (bolle > 0.001 && iceM > 0.0) {
+    mat2 R = mat2(gd.x, gd.y, -gd.y, gd.x);
+    vec2 bq = R * p * 1080.0 / vec2(13.0, 30.0);
+    vec2 bi = floor(bq), bf = fract(bq) - 0.5;
+    vec3 bh = hash33(vec3(bi, S(89.0)));
+    float dens = bolle * (0.15 + 0.85 * smoothstep(0.5, 6.0, ta)) * smoothstep(0.1, 0.4, th);
+    if (bh.z < dens * 0.45) {
+      vec2 bc = bf - (bh.xy - 0.5) * vec2(0.3, 0.5);
+      float br = 0.1 + 0.3 * bh.x * bh.x;
+      vec2 dv = bc / vec2(br, br * (1.3 + 1.5 * bh.y));
+      float dd = length(dv);
+      if (dd < 1.0) {
+        // una lente d'aria: orlo scuro sottile, un punto di luce dalla parte della luce
+        float la = luce * TAU;
+        vec2 L2 = vec2(cos(la), sin(la));
+        float rim = smoothstep(0.55, 0.95, dd);
+        vec3 bin = IN(uq - dv * 0.004);
+        vec3 bcol = mix(bin * 1.08 + 0.04, bin * 0.35, rim);
+        bcol += 0.35 * smoothstep(0.25, 0.0, length(dv + L2 * 0.45));
+        c = mix(c, bcol, smoothstep(1.0, 0.85, dd) * (0.6 + 0.4 * th));
+      }
+    }
+  }
+  // ---- il corpo del ghiaccio: un velo freddo riflesso dalla superficie (Fresnel), più dove è spesso
+  c = mix(c, c * 0.9 + vec3(0.07, 0.085, 0.1), iceM * (0.35 + 0.4 * H));
+  // ---- le crepe: il filo brilla, il piano è un po' più chiaro
+  c = mix(c, c * 0.75 + vec3(0.33, 0.36, 0.4), cr * 0.85);
+  // ---- la superficie: riflessi netti e freddi di una finestra, che scorrono sulla pendenza
+  float la = luce * TAU;
+  // una finestra sola, grande, vista riflessa nella lastra: le gobbe larghe la piegano
+  vec2 nr = sl * onS * 0.12 * (0.4 + spessore);
+  vec2 wc = 0.5 * a + vec2(cos(la), sin(la)) * vec2(0.42 * ASPECT, 0.3);
+  vec2 wq = (p - wc) + nr;
+  float px1 = 1.5 / u_res.y;
+  float box = max(abs(wq.x) - 0.2, abs(wq.y) - 0.14);
+  float win = (1.0 - smoothstep(-px1, px1, box)) * smoothstep(0.004, 0.006, abs(wq.x)) * smoothstep(0.004, 0.006, abs(wq.y + 0.02));
+  win *= 0.55 + 0.45 * smoothstep(-0.14, 0.14, wq.y);
+  // il cielo freddo riflesso, debole, più forte dove la lastra si inclina verso la luce
+  win += 0.12 * smoothstep(-0.3, 0.6, dot(normalize(nr + 1e-5), vec2(cos(la), sin(la)))) * length(nr) * 4.0;
+  float spec = win * (0.22 + 0.5 * wet) * riflessi * iceM;
+  c += vec3(0.82, 0.9, 1.0) * spec;
+  // il bordo della lastra: un filo scuro e uno chiaro (il menisco); più tondo quando si scioglie
+  float rim = smoothstep(0.0, 0.03 + 0.05 * wet, th) * (1.0 - smoothstep(0.03 + 0.05 * wet, 0.1 + 0.1 * wet, th));
+  c = mix(c, c * 0.72, rim * 0.7 * iceM);
+  // gli aghi davanti al fronte: cristalli sottili e dritti che corrono avanti
+  float front = smoothstep(-0.8, 0.0, age) * (1.0 - iceM);
+  if (front > 0.0) {
+    vec2 nq = p * 1080.0 / 16.0;
+    vec2 ni = floor(nq);
+    vec3 nh = hash33(vec3(ni, S(90.0)));
+    vec2 nd = rot((nh.z - 0.5) * 1.2) * gd;
+    vec2 nc = (fract(nq) - 0.5 - (nh.xy - 0.5) * 0.4) * 16.0;
+    float nu = dot(nc, nd), nw = dot(nc, vec2(-nd.y, nd.x));
+    float len = 9.0 * smoothstep(-0.8, -0.1, age);
+    float needle = (1.0 - smoothstep(0.3, 0.9, abs(nw))) * step(-len, nu) * step(nu, 1.0) * step(0.4, nh.x);
+    c = mix(c, c * 0.7 + vec3(0.32, 0.35, 0.38), needle * front * 0.8);
+  }
+  // ---- l'acqua di fusione: la foto bagnata, più scura e satura, liscia
+  vec3 wetC = mix(vec3(luma(img)), img, 1.25) * 0.78;
+  c = mix(c, wetC, water);
+  c = mix(img, c, max(iceM, water));
+  // il rilievo, per la messa a fuoco della Macro
+  FX_H = 0.3 + 0.6 * H * iceM;
+  return c;
 }`,
 };
