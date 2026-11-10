@@ -220,8 +220,8 @@ void main() {
   vec2 q = (v_uv - 0.5) * vec2(ASPECT, 1.0);
   float z = u_t * 0.09;
   float lum = u_ns > 0 ? luma(photoSoft(v_uv)) : 0.5;
-  float sac = fbm(q * 4.2 + 17.0, 0.0, 0.0, 3);
-  float irr = fbm(q * 2.6, z, 0.0, 4);
+  float sac = fbm(q * 2.4 + 17.0, 0.0, 0.0, 3);
+  float irr = fbm(q * 1.5, z, 0.0, 3);
   float iso = gnoise(vec3(q * 7.5 + 31.0, z * 1.7), 0.0);
   o_col = vec4(lum, sac, irr, iso);
 }`;
@@ -240,14 +240,22 @@ void main() {
   float lap = (4.0 * (n + so + e + w) + (ne + nw + se + sw) - 20.0 * F) / 6.0;
   float ring = ringF(u_F, uv, 9.0);   // quanta di questa materia c'è attorno
   float far = ringF(u_F, uv, 22.0);   // ... e un po' più in là
+  // direzione del fronte: da dove sta questa materia verso dove non c'è
+  vec2 gr = vec2(0.0);
+  for (int i = 0; i < 8; i++) { float an = float(i) * 0.785 + 0.39; vec2 dr = vec2(cos(an), sin(an)); gr += dr * texture(u_F, uv + dr * PX * 18.0).r; }
+  vec2 tng = length(gr) > 1e-3 ? vec2(-gr.y, gr.x) / length(gr) : vec2(1.0, 0.0);
+  // dita: lungo il fronte alcuni tratti spingono sempre più degli altri, e diventano lingue
+  vec2 qa = (uv - 0.5) * vec2(ASPECT, 1.0);
+  float lane = gnoise(vec3(dot(qa, tng) * 5.5 + 3.0, dot(qa, vec2(tng.y, -tng.x)) * 0.8, u_t * 0.05), 0.0);
+  float nearFront = smoothstep(0.01, 0.15, far) * (1.0 - smoothstep(0.85, 0.99, far));
   vec4 fl = texture(u_G, uv);
   float sp = u_c[0];
   float sg = sp / (abs(sp) + 0.15);
   float drive = sp * 1.15
-    + u_c[2] * fl.z * 2.6
+    + u_c[2] * fl.z * 1.5
     // dita: solo vicino al fronte, le punte (poca materia attorno) corrono, le baie si fermano
-    + u_c[3] * (0.5 - ring) * 3.2 * smoothstep(0.02, 0.2, ring) * (1.0 - smoothstep(0.8, 0.98, ring))
-    - u_c[5] * smoothstep(0.06, 0.28, fl.y) * 2.6 * sg
+    + u_c[3] * max(lane, 0.0) * 4.5 * nearFront * sg
+    - u_c[5] * smoothstep(0.14, 0.34, fl.y) * 2.6 * sg
     - u_c[6] * (fl.x - 0.5) * 2.6 * sg
     - u_c[7] * (F - F0) * 2.2;
   float a = clamp(0.5 - 0.5 * drive, -0.7, 1.7);
