@@ -439,9 +439,9 @@ pre.json { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; col
 .field--num { width: 80px; }
 .flow__more { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 .flow__more .btn { height: 40px; flex: 1 1 auto; }
-.switch { display: flex; align-items: center; gap: var(--s-3); background: none; border: var(--hair) solid var(--seam); color: var(--salt); padding: 10px var(--s-3); text-align: left; cursor: pointer; font-size: 13px; }
+.switch { display: flex; align-items: flex-start; gap: var(--s-3); background: none; border: var(--hair) solid var(--seam); color: var(--salt); padding: 10px var(--s-3); text-align: left; cursor: pointer; font-size: 13px; }
 .switch:hover { border-color: var(--seam-strong); }
-.switch__knob { flex: none; width: 34px; height: 20px; border-radius: 10px; border: var(--hair) solid var(--seam-strong); position: relative; }
+.switch__knob { flex: none; width: 34px; height: 20px; border-radius: 10px; border: var(--hair) solid var(--seam-strong); position: relative; margin-top: 0; }
 .switch__knob::after { content: ""; position: absolute; left: 3px; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--ash); }
 .claude { display: grid; grid-template-columns: auto 1fr; gap: 6px var(--s-3); align-items: start; padding: var(--s-3); border: var(--hair) solid var(--seam); font-size: 13px; line-height: 1.45; }
 .claude__who { color: var(--salt); }
