@@ -1,7 +1,8 @@
 // Il percorso semplice: 1 Scegli · 2 Trasforma · 3 Salva.
 // Una sola azione piena per schermata, con verbo e numero. Tutto il resto
 // (catena, chiavi, parametri, versioni, dal vivo, interlocutore) sta in
-// Avanzato e resta raggiungibile.
+// Avanzato e resta raggiungibile. Il passo 2 è a schede e non scorre mai
+// in verticale (schede.js); il tasto Reset della barra lo azzera.
 
 import {
   S, importFiles, removeSource, sourceById, createExperiment, openExperiment, openVersion, saveVersion, updateVersion,
@@ -20,7 +21,9 @@ import { mainPlayer, syncPlayer } from '../app.js';
 import { qrSvg } from './qr.js';
 import { territorioSection } from './territorio.js';
 import { corpoUI } from './corpo.js';
-import { attachOrganismo, ORGANISMO_KEYS } from './organismo.js';
+import { attachOrganismo, ORGANISMO_KEYS, ensureOrganismo } from './organismo.js';
+import { pager, miniReset, tabRow, keep as keepNext } from './schede.js';
+import { pref } from '../prefs.js';
 import { buildAny, syncRicetta, styleName } from '../engine/ricette.js';
 import { ricetteGroup, openSalva, openGestione, ricettaBlock, openIntera, clipFromRicetta, warnings } from './ricette.js';
 import { openDeriva } from './deriva.js';
@@ -215,48 +218,92 @@ async function materiaThumb(proc, clip) {
   return url;
 }
 
+// ---------------------------------------------------------- le schede
+// Il passo 2 non scorre mai in verticale: l'immagine resta ferma, sotto
+// (o a destra sul Mac) cinque schede, una aperta alla volta, e i comandi in
+// pagine da sfogliare di lato (schede.js).
+const TABS = [
+  { id: 'stile', label: 'Stile' }, { id: 'materie', label: 'Materie' }, { id: 'gesto', label: 'Gesto' },
+  { id: 'catena', label: 'Catena' }, { id: 'altro', label: 'Altro' },
+];
+// quello che si ricorda tornando al passo 2: la scheda aperta e dove si era
+const UI = (() => {
+  let saved = {};
+  try { saved = JSON.parse(pref.get('moviola.schede') || '{}') || {}; } catch {}
+  const ui = { tab: 'stile', layer: -1, gesto: 'scolpisci', catena: null, strip: 'stile', page: {} };
+  if (TABS.some((t) => t.id === saved.tab)) ui.tab = saved.tab;
+  if (saved.gesto === 'macro') ui.gesto = 'macro';
+  if (['respiro', 'tempo', 'forze'].includes(saved.catena)) ui.catena = saved.catena;
+  if (Number.isInteger(saved.layer)) ui.layer = saved.layer;
+  return ui;
+})();
+const saveUI = () => pref.set('moviola.schede', JSON.stringify({ tab: UI.tab, gesto: UI.gesto, catena: UI.catena, layer: UI.layer }));
+
+/**
+ * Il bersaglio del Reset: dove tornano le foto. 'nudo' è la foto senza stile
+ * («Nessuno stile»); per tornare allo stile con cui nasce una clip nuova
+ * basta scrivere 'emulsione'.
+ */
+export const RESET_STYLE = 'nudo';
+const RESET_INTENSITY = 0.8;
+
 export const trasforma = {
   render(root, { app }) {
     syncPickFromWork();
     if (!S.zero && !S.pick.length && !S.work) { app.go('scegli'); return; }
     const player = mainPlayer();
-    const stage = h('div.flow__stage');
+    const shell = document.getElementById('shell');
+    const work = () => S.work;
+    const phone = () => isPhone();
+
+    // ---------------------------------------------------- l'immagine
     const using = h('div.using');
     let corpo = null; // Scolpisci e Macro
-    const screen = h('div.screen.flow__screen', { onclick: () => { if (corpo?.capturesTap()) return; player.toggle(); drawUsing(); } }, player.canvas);
+    let full = false;
+    const screen = h('div.screen.flow__screen', null, player.canvas);
+    // un tocco: pausa e ripresa; due tocchi: i comandi spariscono
+    let tapTimer = 0, lastTap = 0;
+    screen.addEventListener('click', () => {
+      if (corpo?.capturesTap() || screen.dataset.drawing === 'true') return;
+      if (full) { setFull(false); return; }
+      const now = performance.now();
+      if (now - lastTap < 320) { clearTimeout(tapTimer); lastTap = 0; setFull(true); return; }
+      lastTap = now;
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(() => { player.toggle(); drawUsing(); }, 280);
+    });
+    // alcuni browser trasformano il doppio tocco in un solo «dblclick»
+    screen.addEventListener('dblclick', () => { if (corpo?.capturesTap() || screen.dataset.drawing === 'true' || full) return; clearTimeout(tapTimer); lastTap = 0; setFull(true); });
     const styles = h('div.styles', { role: 'listbox', 'aria-label': 'Stili' });
     const mats = h('div.mats');
+    const strip = h('div.strip');
     const head = h('div.scrub__head');
     const tlFill = h('i.scrub__fill');
     const tl = h('div.scrub', { role: 'slider', 'aria-label': 'Tempo della clip', tabindex: 0 }, tlFill);
     const seekAt = (e) => { const r = tl.getBoundingClientRect(); const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); player.pause(); player.seek(Math.round(x * (player.total - 1))); drawUsing(); };
     tl.addEventListener('pointerdown', (e) => { tl.setPointerCapture(e.pointerId); seekAt(e); tl.onpointermove = seekAt; });
     tl.addEventListener('pointerup', () => { tl.onpointermove = null; });
-    const timeline = h('div.scrub__wrap', null, tl, head);
+    const timeline = h('div.scrub__wrap', null, h('div.scrub__line', null, tl, head));
     const claude = h('div.claude');
-    // pannello in due parti, con le tenute in mezzo: su iPhone, subito sotto
-    // le miniature, vengono Intensità e Movimento, poi le tenute, poi il resto
-    const panel = h('div.flow__panel');
-    const more = h('div.flow__panel.flow__panel--more');
     const kept = h('div.kept');
-    // una sezione grande aperta alla volta (strati, Scolpisci, Macro, Respiro,
-    // Tempo, Gravità): aprirne una chiude le altre, così il pannello resta corto
-    panel.addEventListener('toggle', (e) => {
-      const d = e.target;
-      if (!d.open || !d.matches('details.layer, details.org-sec') || d.parentElement.closest('details')) return;
-      for (const o of panel.querySelectorAll('details.layer[open], details.org-sec[open]')) if (o !== d && !o.parentElement.closest('details')) o.open = false;
-    }, true);
+    const keptLink = h('button.flow__kept', { onclick: () => app.go('salva'), hidden: true });
     const action = cta('Tieni questa', () => keep());
-    corpo = corpoUI({ player, screen, redraw: (what) => { if (ready) drawPanel(); if (what === 'play') drawUsing(); } });
-    stage.append(using, screen, corpo.bar, timeline, styles, mats);
-    root.append(h('div.flow.flow--trasforma', null, stage, h('div.flow__side', null, h('div.flow__scroll', null, panel, kept, more), action)));
+
+    // ---------------------------------------------------- le schede
+    const tabs = tabRow(TABS, UI.tab, (id) => openTab(id));
+    const area = h('div.sheet', { role: 'tabpanel' });
+    let pg = null;
 
     let ready = false;
-    let fmtOpen = false;
-    const work = () => S.work;
+    corpo = corpoUI({ player, screen, redraw: (what) => { if (!ready) return; if (UI.tab === 'gesto') drawTab(); else drawTabs(); if (what === 'play') drawUsing(); } });
+    const stage = h('div.flow__stage', null, using, screen, timeline, strip);
+    const flowEl = h('div.flow.flow--trasforma', null, stage,
+      h('div.flow__side', null, tabs, area, h('div.flow__foot', null, keptLink, action)));
+    root.append(flowEl);
+
     // Respiro, Tempo geologico, Gravità e vento: controlli, curva e disegno (organismo.js)
     let orgRestart = 0;
-    const org = attachOrganismo({ screen, timeline, player, work, changed: ({ restart = false } = {}) => {
+    const org = attachOrganismo({ screen, timeline, player, work, rebuild: () => { if (!ready) return; if (UI.tab === 'catena') drawTab(); else drawTabs(); }, changed: ({ restart = false } = {}) => {
       touch('clip');
       syncPlayer().then(() => {
         if (!restart) return;
@@ -266,13 +313,20 @@ export const trasforma = {
       scheduleRead();
     } });
 
+    function setFull(on) {
+      full = on;
+      flowEl.dataset.full = String(on);
+      shell.dataset.full = String(on);
+      if (on && !UI.fullHinted) { UI.fullHinted = true; toast('Tocca l’immagine per riavere i comandi.'); }
+    }
+
     function drawUsing() {
       const c = work(); if (!c) return;
       const recs = clipSources(c);
       fill(using,
-        h('span.using__what', null, recs.length ? `Sta usando: ${countLabel(recs)}` : 'Senza foto: immagini generate da zero'),
+        h('span.using__what', null, recs.length ? countLabel(recs) : 'Senza foto, da zero'),
         h('button.using__change', { onclick: (e) => { e.stopPropagation(); app.go('scegli'); } }, 'Cambia'),
-        player.playing ? null : h('span.using__paused', null, 'In pausa · tocca il video per riprendere'));
+        player.playing ? null : h('span.using__paused', null, phone() ? 'In pausa · tocca per riprendere' : 'In pausa · tocca l’immagine per riprendere'));
     }
 
     function drawStyles() {
@@ -321,13 +375,19 @@ export const trasforma = {
       const c = work();
       const list = (c.materie || []).slice();
       const k = list.findIndex((m) => m.proc === proc);
-      if (k >= 0) list.splice(k, 1);
-      else {
+      if (k >= 0) {
+        list.splice(k, 1);
+        if (UI.layer === k) UI.layer = phone() ? -1 : Math.min(k, list.length - 1);
+        else if (UI.layer > k) UI.layer--;
+      } else {
         if (list.length >= MAX_MATERIE) { toast(`Al massimo ${MAX_MATERIE} materie a strati: togline una prima.`); return; }
         list.push({ proc });
+        // sul Mac si apre subito lo strato nuovo (la striscia resta sotto l'immagine);
+        // su iPhone si resta sulla striscia, per aggiungerne altre
+        if (!phone()) UI.layer = list.length - 1;
       }
       rebuild({ materie: list });
-      drawMats(); drawPanel();
+      drawMats(); drawTab();
       if (k < 0) toast(`${byId[proc].name}: ${byId[proc].about}`);
     }
 
@@ -335,57 +395,53 @@ export const trasforma = {
       const list = (work().materie || []).slice();
       const j = i + d; if (j < 0 || j >= list.length) return;
       [list[i], list[j]] = [list[j], list[i]];
-      rebuild({ materie: list }); drawMats(); drawPanel();
+      if (UI.layer === i) UI.layer = j;
+      rebuild({ materie: list }); drawMats(); drawTab();
     }
 
     // passaggio della catena che corrisponde allo strato i
     const layerPass = (i) => work().chain.find((p) => p.layer === i);
-    let openLayer = -1;
 
-    function materiaPanel(c) {
-      const list = c.materie || [];
-      if (!list.length) return null;
-      return h('section.grp.layers', null,
-        grpHead('Materie a strati', 'dalla prima, in fondo, all’ultima, in superficie'),
-        list.map((m, i) => {
-          const proc = byId[m.proc];
-          const cur_ = () => work().materie[i] || m;
-          const set = (id, v) => {
-            cur_().params[id] = v;
-            const p = layerPass(i); if (p) p.params[id] = v;
-            touch('clip'); syncPlayer(); scheduleRead();
-          };
-          const mixIn = h('input.range', { type: 'range', min: 0, max: 1, step: 0.01, value: m.mix ?? 1, 'aria-label': 'Quantità di ' + proc.name,
-            oninput: (e) => { const mm = cur_(); mm.mix = Number(e.target.value); const p = layerPass(i); if (p) { p.baseMix = mm.mix; applyIntensity(S.work); } touch('clip'); syncPlayer(); scheduleRead(); } });
-          const rows = proc.params.map((d) => {
-            const cur = m.params[d.id] ?? d.def;
-            const val = h('span.prm__val', null, d.options ? '' : fmtVal(cur, d));
-            const control = d.options
-              ? h('div.opt-row', null, d.options.map((o, oi) => h('button.tag', { 'aria-pressed': String(Math.round(cur) === oi), onclick: (e) => { set(d.id, oi); e.currentTarget.parentNode.querySelectorAll('.tag').forEach((b, bi) => b.setAttribute('aria-pressed', String(bi === oi))); } }, o)))
-              : h('input.range', { type: 'range', min: d.min, max: d.max, step: d.step || (d.max - d.min) / 400, value: cur, 'aria-label': d.label, oninput: (e) => { const v = Number(e.target.value); val.textContent = fmtVal(v, d); set(d.id, v); } });
-            return h('div.prm', null, h('span.prm__lbl', null, d.label), val, control);
-          });
-          return h('details.layer', { open: openLayer === i, ontoggle: (e) => { if (e.target.open) openLayer = i; else if (openLayer === i) openLayer = -1; } },
-            h('summary.layer__sum', null,
-              h('span.layer__n', null, String(i + 1)),
-              h('span.layer__name', null, proc.name),
-              h('span.meta', null, `${proc.params.length} parametri`),
-              h('span.layer__tools', null,
-                i > 0 ? h('button.btn.btn--quiet', { 'aria-label': 'Porta prima ' + proc.name, title: 'Più in basso negli strati (prima nella catena)', onclick: (e) => { e.preventDefault(); moveMateria(i, -1); } }, '↑') : null,
-                h('button.btn.btn--quiet', { 'aria-label': 'Togli ' + proc.name, onclick: (e) => { e.preventDefault(); toggleMateria(m.proc); } }, 'Togli'))),
-            h('p.about', null, proc.about),
-            h('label.ctl', null, h('span.ctl__lbl', null, 'Quantità', h('span.meta', null, 'quanto questo strato copre quello sotto')), mixIn),
-            h('div.layer__prms', null, rows),
-            territorioSection({ index: i, layer: cur_, changed: () => { syncPlayer(); scheduleRead(); }, redrawPanel: () => drawPanel() }),
-            h('button.link', { onclick: () => { const mm = cur_(); mm.params = Object.fromEntries(proc.params.map((d) => [d.id, d.def])); mm.mix = 1; rebuild({ materie: work().materie }); drawPanel(); } }, 'Rimetti i valori di partenza'));
-        }));
+    /** I comandi di uno strato, a blocchi: riga dello strato, Quantità, parametri, poi il territorio. */
+    function layerBlocks(c, i) {
+      const m = c.materie[i];
+      const proc = byId[m.proc];
+      const cur_ = () => work().materie[i] || m;
+      const set = (id, v) => {
+        cur_().params[id] = v;
+        const p = layerPass(i); if (p) p.params[id] = v;
+        touch('clip'); syncPlayer(); scheduleRead();
+      };
+      const mixIn = h('input.range', { type: 'range', min: 0, max: 1, step: 0.01, value: m.mix ?? 1, 'aria-label': 'Quantità di ' + proc.name,
+        oninput: (e) => { const mm = cur_(); mm.mix = Number(e.target.value); mixVal.textContent = mm.mix.toFixed(2); const p = layerPass(i); if (p) { p.baseMix = mm.mix; applyIntensity(S.work); } touch('clip'); syncPlayer(); scheduleRead(); } });
+      const mixVal = h('span.prm__val', null, (m.mix ?? 1).toFixed(2));
+      const rows = proc.params.map((d) => {
+        const cur = m.params[d.id] ?? d.def;
+        const val = h('span.prm__val', null, d.options ? '' : fmtVal(cur, d));
+        const control = d.options
+          ? h('div.opt-row', null, d.options.map((o, oi) => h('button.tag', { 'aria-pressed': String(Math.round(cur) === oi), onclick: (e) => { set(d.id, oi); e.currentTarget.parentNode.querySelectorAll('.tag').forEach((b, bi) => b.setAttribute('aria-pressed', String(bi === oi))); } }, o)))
+          : h('input.range', { type: 'range', min: d.min, max: d.max, step: d.step || (d.max - d.min) / 400, value: cur, 'aria-label': d.label, oninput: (e) => { const v = Number(e.target.value); val.textContent = fmtVal(v, d); set(d.id, v); } });
+        return h('div.prm', null, h('span.prm__lbl', null, d.label), val, control);
+      });
+      return [
+        h('div.layerbar', null,
+          h('span.layerbar__name', null, h('span.layer__n', null, String(i + 1)), proc.name),
+          h('span.layerbar__tools', null,
+            i > 0 ? h('button.btn.btn--quiet', { 'aria-label': 'Porta prima ' + proc.name, title: 'Più in basso negli strati (prima nella catena)', onclick: () => moveMateria(i, -1) }, '↑') : null,
+            h('button.btn.btn--quiet', { 'aria-label': 'Togli ' + proc.name, onclick: () => toggleMateria(m.proc) }, 'Togli'),
+            h('button.btn.btn--quiet', { title: 'Rimetti i valori di partenza di questa materia', onclick: () => { const mm = cur_(); mm.params = Object.fromEntries(proc.params.map((d) => [d.id, d.def])); mm.mix = 1; rebuild({ materie: work().materie }); drawTab(); } }, 'Rimetti i valori di partenza'))),
+        h('p.about.layerbar__about', null, proc.about),
+        h('div.prm', null, h('span.prm__lbl', null, 'Quantità', h('span.meta', null, ' · quanto copre quello sotto')), mixVal, mixIn),
+        rows,
+        territorioSection({ index: i, layer: cur_, flat: true, changed: () => { syncPlayer(); scheduleRead(); }, redrawPanel: () => drawTab() }),
+      ];
     }
 
     function rebuild(patch = {}) {
       const c = work();
       const next = buildAny({
         style: patch.style || c.style, sources: c.sources.map((s) => sourceById(s.id)).filter(Boolean),
-        format: { ...c.format, ...(patch.format || {}) }, motion: { ...c.motion, ...(patch.motion || {}) },
+        format: { ...c.format, ...(patch.format || {}) }, motion: patch.motionReset ? undefined : { ...c.motion, ...(patch.motion || {}) },
         seed: patch.seed || c.seed, materie: patch.materie ?? c.materie,
         ricetta: patch.ricetta !== undefined ? patch.ricetta : c.style === 'ricetta' ? syncRicetta(c) : null,
       });
@@ -412,13 +468,13 @@ export const trasforma = {
     function useRicetta(rec) {
       const next = clipFromRicetta(rec, work());
       adopt(next);
-      drawStyles(); drawMats(); drawPanel();
+      drawAll();
       const w = warnings(next);
       toast(w.length ? `«${rec.name}»: ${w.join(' ')}` : `«${rec.name}» sulle tue foto.`);
     }
     const ricetteOn = {
       apply: useRicetta,
-      save: () => openSalva({ clip: work(), onSaved: (rec) => { const c = work(); const next = clipFromRicetta(rec, c); next.format = { ...c.format }; next.seed = c.seed; adopt(next); drawMats(); drawPanel(); } }),
+      save: () => openSalva({ clip: work(), onSaved: (rec) => { const c = work(); const next = clipFromRicetta(rec, c); next.format = { ...c.format }; next.seed = c.seed; adopt(next); drawMats(); drawTab(); } }),
       manage: () => openGestione({ apply: useRicetta, work: () => work() }),
     };
     function tweak() { applyIntensity(S.work); touch('clip'); syncPlayer(); scheduleRead(); }
@@ -427,56 +483,210 @@ export const trasforma = {
         before: () => player.pause(),
         onOpen: async () => {
           await syncPlayer(); player.restart(); player.play();
-          drawUsing(); drawStyles(); drawMats(); drawPanel(); drawKept(); scheduleRead();
+          drawAll();
         },
       });
     }
 
-    function setStyle(id) { if (id === work().style) return; rebuild({ style: id }); drawStyles(); drawPanel(); }
+    function setStyle(id) { if (id === work().style) return; rebuild({ style: id }); drawStyles(); drawTab(); }
 
-    function drawPanel() {
-      const c = work();
-      const r = recipeById(c.style) || { name: nameOf(c), line: '' };
-      const slider = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: c.intensity ?? 0.8, 'aria-label': 'Intensità', oninput: (e) => { S.work.intensity = Number(e.target.value); applyIntensity(S.work); touch('clip'); syncPlayer(); scheduleRead(); } });
-      const bpm = h('input.field.field--num', { type: 'number', min: 30, max: 240, value: c.motion.bpm, 'aria-label': 'Battiti al minuto', onchange: (e) => rebuild({ motion: { bpm: Math.min(240, Math.max(30, Number(e.target.value) || 96)) } }) });
-      fill(panel,
-        c.style === 'ricetta'
-          ? ricettaBlock(c, { tweak, save: ricetteOn.save, full: () => openIntera(work(), { tweak, changed: () => drawPanel(), fine: () => app.go('banco') }) })
-          : h('div.flow__style', null, h('span.label', null, 'Stile'), h('span.flow__stylename', null, r.name), h('p.about', null, r.line)),
-        h('label.ctl', null, h('span.ctl__lbl', null, 'Intensità', h('span.meta', null, 'quanto lo stile pesa sulle foto')), slider),
-        h('div.ctl', null, h('span.ctl__lbl', null, 'Movimento', h('span.meta', null, MOVES.find((m) => m.id === c.motion.mode)?.hint || '')),
-          seg(MOVES, c.motion.mode, (v) => { rebuild({ motion: { mode: v } }); drawPanel(); }, { label: 'Movimento' }),
-          c.motion.mode === 'ritmico' ? h('div.row', null, bpm, h('span.meta', null, 'battiti al minuto')) : null),
-        materiaPanel(c),
-        h('section.grp', null, grpHead('Il gesto e lo sguardo', 'valgono per ogni materia'), corpo.panel()),
-        org.panel());
-      fill(more,
-        h('details.fmt', { open: fmtOpen, ontoggle: (e) => { fmtOpen = e.target.open; } },
-          h('summary.fmt__sum', null, h('span', null, 'Formato'), h('span.meta', null, `${c.format.duration} s · ${c.format.aspect} · ${c.format.fps} fps`), h('span.fmt__chg', null, fmtOpen ? 'Chiudi' : 'Cambia')),
-          h('div.ctl', null, h('span.ctl__lbl', null, 'Durata'),
-            seg(DURATIONS.map((d) => ({ id: d, label: d + ' s' })), c.format.duration, (v) => { rebuild({ format: { duration: v } }); drawPanel(); }, { label: 'Durata' })),
-          h('div.ctl', null, h('span.ctl__lbl', null, 'Proporzioni'),
-            seg(Object.keys(ASPECTS).map((a) => ({ id: a, label: a })), c.format.aspect, (v) => { rebuild({ format: { aspect: v } }); drawStyles(); drawPanel(); }, { label: 'Proporzioni' })),
-          h('div.ctl', null, h('span.ctl__lbl', null, 'Fotogrammi al secondo'),
-            seg([{ id: 24, label: '24' }, { id: 30, label: '30' }], c.format.fps, (v) => { rebuild({ format: { fps: v } }); drawPanel(); }, { label: 'Fotogrammi al secondo' }))),
-        h('section.grp', null, grpHead('Altre strade', 'varianti, mutazioni e ricette di questa clip'), h('div.flow__more', null,
-          h('button.btn', { onclick: () => { rebuild({ seed: newSeed() }); toast('Un’altra versione dello stesso stile'); } }, 'Un’altra versione'),
-          h('button.btn', { onclick: () => openProvino({ onOpen: () => { syncPlayer().then(() => player.restart()); drawPanel(); drawStyles(); drawMats(); scheduleRead(); } }) }, 'Mostrami 6 versioni'),
-          h('button.btn', { onclick: () => deriva(), title: 'Nove mutazioni vive: ne scegli una e si riparte da lei' }, 'Deriva · 9 mutazioni'),
-          h('button.btn', { onclick: () => ricetteOn.save() }, 'Salva come ricetta'))),
-        h('button.switch', { role: 'switch', 'aria-checked': 'false', onclick: () => app.go('vivo') },
-          h('span.switch__knob'), h('span.stack', null, h('span', null, 'Anteprima dal vivo'), h('span.meta', null, 'la suoni col dito o col mouse, in tempo reale'))),
-        claude,
-        h('button.link.flow__adv', { onclick: () => app.go('banco') }, 'Avanzato: chiavi sulla timeline, catena e parametri fini'),
-      );
-      drawClaude();
+    // ---------------------------------------------------- Reset
+    // Prima di azzerare si mette da parte il lavoro com'è, scheda aperta
+    // compresa: «Annulla» lo rimette identico. Nessuna finestra di conferma.
+    function snapshot() { return { work: clone(S.work), ui: { tab: UI.tab, layer: UI.layer, gesto: UI.gesto, catena: UI.catena, strip: UI.strip, page: { ...UI.page } } }; }
+    function restore(snap) {
+      corpo.reset(); org.stopTool();
+      adopt(clone(snap.work));
+      Object.assign(UI, snap.ui, { page: { ...snap.ui.page } });
+      corpo.sync(); saveUI();
+      drawAll();
+      toast('Rimesso com’era.');
     }
+    function withUndo(text, fn) {
+      const snap = snapshot();
+      fn();
+      corpo.sync(); saveUI();
+      drawAll();
+      toast(text, { label: 'Annulla', run: () => restore(snap) });
+    }
+    const replay = () => { touch('clip'); syncPlayer().then(() => { player.restart(); if (!player.playing) player.play(); drawUsing(); }); scheduleRead(); };
+    function clearGesto(c) {
+      corpo.reset();
+      delete c.scolpire; delete c.macro;
+      for (const k of Object.keys(c.keys || {})) if (k.startsWith('macro.')) delete c.keys[k];
+    }
+    function clearCatena(c) {
+      org.stopTool();
+      for (const k of ORGANISMO_KEYS) delete c[k];
+      ensureOrganismo(c);
+    }
+    /** Tutto da capo: le foto (o la foto) come quando le hai scelte. Restano foto, formato, tenute, ricette. */
+    function resetAll() {
+      withUndo('Tutto azzerato', () => {
+        const c = work();
+        clearGesto(c); clearCatena(c);
+        const next = buildAny({ style: RESET_STYLE, sources: c.sources.map((s) => sourceById(s.id)).filter(Boolean), format: { ...c.format }, seed: c.seed });
+        next.intensity = RESET_INTENSITY;
+        ensureOrganismo(next);
+        applyIntensity(next);
+        adopt(next);
+        UI.layer = -1; UI.catena = null;
+      });
+    }
+    const resetStile = () => withUndo('Stile azzerato', () => rebuild({ style: RESET_STYLE, ricetta: null, motionReset: true, intensity: RESET_INTENSITY }));
+    const resetMaterie = () => withUndo('Materie tolte', () => { rebuild({ materie: [] }); UI.layer = -1; });
+    const resetGesto = () => withUndo('Gesto azzerato', () => { clearGesto(work()); replay(); });
+    const resetCatena = () => withUndo('Catena azzerata', () => { clearCatena(work()); UI.catena = null; replay(); });
+    app.reset = resetAll;
+
+    // ---------------------------------------------------- le cinque schede
+    function tabList() {
+      const c = work();
+      const g = (c?.scolpire?.gesti?.length || 0) > 0 || !!c?.macro?.on;
+      const k = ORGANISMO_KEYS.some((x) => c?.[x]?.on);
+      return TABS.map((t) => ({ ...t, dot: (t.id === 'materie' && (c?.materie || []).length > 0) || (t.id === 'gesto' && g) || (t.id === 'catena' && k) }));
+    }
+    function drawTabs() { tabs.set(UI.tab, tabList()); }
+    function openTab(id) {
+      if (UI.tab === 'catena' && id !== 'catena') org.stopTool();
+      UI.tab = id; saveUI();
+      drawTab();
+      if (id === 'altro') readNow();
+    }
+
+    const sheetHead = (...kids) => h('div.sheet__head', null, kids);
+    const title = (t, meta) => h('span.sheet__title', null, t, meta ? h('span.meta', null, meta) : null);
+
+    function tabStile(c) {
+      const r = recipeById(c.style) || { name: nameOf(c), line: '' };
+      const bpm = h('input.field.field--num', { type: 'number', min: 30, max: 240, value: c.motion.bpm, 'aria-label': 'Battiti al minuto', onchange: (e) => rebuild({ motion: { bpm: Math.min(240, Math.max(30, Number(e.target.value) || 96)) } }) });
+      const intVal = h('span.prm__val', null, (c.intensity ?? 0.8).toFixed(2));
+      const slider = h('input.range', { type: 'range', min: 0, max: 1, step: 0.01, value: c.intensity ?? 0.8, 'aria-label': 'Intensità', oninput: (e) => { S.work.intensity = Number(e.target.value); intVal.textContent = S.work.intensity.toFixed(2); applyIntensity(S.work); touch('clip'); syncPlayer(); scheduleRead(); } });
+      const ric = c.style === 'ricetta';
+      return {
+        key: 'stile',
+        // su iPhone la riga del nome entra nella prima pagina: lo spazio va alle miniature e ai cursori
+        head: phone() ? [styles] : [sheetHead(title(ric ? (c.ricetta?.name || 'Ricetta') : r.name, ric ? 'ricetta' : null), miniReset('lo stile', resetStile))],
+        blocks: [
+          phone() ? h('div.sheet__line', null, title(ric ? (c.ricetta?.name || 'Ricetta') : r.name, ric ? 'ricetta' : null), miniReset('lo stile', resetStile)) : null,
+          ric ? ricettaBlock(c, { tweak, save: ricetteOn.save, full: () => openIntera(work(), { tweak, changed: () => drawTab(), fine: () => app.go('banco') }) }, { flat: true })
+            : h('p.about.sheet__about', null, r.line),
+          h('div.prm', null, h('span.prm__lbl', null, 'Intensità', h('span.meta', null, ' · quanto lo stile pesa sulle foto')), intVal, slider),
+          h('div.ctl', null, h('span.ctl__lbl', null, 'Movimento', h('span.meta', null, MOVES.find((m) => m.id === c.motion.mode)?.hint || '')),
+            seg(MOVES, c.motion.mode, (v) => { rebuild({ motion: { mode: v } }); drawTab(); }, { label: 'Movimento' })),
+          c.motion.mode === 'ritmico' ? h('div.row.bpm', null, bpm, h('span.meta', null, 'battiti al minuto')) : null,
+        ],
+      };
+    }
+
+    function tabMaterie(c) {
+      const list = c.materie || [];
+      if (UI.layer >= list.length) UI.layer = list.length - 1;
+      const adding = UI.layer < 0;
+      const chips = h('div.layerchips', { role: 'tablist', 'aria-label': 'Strati' },
+        list.map((m, i) => h('button.layerchip', { type: 'button', role: 'tab', 'aria-selected': String(i === UI.layer), onclick: () => { UI.layer = i; saveUI(); drawTab(); } },
+          h('span.layer__n', null, String(i + 1)), byId[m.proc].name)));
+      // «+ Aggiungi» fuori dalla riga che scorre: si vede sempre, anche con sei strati sul telefono
+      const add = list.length < MAX_MATERIE ? h('button.layerchip.layerchip--add', { type: 'button', role: 'tab', 'aria-selected': String(adding), 'aria-label': 'Aggiungi una materia', onclick: () => { UI.layer = -1; saveUI(); drawTab(); } }, list.length && phone() ? '+' : '+ Aggiungi') : null;
+      requestAnimationFrame(() => { const on = chips.querySelector('[aria-selected="true"]'); if (on && on.offsetLeft + on.offsetWidth > chips.clientWidth) chips.scrollLeft = on.offsetLeft + on.offsetWidth - chips.clientWidth; });
+      const headRow = sheetHead(h('div.layerchips__row', null, chips, add), list.length ? miniReset('le materie', resetMaterie) : null);
+      if (adding) {
+        const where = phone() ? 'qui sopra' : 'sotto l’immagine';
+        return {
+          key: 'materie:+',
+          head: [headRow, phone() ? mats : null],
+          blocks: [
+            h('p.about', null, list.length >= MAX_MATERIE ? `Già ${MAX_MATERIE} strati, il massimo: togline uno per aggiungerne un altro.`
+              : `Tocca una materia ${where} per posarla sopra le altre, fino a ${MAX_MATERIE}. Ritoccala per toglierla.`),
+            list.length ? h('p.meta', null, `Tocca «1 ${byId[list[0].proc].name}» o un altro strato per regolarlo.`) : h('p.meta', null, 'L’immagine diventa il corpo di una sostanza; le materie si sommano a strati.'),
+          ],
+        };
+      }
+      const m = list[UI.layer];
+      return { key: `materie:${UI.layer}:${m.proc}`, head: [headRow], blocks: layerBlocks(c, UI.layer) };
+    }
+
+    function tabGesto() {
+      const sub = UI.gesto;
+      const subtab = (id, label) => h('button.subtab', { type: 'button', role: 'tab', 'aria-selected': String(sub === id), onclick: () => { UI.gesto = id; saveUI(); drawTab(); } }, label);
+      return {
+        key: 'gesto:' + sub,
+        head: [sheetHead(h('div.subtabs', { role: 'tablist' }, subtab('scolpisci', 'Scolpisci con le dita'), subtab('macro', 'Macro')), miniReset('il gesto', resetGesto))],
+        blocks: corpo.blocks(sub),
+      };
+    }
+
+    function tabCatena() {
+      const id = UI.catena;
+      if (!id) {
+        return {
+          key: 'catena',
+          head: [sheetHead(title('Tutta la catena', 'agisce su tutte le materie insieme'), miniReset('la catena', resetCatena))],
+          blocks: org.rows((v) => { UI.catena = v; saveUI(); drawTab(); }),
+        };
+      }
+      return {
+        key: 'catena:' + id,
+        head: [sheetHead(
+          h('button.sheet__back', { type: 'button', 'aria-label': 'Torna alle tre voci', onclick: () => { org.stopTool(); org.closeView(id); UI.catena = null; saveUI(); drawTab(); } }, h('span', { 'aria-hidden': 'true' }, '‹ '), org.names[id]),
+          org.switchOf(id), miniReset('la catena', resetCatena))],
+        blocks: org.blocks(id),
+      };
+    }
+
+    function tabAltro(c) {
+      drawClaude();
+      return {
+        key: 'altro',
+        head: null,
+        blocks: [
+          h('div.grp__head', { 'data-keep': '' }, h('span.label', null, 'Formato'), h('span.meta', null, `${c.format.duration} s · ${c.format.aspect} · ${c.format.fps} fps`)),
+          h('div.ctl', null, h('span.ctl__lbl', null, 'Durata'),
+            seg(DURATIONS.map((d) => ({ id: d, label: d + ' s' })), c.format.duration, (v) => { rebuild({ format: { duration: v } }); drawTab(); }, { label: 'Durata' })),
+          h('div.ctl', null, h('span.ctl__lbl', null, 'Proporzioni'),
+            seg(Object.keys(ASPECTS).map((a) => ({ id: a, label: a })), c.format.aspect, (v) => { rebuild({ format: { aspect: v } }); drawStyles(); drawMats(); drawTab(); }, { label: 'Proporzioni' })),
+          h('div.ctl', null, h('span.ctl__lbl', null, 'Fotogrammi al secondo'),
+            seg([{ id: 24, label: '24' }, { id: 30, label: '30' }], c.format.fps, (v) => { rebuild({ format: { fps: v } }); drawTab(); }, { label: 'Fotogrammi al secondo' })),
+          keepNext(grpHead('Altre strade', 'varianti, mutazioni e ricette di questa clip')),
+          h('div.flow__more', null,
+            h('button.btn', { onclick: () => { rebuild({ seed: newSeed() }); toast('Un’altra versione dello stesso stile'); } }, 'Un’altra versione'),
+            h('button.btn', { onclick: () => openProvino({ onOpen: () => { syncPlayer().then(() => player.restart()); drawAll(); } }) }, 'Mostrami 6 versioni'),
+            h('button.btn', { onclick: () => deriva(), title: 'Nove mutazioni vive: ne scegli una e si riparte da lei' }, 'Deriva · 9 mutazioni'),
+            h('button.btn', { onclick: () => ricetteOn.save() }, 'Salva come ricetta')),
+          h('button.switch', { role: 'switch', 'aria-checked': 'false', onclick: () => app.go('vivo') },
+            h('span.switch__knob'), h('span.stack', null, h('span', null, 'Anteprima dal vivo'), h('span.meta', null, 'la suoni col dito o col mouse, in tempo reale'))),
+          claude,
+          kept,
+          h('button.link.flow__adv', { onclick: () => app.go('banco') }, 'Avanzato: chiavi sulla timeline, catena e parametri fini'),
+        ],
+      };
+    }
+
+    const MAKE = { stile: tabStile, materie: tabMaterie, gesto: tabGesto, catena: tabCatena, altro: tabAltro };
+    function drawTab() {
+      const c = work(); if (!c || !ready) return;
+      drawTabs();
+      if (UI.tab === 'stile' || UI.tab === 'materie') UI.strip = UI.tab;
+      const { key, head: hd, blocks } = MAKE[UI.tab](c);
+      pg?.destroy();
+      pg = pager(blocks, { start: UI.page[key] || 0, onPage: (i) => { UI.page[key] = i; }, label: TABS.find((t) => t.id === UI.tab).label });
+      // la striscia sotto l'immagine (Mac): gli stili o le materie, una sola
+      if (!phone()) fill(strip, UI.strip === 'materie' ? mats : styles);
+      fill(area, hd, pg);
+      area.dataset.tab = UI.tab;
+      flowEl.dataset.tab = UI.tab;
+      flowEl.dataset.view = UI.tab === 'catena' && UI.catena ? UI.catena : '';
+      area.setAttribute('aria-label', TABS.find((t) => t.id === UI.tab).label);
+      strip.hidden = phone();
+    }
+
+    function drawAll() { drawUsing(); drawStyles(); drawMats(); drawTab(); drawKept(); scheduleRead(); org.redraw(); }
 
     // Prima lettura: misura i primi secondi della clip a 192 px e ne dice la
     // cosa più forte, con le regole locali. «Discuti» apre la lettura completa
-    // (Claude sul Mac, se c'è).
+    // (Claude sul Mac, se c'è). Si misura quando la scheda Altro è aperta.
     let reading = null, readTok = 0, readTimer = 0;
-    const readKey = (c) => JSON.stringify([c.style, c.seed, c.intensity, c.motion, c.format, c.sources.map((x) => x.id)]);
+    const readKey = (c) => JSON.stringify([c.style, c.seed, c.intensity, c.motion, c.format, c.sources.map((x) => x.id), (c.materie || []).map((m) => m.proc)]);
     function scheduleRead() { clearTimeout(readTimer); readTimer = setTimeout(readNow, 800); }
     async function readNow() {
       const c = work(); if (!c || !claude.isConnected) return;
@@ -511,6 +721,8 @@ export const trasforma = {
 
     function drawKept() {
       const vs = versionsOf(S.expId).filter((v) => v.marked);
+      keptLink.hidden = !vs.length;
+      fill(keptLink, h('span.flow__keptn', null, `Tenute: ${vs.length}`), h('span.meta', null, 'vai a 3 Salva ›'));
       fill(kept, vs.length ? [
         h('div.kept__head', null, h('span.kept__n', null, `Tenute: ${vs.length}`), h('button.link', { onclick: () => app.go('salva') }, 'Vai a 3 Salva')),
         h('div.kept__row', null, vs.slice(-8).map((v) => h('button.kept__img', { title: `Parti da questa: ${v.note}`, 'aria-label': `Parti da questa: ${v.label}, ${v.note}`, 'aria-current': String(v.id === S.versionId), onclick: () => partiDa(v) }, v.thumb ? h('img', { src: v.thumb, alt: v.note }) : null))),
@@ -527,7 +739,7 @@ export const trasforma = {
       S.pick = S.work.sources.map((x) => x.id); S.zero = !S.pick.length;
       if (!S.work.style) S.work.style = 'emulsione';
       await syncPlayer(); player.restart(); player.play();
-      drawUsing(); drawStyles(); drawMats(); drawPanel(); drawKept(); scheduleRead();
+      drawAll();
       toast(`Riparti da ${v.label}: quello che tieni da qui nasce come suo ramo.`);
     }
 
@@ -547,10 +759,10 @@ export const trasforma = {
       corpo.frame(p);
       const fr = p.frame % p.total;
       tlFill.style.width = ((fr + 1) / p.total) * 100 + '%';
-      head.textContent = `${(fr / p.fps).toFixed(1)} s di ${p.clip?.format.duration} s · fotogramma ${fr + 1} di ${p.total}`;
+      head.textContent = phone() ? `${(fr / p.fps).toFixed(1)} s di ${p.clip?.format.duration} s` : `${(fr / p.fps).toFixed(1)} s di ${p.clip?.format.duration} s · fotogramma ${fr + 1} di ${p.total}`;
     };
     (async () => {
-      fill(panel, h('p.meta', null, 'Preparo l’anteprima…'));
+      fill(area, h('p.meta.sheet__wait', null, 'Preparo l’anteprima…'));
       await ensureWork();
       if (!S.work.style) { S.work.style = 'emulsione'; }
       ready = true;
@@ -558,15 +770,28 @@ export const trasforma = {
       await syncPlayer();
       player.restart(); player.play();
       // la lettura prende l'ausiliario prima delle miniature, così arriva subito
-      drawUsing(); drawPanel(); readNow(); drawStyles(); drawMats(); drawKept();
+      drawUsing(); drawKept(); drawTab(); readNow(); drawStyles(); drawMats();
     })().catch((e) => { console.error(e); toast('Non riesco a preparare l’anteprima: ' + e.message); });
 
+    // su iPhone le strisce stanno nelle schede, sul Mac sotto l'immagine
+    const mq = matchMedia('(max-width: 760px)');
+    const onMq = () => drawTab();
+    mq.addEventListener('change', onMq);
+
     const keys = (e) => {
-      if (e.target.closest('input, textarea, select') || document.querySelector('.scrim')) return;
+      if (document.querySelector('.scrim, .paint')) return;
+      if (e.key === 'Escape' && full) { setFull(false); return; }
+      if (e.target.closest('input, textarea, select')) return;
       if (e.key === ' ') { e.preventDefault(); player.toggle(); drawUsing(); }
+      else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !e.metaKey && !e.altKey && !e.ctrlKey) { e.preventDefault(); pg?.step(e.key === 'ArrowRight' ? 1 : -1); }
     };
     document.addEventListener('keydown', keys);
-    return () => { document.removeEventListener('keydown', keys); matIO?.disconnect(); corpo.destroy(); org.destroy(); clearTimeout(orgRestart); player.pause(); };
+    return () => {
+      document.removeEventListener('keydown', keys); mq.removeEventListener('change', onMq);
+      matIO?.disconnect(); pg?.destroy(); corpo.destroy(); org.destroy(); clearTimeout(orgRestart); clearTimeout(tapTimer); player.pause();
+      if (app.reset === resetAll) app.reset = null;
+      delete shell.dataset.full;
+    };
   },
 };
 

@@ -24,11 +24,13 @@ const isVideo = (c) => sourceById(c.sources?.[0]?.id)?.kind === 'video';
  * Sezione territorio di uno strato. `layer()` ritorna lo strato vivo
  * (S.work.materie[i]); `changed()` ridisegna l'anteprima.
  */
-export function territorioSection({ index, layer, changed, redrawPanel }) {
+export function territorioSection({ index, layer, changed, redrawPanel, flat = false }) {
   const root = h('div.terr');
   const player = mainPlayer();
-  const draw = () => {
-    const m = layer(); if (!m) return;
+  // flat: blocchi piccoli per le pagine del passo 2 (Dove sta, Il confine,
+  // Contagio, ognuno dalla sua pagina); ogni cambio di forma ridisegna la scheda
+  const parts = () => {
+    const m = layer(); if (!m) return [];
     const c = S.work;
     const name = byId[m.proc].name;
     const below = belowName(c, index);
@@ -39,7 +41,7 @@ export function territorioSection({ index, layer, changed, redrawPanel }) {
     // --- Dove sta
     const thumb = h('canvas.terr__thumb', { width: 96, height: 54, 'aria-hidden': 'true' });
     if (m.mappa) mapThumb(thumb, m).catch(() => {});
-    const dove = h('div.terr__block', null,
+    const dove = h('div.terr__block', { 'data-break': '' },
       h('div.terr__head', null, h('span.label', null, 'Dove sta'),
         h('span.meta', null, m.mappa ? 'dipinta da te sulla foto' : 'ovunque: copre tutto il quadro')),
       h('div.terr__row', null,
@@ -49,14 +51,12 @@ export function territorioSection({ index, layer, changed, redrawPanel }) {
       m.mappa && isVideo(c) ? h('p.meta', null, m.mappa.segui ? 'Il video si muove: la mappa segue la sua luce, i tratti dipinti restano fermi nel quadro.' : 'Il video si muove, la mappa resta ferma nel quadro.') : null);
 
     // --- Il confine (solo se c'è un territorio)
-    const confEl = any ? h('div.terr__block', null,
+    const hint = h('p.meta.terr__hint', null, CARATTERI[conf.carattere].hint);
+    const confHead = any ? h('div.terr__block', { 'data-break': '' },
       h('div.terr__head', null, h('span.label', null, 'Il confine'), h('span.meta', null, `come si mescola con ${below}`)),
       seg(CARATTERI.map((x) => ({ id: x.id, label: x.label, hint: x.hint })), conf.carattere, (v) => { ensureConf(m).carattere = v; done(false); hint.textContent = CARATTERI[v].hint; }, { label: 'Carattere del confine' }),
-      h('p.meta.terr__hint', null),
-      CONFINE.map((d) => slider(d, conf[d.id], (v) => { ensureConf(m)[d.id] = v; done(false); })),
-    ) : null;
-    const hint = confEl?.querySelector('.terr__hint');
-    if (hint) hint.textContent = CARATTERI[conf.carattere].hint;
+      hint) : null;
+    const confSliders = any ? CONFINE.map((d) => slider(d, conf[d.id], (v) => { ensureConf(m)[d.id] = v; done(false); })) : [];
 
     // --- Contagio
     const on = !!cont?.on;
@@ -64,13 +64,16 @@ export function territorioSection({ index, layer, changed, redrawPanel }) {
       if (!m.contagio) m.contagio = defaultContagio(); else m.contagio.on = !m.contagio.on;
       done(); if (m.contagio.on && !m.mappa) toast(`Senza mappa ${name} parte dalle luci della foto. Dipingi dove va per decidere tu da dove parte.`);
     } }, h('span.switch__knob'), h('span.stack', null, h('span', null, 'Contagio'), h('span.meta', null, on ? `il confine con ${below} si muove nel tempo` : `${name} invade ${below} lungo il confine, o ne viene invasa`)));
-    const contEl = h('div.terr__block', null, sw, on ? [
-      h('p.meta', null, `Il confine parte ${m.mappa ? 'dalla tua mappa' : 'dalle luci della foto'}. Il loop non si richiude: il fronte non torna da solo al primo fotogramma.`),
-      CONTAGIO.map((d) => keyedSlider(m, d)),
-      keysLine(m),
-    ] : null);
+    const contHead = h('div.terr__block', { 'data-break': '' }, sw,
+      on ? h('p.meta', null, `Il confine parte ${m.mappa ? 'dalla tua mappa' : 'dalle luci della foto'}. Il loop non si richiude: il fronte non torna da solo al primo fotogramma.`) : null);
+    const contRest = on ? [CONTAGIO.map((d) => keyedSlider(m, d)), keysLine(m)] : [];
 
-    fill(root, dove, confEl, contEl);
+    return [dove, confHead, confSliders, contHead, contRest];
+  };
+  const draw = () => {
+    if (flat) { redrawPanel && redrawPanel(); return; }
+    const [dove, confHead, confSliders, contHead, contRest] = parts();
+    fill(root, dove, confHead ? h('div.terr__block', null, [...confHead.childNodes], confSliders) : null, h('div.terr__block', null, [...contHead.childNodes], contRest));
   };
 
   function ensureConf(m) { if (!m.confine) m.confine = defaultConfine(); return m.confine; }
@@ -128,6 +131,7 @@ export function territorioSection({ index, layer, changed, redrawPanel }) {
       h('button.link', { onclick: () => { const old = m.contagio.chiavi; m.contagio.chiavi = {}; done(); toast('Chiavi tolte', { label: 'Annulla', run: () => { layer().contagio.chiavi = old; done(); } }); } }, 'Togli tutte le chiavi'));
   }
 
+  if (flat) return parts().flat(Infinity).filter(Boolean);
   draw();
   root.redraw = draw;
   return root;
