@@ -50,7 +50,8 @@ vec3 trrTerritorio(vec2 uv) {
   } else if (car == 1) {
     // sprofonda: gocce pesanti, allungate verso il basso, che si staccano
     vec2 qq = vec2(q.x, q.y * 0.5 + z * 0.0);
-    float g = gnoise(vec3(qq, z), Pz) * 0.72 + gnoise(vec3(qq * 2.2 + 5.0, z), Pz) * 0.28;
+    float g = gnoise(vec3(qq, z), Pz) * 0.62 + gnoise(vec3(qq * 2.2 + 5.0, z), Pz) * 0.26
+            + gnoise(vec3(q * 6.0 + 9.0, z), Pz) * 0.12; // grana fine: il bordo della goccia non è mai un ritaglio
     n = smoothstep(-0.55, 0.55, g);
   } else {
     // impasta: le due materie piegate l'una nell'altra in lamelle

@@ -224,13 +224,24 @@ export async function openPainter({ index, onDone }) {
     else { g.fillStyle = '#3a3a3a'; g.fillRect(0, 0, W, H); }
     const d = veilData.data;
     // fuori dalla materia la foto si scurisce; il confine è un filo chiaro
-    const pr = new Uint8Array(MW * MH);
+    // il filo nasce da una presenza appena ammorbidita: liscio, senza scalini
+    const pr = new Float32Array(MW * MH);
     for (let i = 0; i < MW * MH; i++) pr[i] = presence(map, i);
+    const sm = new Float32Array(MW * MH);
+    for (let y = 0, i = 0; y < MH; y++) for (let x = 0; x < MW; x++, i++) {
+      const xl = x > 0 ? i - 1 : i, xr = x < MW - 1 ? i + 1 : i, yu = y > 0 ? i - MW : i, yd = y < MH - 1 ? i + MW : i;
+      sm[i] = (pr[i] * 4 + pr[xl] + pr[xr] + pr[yu] + pr[yd]) / 8;
+    }
     for (let y = 0, i = 0, k = 0; y < MH; y++) for (let x = 0; x < MW; x++, i++, k += 4) {
-      const inside = pr[i] >= 128;
-      const edge = (x < MW - 1 && (pr[i + 1] >= 128) !== inside) || (y < MH - 1 && (pr[i + MW] >= 128) !== inside);
-      if (edge) { d[k] = d[k + 1] = d[k + 2] = 248; d[k + 3] = 150; }
-      else { d[k] = d[k + 1] = d[k + 2] = 0; d[k + 3] = Math.round((255 - pr[i]) * 0.8); }
+      const gx = sm[x < MW - 1 ? i + 1 : i] - sm[x > 0 ? i - 1 : i], gy = sm[y < MH - 1 ? i + MW : i] - sm[y > 0 ? i - MW : i];
+      const g = Math.hypot(gx, gy) * 0.5 + 1;
+      const line = Math.max(0, 1 - Math.abs(sm[i] - 127.5) / g / 0.9);
+      const a = (255 - pr[i]) * 0.8;
+      // nero del mascherino sotto, filo chiaro sopra
+      const la = line * 150;
+      const outA = la + a * (1 - la / 255);
+      d[k] = d[k + 1] = d[k + 2] = outA > 0 ? Math.round((248 * la) / outA) : 0;
+      d[k + 3] = Math.round(outA);
     }
     vg.putImageData(veilData, 0, 0);
     g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';

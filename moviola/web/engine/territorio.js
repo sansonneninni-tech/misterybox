@@ -42,7 +42,7 @@ export const CARATTERI = [
   { id: 2, label: 'Impasta', hint: 'le due si piegano l’una nell’altra' },
 ];
 export const CONFINE = [
-  P('larghezza', 'Larghezza della fascia', 0, 1, 0.35, { hint: 'quanto è larga la zona in cui le due materie si mescolano' }),
+  P('larghezza', 'Larghezza della fascia', 0, 1, 0.5, { hint: 'quanto è larga la zona in cui le due materie si mescolano' }),
   P('grana', 'Grana della fascia', 0, 1, 0.45, { hint: 'grandezza di crepe, gocce o lamelle' }),
   P('trascina', 'Trascinamento', 0, 1, 0.4, { hint: 'quanto le due materie si tirano dietro l’una l’altra' }),
 ];
@@ -245,7 +245,7 @@ void main() {
   float sg = sp / (abs(sp) + 0.15);
   float drive = sp * 1.15
     + u_c[2] * fl.z * 2.6
-    + u_c[3] * ((1.0 - ring) - 0.5) * 2.6
+    + u_c[3] * ((1.0 - ring) - 0.5) * 3.6
     - u_c[5] * smoothstep(0.06, 0.28, fl.y) * 2.6 * sg
     - u_c[6] * (fl.x - 0.5) * 2.6 * sg
     - u_c[7] * (F - F0) * 2.2;
