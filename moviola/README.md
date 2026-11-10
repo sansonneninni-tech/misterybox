@@ -149,6 +149,16 @@ Trentacinque processi nati dalla ricerca su Clipson (strati in macchina, zoom, m
 | 19 | Cronologia e rami | Passo 2: tenute, «tocca per ripartire», «Confronta»; Avanzato › Versioni |
 | 20 | MacBook Pro M2 Pro | Render 4K locale, fotogramma per fotogramma |
 
+## Tutta la catena: Respiro, Tempo geologico, Gravità e vento
+
+Nel passo 2, sotto le materie a strati, tre funzioni che muovono tutte le
+materie insieme: un **respiro** unico che le attraversa come un'onda, il
+**tempo geologico** (una curva disegnata sotto la timeline comprime ore di
+trasformazione in pochi secondi) e **gravità e vento** (un campo di forze, con
+correnti, vortici, pozzi e sorgenti disegnati sul quadro col dito). Da spente
+la clip resta identica. Come funzionano e come una materia nuova le sente:
+[TUTTA-LA-CATENA.md](TUTTA-LA-CATENA.md).
+
 ## Senza Mac
 
 Aperta senza server (per esempio la pagina demo), MOVIOLA salva nel browser ed

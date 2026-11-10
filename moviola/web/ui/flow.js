@@ -18,6 +18,7 @@ import { analyse } from '../engine/analysis.js';
 import { localCritique } from '../engine/critic.js';
 import { mainPlayer, syncPlayer } from '../app.js';
 import { qrSvg } from './qr.js';
+import { attachOrganismo, ORGANISMO_KEYS } from './organismo.js';
 
 const MAX = 4;
 const fmtVal = (v, d) => (d.step >= 1 ? String(Math.round(v)) : Math.abs(d.max - d.min) <= 2 ? v.toFixed(2) : v.toFixed(1));
@@ -233,6 +234,17 @@ export const trasforma = {
     let ready = false;
     let fmtOpen = false;
     const work = () => S.work;
+    // Respiro, Tempo geologico, Gravità e vento: controlli, curva e disegno (organismo.js)
+    let orgRestart = 0;
+    const org = attachOrganismo({ screen, timeline, player, work, changed: ({ restart = false } = {}) => {
+      touch('clip');
+      syncPlayer().then(() => {
+        if (!restart) return;
+        clearTimeout(orgRestart);
+        orgRestart = setTimeout(() => { player.restart(); if (!player.playing) player.play(); }, 250);
+      });
+      scheduleRead();
+    } });
 
     function drawUsing() {
       const c = work(); if (!c) return;
@@ -356,6 +368,7 @@ export const trasforma = {
         seed: patch.seed || c.seed, materie: patch.materie ?? c.materie,
       });
       next.intensity = patch.intensity ?? c.intensity ?? 0.8;
+      for (const k of ORGANISMO_KEYS) if (c[k]) next[k] = c[k];
       applyIntensity(next);
       Object.keys(S.work).forEach((k) => delete S.work[k]);
       Object.assign(S.work, next);
@@ -377,7 +390,8 @@ export const trasforma = {
         h('div.ctl', null, h('span.ctl__lbl', null, 'Movimento', h('span.meta', null, MOVES.find((m) => m.id === c.motion.mode)?.hint || '')),
           seg(MOVES, c.motion.mode, (v) => { rebuild({ motion: { mode: v } }); drawPanel(); }, { label: 'Movimento' }),
           c.motion.mode === 'ritmico' ? h('div.row', null, bpm, h('span.meta', null, 'battiti al minuto')) : null),
-        materiaPanel(c));
+        materiaPanel(c),
+        org.panel());
       fill(more,
         h('details.fmt', { open: fmtOpen, ontoggle: (e) => { fmtOpen = e.target.open; } },
           h('summary.fmt__sum', null, h('span', null, 'Formato'), h('span.meta', null, `${c.format.duration} s · ${c.format.aspect} · ${c.format.fps} fps`), h('span.fmt__chg', null, fmtOpen ? 'Chiudi' : 'Cambia')),
@@ -489,7 +503,7 @@ export const trasforma = {
       if (e.key === ' ') { e.preventDefault(); player.toggle(); drawUsing(); }
     };
     document.addEventListener('keydown', keys);
-    return () => { document.removeEventListener('keydown', keys); matIO?.disconnect(); player.pause(); };
+    return () => { document.removeEventListener('keydown', keys); matIO?.disconnect(); org.destroy(); clearTimeout(orgRestart); player.pause(); };
   },
 };
 
