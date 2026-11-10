@@ -42,12 +42,26 @@ vec4 iaL(int t, vec2 p) {
   p = clamp(p, vec2(0.5), G - 0.5);
   return texture(u_st, (p + vec2(iaOff(t))) / u_stRes);
 }
+// l'acqua dove la foto si è già sciolta: la luce della vasca presa dai
+// dintorni della foto (sfocati e appena più chiari), non un bianco piatto
+// che lascerebbe aloni chiari attorno alle forme
+vec3 iaWater(vec2 uv) {
+  vec3 acc = vec3(0.0);
+  for (int i = 0; i < 16; i++) {
+    float fi = float(i);
+    float r = 0.07 * sqrt((fi + 0.5) / 16.0);
+    float a = fi * 2.39996;
+    acc += IN(clamp(uv + r * vec2(cos(a) / ASPECT, sin(a)), 0.0, 1.0));
+  }
+  acc /= 16.0;
+  return clamp(mix(acc * 1.12 + 0.03, IA_W, 0.22), 0.02, 1.0);
+}
 `;
 
 export const MATERIA = {
   id: 'inchiostroacqua', code: 'Ia', name: 'Inchiostro in acqua', family: 'fluide',
-  ref: 'macro di inchiostro in acqua, Chris Parks, i liquid light show',
-  steps: FASI, simLong: 1152, noloop: true,
+  ref: 'Chris Parks, liquid light show',
+  steps: FASI, simLong: 1024, simFixed: true, noloop: true,
   about: 'La foto è inchiostro posato sul vetro di una vasca: si stacca piano, scende nell’acqua per il suo peso e si apre in pennacchi, anelli e dita sottili. È fluidodinamica vera: ogni seme dà le sue volute, sempre le stesse. Più inchiostro, più scuro e saturo.',
   params: [
     P('rilascio', 'Quanto si scioglie', 0, 1, 0.55, 0.3),
@@ -81,7 +95,7 @@ float iaMask(vec2 uv) {
   return smoothstep(0.08, 0.5, length(vec2(gx, gy)) / 3.0);
 }
 // assorbanza della foto (quanto inchiostro c'è in quel punto)
-vec3 iaAbs(vec3 c) { return -log(clamp(c / IA_W, 0.004, 1.0)); }
+vec3 iaAbs(vec3 c, vec3 W) { return -log(clamp(c / W, 0.004, 1.0)); }
 // avvezione: il valore che arriva in p seguendo all'indietro la velocità v
 // (fuori dal quadro l'acqua è pulita)
 vec4 iaBack(int t, vec2 p, vec2 v, float dt, bool clean) {
@@ -161,7 +175,7 @@ vec4 sim(vec2 uv0) {
     if (tile == 3) {
       // l'inchiostro ricorda da dove è partito; quello appena sciolto parte da qui
       vec2 d = iaBack(3, p, v, dt, false).zw - v * dt / vec2(G);
-      vec3 b0 = iaF(1, c).rgb, fresh = iaAbs(IN(uv)) * dR;
+      vec3 b0 = iaF(1, c).rgb, fresh = iaAbs(IN(uv), iaWater(uv)) * dR;
       float m0 = b0.r + b0.g + b0.b, m1 = fresh.r + fresh.g + fresh.b;
       return vec4(self.xy, d * m0 / (m0 + m1 + 1e-4));
     }
@@ -172,7 +186,7 @@ vec4 sim(vec2 uv0) {
       ink += lap * diffusione * diffusione * 0.12;
       // l'inchiostro si diluisce e sparisce piano (persistenza)
       ink *= exp(-dt * mix(0.35, 0.0, pow(persistenza, 0.5)));
-      ink += iaAbs(IN(uv)) * dR;
+      ink += iaAbs(IN(uv), iaWater(uv)) * dR;
       return vec4(max(ink, 0.0), 0.0);
     }
     // tile 0: velocità
@@ -227,19 +241,21 @@ vec4 iaS(int t, vec2 uv) {
 }
 vec3 fx(vec2 uv) {
   vec3 c = IN(uv);
-  vec3 Ap = -log(clamp(c / IA_W, 0.004, 1.0));
+  vec3 W = iaWater(uv);
+  vec3 Ap = -log(clamp(c / W, 0.004, 1.0));
   float R = clamp(iaS(0, uv).w, 0.0, 1.0);
   vec3 ink = max(iaS(1, uv).rgb, 0.0);
   // dettaglio fine: l'inchiostro porta con sé la trama della foto da cui è
   // partito (la griglia del fluido è più morbida del quadro)
   vec2 o = uv + iaS(3, uv).zw;
   vec2 b = 0.75 / vec2(iaG());
-  vec3 Af = -log(clamp(IN(o) / IA_W, 0.004, 1.0));
-  vec3 Ab = -log(clamp((IN(o) * 2.0 + IN(o + vec2(b.x, 0.0)) + IN(o - vec2(b.x, 0.0)) + IN(o + vec2(0.0, b.y)) + IN(o - vec2(0.0, b.y))) / 6.0 / IA_W, 0.004, 1.0));
+  vec3 Wo = iaWater(o);
+  vec3 Af = -log(clamp(IN(o) / Wo, 0.004, 1.0));
+  vec3 Ab = -log(clamp((IN(o) * 2.0 + IN(o + vec2(b.x, 0.0)) + IN(o - vec2(b.x, 0.0)) + IN(o + vec2(0.0, b.y)) + IN(o - vec2(0.0, b.y))) / 6.0 / Wo, 0.004, 1.0));
   // il dettaglio si perde man mano che l'inchiostro viaggia e si stira
   float far = length((o - uv) * u_res / K1080);
   ink *= mix(vec3(1.0), clamp((Af + 0.05) / (Ab + 0.05), 0.5, 2.0), exp(-far / 140.0));
-  vec3 back = mix(IA_W, c, fondo);
+  vec3 back = mix(W, c, fondo);
   return back * exp(-Ap * R * (1.0 - fondo) - ink * densita);
 }`,
 };
