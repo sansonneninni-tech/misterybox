@@ -5,7 +5,7 @@ export const MATERIE = [
   // ───────────────────────────────────────────────────────────── Morfogenesi
   {
     id: 'morfogenesi', code: 'Mg', name: 'Morfogenesi', family: 'organismi', ref: 'Alan Turing, 1952',
-    steps: 14, simLong: 512, noloop: true,
+    steps: 14, simLong: 512, noloop: true, forze: 'trasporto', peso: 0,
     about: 'La foto diventa pelle: due sostanze reagiscono sotto la superficie e la luminanza decide la forma, macchie nelle ombre, labirinti nei mezzitoni, coralli nelle luci; il disegno solleva e rifrange l’immagine senza coprirla.',
     params: [
       P('materia', 'Materia', 0, 1, 0.6, 0.2),
@@ -385,7 +385,7 @@ vec3 fx(vec2 uv) {
   // ───────────────────────────────────────────────────────────── Stormo
   {
     id: 'stormo', code: 'St', name: 'Stormo', family: 'organismi', ref: 'storni sul Tevere, banchi di sardine',
-    feedback: true, noloop: true,
+    feedback: true, noloop: true, forze: 'trasporto', peso: 0,
     about: 'La foto si scompone in migliaia di particelle che volano insieme come uno stormo: onde di densità le attraversano, i vortici le piegano, ognuna porta il colore dell’immagine; quando lo stormo si compatta la foto si ricompone.',
     params: [
       P('dispersione', 'Dispersione', 0, 1, 0.6, 0.3),
