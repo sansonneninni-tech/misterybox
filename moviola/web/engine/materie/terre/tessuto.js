@@ -82,7 +82,7 @@ export const MATERIA = {
     P('peso', 'Peso', 0, 1, 0.6, 0.1),
     P('rigidita', 'Rigidità', 0, 1, 0.35, 0.1),
     P('umidita', 'Umidità', 0, 1, 0.5, 0.3),
-    P('trama', 'Trama (fine → grossa, px)', 1.5, 12, 4, 0),
+    P('trama', 'Trama (fine → grossa, px)', 2, 14, 6, 0),
     P('appigli', 'Punti d’appiglio', 1, 9, 4, 0, { step: 1 }),
     P('tensione', 'Tensione', 0, 1, 0.45, 0.3),
     P('strappo', 'Soglia dello strappo', 0, 1, 0.45, 0),
@@ -277,7 +277,7 @@ vec3 fx(vec2 uv) {
   // ---- trama del filato, vista da vicino
   float wv;
   float fw = max(fwidth(qth.x), fwidth(qth.y));
-  float wa = 1.0 - smoothstep(0.22, 0.5, fw);
+  float wa = 1.0 - smoothstep(0.16, 0.32, fw);
   float hw = tsWeave(qth, wv);
   float e2 = 0.05;
   float wvx, wvy;
@@ -294,9 +294,9 @@ vec3 fx(vec2 uv) {
   // ---- luce morbida, ombra propria delle pieghe
   float ang = radians(luce);
   vec2 L2 = -vec2(cos(ang), sin(ang));
-  vec3 Ld = normalize(vec3(L2, 0.75));
+  vec3 Ld = normalize(vec3(L2, 0.5));
   float lam = dot(N, Ld) / Ld.z;
-  float sh = 0.35 + 0.65 * clamp(lam, 0.0, 1.6);
+  float sh = 0.25 + 0.75 * clamp(lam, 0.0, 1.8);
   sh = sh > 1.0 ? 1.0 + (sh - 1.0) * 0.5 : sh;
   // ombra portata dalle pieghe vicine (in coordinate di stoffa)
   float occ = 0.0;
@@ -309,7 +309,7 @@ vec3 fx(vec2 uv) {
   float zr = 0.0;
   for (int i = 0; i < 6; i++) { float an = float(i) * 1.0472; zr += TL(0, lcs + vec2(cos(an), sin(an)) * 3.5).z; }
   float cav = clamp((zr / 6.0 - X.z) / h0 * 0.6, -1.0, 1.0);
-  float ao = (1.0 - 0.35 * smoothstep(0.0, 1.0, cav)) * (1.0 - 0.3 * wa * (1.0 - hw) * (1.0 - 0.6 * wet));
+  float ao = (1.0 - 0.5 * smoothstep(0.0, 1.0, cav)) * (1.0 - 0.3 * wa * (1.0 - hw) * (1.0 - 0.6 * wet));
   sh *= (1.0 - 0.45 * occ) * ao;
   // ---- colore: la foto stampata sul filato
   vec2 pu = 0.5 + (m - 0.5) * TS_EXT;
