@@ -1,0 +1,54 @@
+<!doctype html><meta charset="utf-8"><title>Foglio delle materie che crescono</title>
+<body style="margin:0;background:#111;color:#ccc;font:12px monospace">
+<canvas id="c" style="display:none"></canvas>
+<script type="module">
+// Prova di Ghiaccio, Brina e Lichene: la stessa foto a più istanti, per vedere
+// la crescita nel tempo. Disegna solo i fotogrammi richiesti, ma fa tutti i
+// passi di simulazione in mezzo (come in anteprima e nel render).
+// ?p=id ?f=url ?w=640 ?t=1,3,6 (secondi) ?d=durata ?seed=7 ?set=k:v;k:v
+// ?geo=16 accende il Tempo geologico con velocità costante 16
+import { Renderer } from '../web/engine/renderer.js';
+import { byId, defaultParams } from '../web/engine/processes.js';
+import { defaultClip } from '../web/engine/clip.js';
+const q = new URLSearchParams(location.search);
+const ids = (q.get('p') || '').split(',').filter(Boolean);
+const photos = (q.get('f') || '').split(',').filter(Boolean);
+const W = Number(q.get('w') || 640);
+const fps = Number(q.get('fps') || 24);
+const times = (q.get('t') || '1,3,6').split(',').map(Number);
+const set = Object.fromEntries((q.get('set') || '').split(';').filter(Boolean).map((s) => { const [k, v] = s.split(':'); return [k, Number(v)]; }));
+const load = (u) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; });
+const imgs = await Promise.all(photos.map(load));
+const r = new Renderer(document.getElementById('c'));
+const H = q.get('h') ? Number(q.get('h')) : Math.round(W * 9 / 16 / 2) * 2;
+r.setSize(W, H);
+r.exact = true;
+const out = [];
+for (const id of ids) {
+  const p = byId[id];
+  const row = { id, name: p?.name, err: null, shots: [] };
+  if (!p) { row.err = 'processo sconosciuto'; out.push(row); continue; }
+  if (q.get('simlong')) p.simLong = Number(q.get('simlong')); // solo per prove veloci
+  for (const im of imgs) {
+    const clip = defaultClip(); clip.seed = Number(q.get('seed') || 7); clip.format.duration = Number(q.get('d') || 10); clip.format.fps = fps;
+    clip.motion.mode = q.get('mode') || 'fermo';
+    if (q.get('geo')) clip.tempo = { on: true, massimo: 64, punti: [[0, Number(q.get('geo'))], [1, Number(q.get('geo'))]], materie: {} };
+    clip.chain = [{ id: 'a', proc: id, on: true, mix: 1, blend: 'normale', params: { ...defaultParams(id), ...set } }];
+    r.setSources([{ el: im, w: im.naturalWidth, h: im.naturalHeight, kind: 'image' }]);
+    r.prune([]); r.reset();
+    const last = Math.round(Math.max(...times) * fps);
+    const want = new Set(times.map((t) => Math.round(t * fps)));
+    const t0 = performance.now();
+    for (let f = 0; f <= last; f++) {
+      r.render(clip, f / fps, f, null, { display: want.has(f) });
+      if (want.has(f)) row.shots.push(r.canvas.toDataURL('image/jpeg', 0.9));
+    }
+    r.gl.finish();
+    row.ms = Math.round((performance.now() - t0) / (last + 1));
+    row.err = r.errors.get(id) || null;
+    if (row.err) break;
+  }
+  out.push(row);
+}
+window.__out = out;
+</script>

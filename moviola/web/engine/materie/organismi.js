@@ -1,5 +1,6 @@
 // Materie: organismi. Crescite, colonie, tessuti viventi.
 import { P } from './comune.js';
+import { MATERIA as LICHENE } from './crescite/lichene.js';
 
 export const MATERIE = [
   // ───────────────────────────────────────────────────────────── Morfogenesi
@@ -164,64 +165,8 @@ vec3 fx(vec2 uv) {
   },
 
   // ───────────────────────────────────────────────────────────── Lichene
-  {
-    id: 'lichene', code: 'Li', name: 'Lichene', family: 'organismi', ref: 'Rhizocarpon, Lecanora, Parmelia',
-    noloop: true,
-    about: 'Il lichene attecchisce solo dove la foto ha grana (roccia, corteccia, erba): tanti piccoli semi si allargano in lobi minuti e si fondono in croste; il colore resta quello della foto, appena velato di grigio-verde e d’ocra.',
-    params: [
-      P('copertura', 'Copertura', 0, 1, 0.7, 0.2),
-      P('crescita', 'Crescita', 0.1, 2, 0.7, 0.2),
-      P('scala', 'Scala', 0.4, 2.5, 1, 0.1),
-      P('lobi', 'Lobi minuti', 0, 1, 0.6, 0.2),
-      P('arriccia', 'Bordo rialzato', 0, 1, 0.5, 0.3),
-      P('crosta', 'Grana della crosta', 0, 1, 0.6, 0.2),
-      P('fotografia', 'Colore della foto', 0, 1, 0.75, 0.2),
-      P('tinta', 'Tinta', 0, 1, 0.5, 0.2),
-    ],
-    glsl: `
-float liField(vec2 p, float zt) {
-  // pochi rilievi larghi + tanti picchi minuti: i semi piccoli spuntano prima e poi si fondono
-  return 0.55 * fbm(p * 2.2, zt, 0.0, 3) + 0.45 * fbm(p * 9.0 + 7.0, zt, 0.0, 2) * (0.6 + 0.8 * lobi);
-}
-vec3 fx(vec2 uv) {
-  vec3 img = IN(uv);
-  float l = luma(img);
-  // grana locale della foto: scarto dalla media di alcuni vicini (in pixel da 1080)
-  // tre anelli di vicini: la grana conta sull’intera superficie, non solo sui contorni
-  vec2 r1 = PX * 4.0 * K1080, r2 = PX * 11.0 * K1080, r3 = PX * 24.0 * K1080;
-  float va = 0.0;
-  for (int i = 0; i < 4; i++) {
-    float a = float(i) * 1.5708 + 0.4;
-    vec2 d = vec2(cos(a), sin(a));
-    float a1 = luma(IN(uv + d * r1)), a2 = luma(IN(uv + d.yx * vec2(-1.0, 1.0) * r2)), a3 = luma(IN(uv - d * r3));
-    float b3 = luma(IN(uv - d * r3 + d.yx * vec2(-1.0, 1.0) * r1 * 2.0));
-    va += abs(a1 - l) + abs(a2 - l) + abs(a3 - b3) * 1.5;
-  }
-  float tex = smoothstep(0.06, 0.24, va * 0.6);
-  vec2 p = (uv - 0.5) * vec2(ASPECT, 1.0) * 3.0 / scala;
-  float zt = u_t * 0.02;
-  float F = liField(p, zt) + 0.35 * tex;
-  float grow = 1.0 - exp(-u_t * crescita * 0.4);
-  float thr = 0.75 - grow * (0.35 + 0.65 * copertura);
-  // bordo frattale: la soglia stessa è rumorosa
-  float px1 = 3.0 / scala / u_res.y;
-  float m = smoothstep(thr, thr + 0.02 + 2.0 * px1, F) * smoothstep(0.2, 0.6, tex) * (1.0 - smoothstep(0.55, 0.8, l));
-  // micro-grana della crosta, misurata in pixel da 1080
-  vec2 gp = uv * u_res / K1080;
-  float gr = gnoise(vec3(gp / 2.6, 3.0), 0.0) * 0.6 + gnoise(vec3(gp / 6.0, 9.0), 0.0) * 0.4;
-  float areo = smoothstep(0.0, 0.05, abs(fbm(p * 18.0, 1.0, 0.0, 2)));
-  // tinte vicine a 1: grigio-verde e ocra, scelte a chiazze larghe
-  float k = smoothstep(-0.3, 0.3, gnoise(vec3(p * 0.9, 5.0), 0.0));
-  vec3 tn = mix(vec3(0.86, 1.02, 0.8), vec3(1.12, 1.0, 0.72), k);
-  tn = mix(vec3(1.0), tn, 0.4 + 0.6 * tinta);
-  vec3 base = mix(vec3(l), img, fotografia * 0.65);
-  // il bordo appena rialzato: una sola banda, ±10% al massimo
-  float rim = smoothstep(thr, thr + 0.05, F) - smoothstep(thr + 0.05, thr + 0.14, F);
-  float lift = 1.0 + 0.08 * arriccia * rim + 0.12 * crosta * gr - 0.08 * crosta * (1.0 - areo);
-  vec3 lc = base * tn * clamp(lift, 0.9, 1.1);
-  return mix(img, lc, m);
-}`,
-  },
+  // (un file suo: crescite/lichene.js)
+  LICHENE,
 
   // ───────────────────────────────────────────────────────────── Cellule
   {
