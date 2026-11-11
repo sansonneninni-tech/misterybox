@@ -2,6 +2,7 @@
 // muovono: specchi d'acqua, canali, gocce, condensa, schiuma, vetro antico.
 // Niente luce aggiunta: tutto è rifrazione, riflesso e spessore della materia.
 import { P } from './comune.js';
+import { MATERIA as bolle } from './liquide/bolle.js';
 
 export const MATERIE = [
   // ------------------------------------------------------------------ pioggia
@@ -310,84 +311,8 @@ vec3 fx(vec2 uv) {
   return c;
 }`,
   },
-  // -------------------------------------------------------------------- bolle
-  {
-    id: 'bolle', code: 'Bo', name: 'Bolle', family: 'acque', ref: 'Brakhage, Youngblood',
-    about: 'Una schiuma si raduna e si dirada sulla foto: bolle grandi e piccole negli interstizi, ognuna una lente sottile che ne ingrandisce un pezzo; respirano, scivolano, qualcuna scoppia e rinasce.',
-    params: [
-      P('misura', 'Misura bolle', 0.3, 2.5, 1, 0.2),
-      P('lente', 'Lente', 0, 1, 0.75, 0.4),
-      P('pareti', 'Pareti', 0, 1, 0.6, 0.2),
-      P('respiro', 'Respiro', 0, 1, 0.5, 0.5),
-      P('velocita', 'Velocità', 0, 1, 0.2, 0.2),
-      P('scoppi', 'Scoppi', 0, 1, 0.3, 0.3),
-      P('guida', 'Guida della foto', 0, 1, 0.6, 0.2),
-    ],
-    glsl: `
-// Uno strato di bolle: cerchi che, dove la schiuma è fitta, si premono in poligoni.
-// Restituisce (distanza dal bordo, distanza dal centro) e centro e raggio della bolla.
-vec4 boLayer(vec2 p, float cs, float T, float D, float sd, out vec2 cc) {
-  vec2 q = p / cs;
-  vec2 ip = floor(q);
-  float d1 = 9.0, d2 = 9.0, r1 = 0.0;
-  cc = vec2(0.0);
-  for (int j = -1; j <= 1; j++)
-  for (int i = -1; i <= 1; i++) {
-    vec2 id = ip + vec2(float(i), float(j));
-    vec4 h = vec4(hash22(id + S(sd)), hash22(id + S(sd + 1.0) + 7.3));
-    float m1 = 1.0 + floor(h.z * 2.0);
-    vec2 c = id + 0.5 + 0.3 * vec2(sin(TAU * (T * m1 + h.x)), cos(TAU * (T + h.y)));
-    // la bolla c'è dove la schiuma è abbastanza fitta; cresce con la densità
-    float r = (0.42 + 0.3 * h.y) * smoothstep(h.x * 0.6, h.x * 0.6 + 0.35, D);
-    r *= 1.0 + respiro * 0.16 * sin(TAU * (T * m1 + h.w));
-    // lo scoppio: sparisce di colpo e rinasce piano
-    if (h.w < scoppi * 0.5) r *= smoothstep(0.0, 0.6, fract(T * 0.5 * m1 + h.z * 3.7));
-    if (r < 0.04) continue;
-    float d = length(q - c) - r;
-    if (d < d1) { d2 = d1; d1 = d; cc = c * cs; r1 = r * cs; }
-    else if (d < d2) d2 = d;
-  }
-  // distanza dalla parete: dal cerchio libero o dalla parete premuta con la vicina
-  float e = min(-d1, (d2 - d1) * 0.5) * cs;
-  return vec4(e, length(p - cc), r1, d1);
-}
-vec3 fx(vec2 uv) {
-  vec2 a = vec2(ASPECT, 1.0);
-  vec2 p = (uv - 0.5) * a;
-  float T = ztime(velocita);
-  float z = ztime(velocita * 0.6), Pz = period(velocita * 0.6);
-  // dove si raduna la schiuma: un campo lento, e la foto chiara la attira
-  float lc = luma(IN(uv + vec2(0.02, 0.01))) * 0.5 + luma(IN(uv - vec2(0.015, 0.02))) * 0.5;
-  float D = fbm(p * 1.3 + 3.0, z, Pz, 2) * 1.6 + 0.58 + guida * (lc - 0.5) * 0.8;
-  float cs = misura * 0.13;
-  vec3 base = IN(uv);
-  vec3 c = base;
-  float pw = (0.4 + 1.4 * pareti) / 1080.0;
-  float done = 0.0;
-  for (int L = 0; L < 2; L++) {
-    float fl = float(L);
-    float lcs = cs * (1.0 - 0.6 * fl);
-    vec2 cc;
-    vec4 b = boLayer(p, lcs, T * (1.0 + 0.3 * fl), D - fl * 0.12, 21.0 + fl * 5.0, cc);
-    if (b.x > 0.0 && done < 0.5) {
-      float qn = clamp(b.y / max(b.y + b.x, 1e-4), 0.0, 1.0);
-      // la lente: ogni bolla ingrandisce il suo pezzo di foto
-      vec2 cu = cc / a + 0.5;
-      float zz = mix(1.0, mix(0.45, 1.3, qn * qn), lente);
-      vec3 bc = IN(clamp(cu + (uv - cu) * zz, 0.0, 1.0));
-      bc *= 1.0 - 0.18 * pow(qn, 3.0) * (0.3 + lente);
-      // la parete: un velo sottile che piega la foto, appena più scuro, non una linea nera
-      float wall = 1.0 - smoothstep(pw * 0.4, pw * 1.5, b.x);
-      vec2 nrm = (uv - cu) * a / max(b.y, 1e-4);
-      vec3 wc = IN(uv + nrm / a * pw * 3.0) * 0.7;
-      bc = mix(bc, wc, wall * (0.45 + 0.4 * pareti));
-      c = bc;
-      done = 1.0;
-    }
-  }
-  return c;
-}`,
-  },
+  // bolle: una schiuma simulata bolla per bolla, nel suo file
+  bolle,
   // -------------------------------------------------------------------- vetro
   {
     id: 'vetro', code: 'Ve', name: 'Vetro', family: 'acque', ref: 'Paul Clipson, vetro cattedrale',
