@@ -69,7 +69,7 @@ float erLumaSoft(vec2 uv) {
     for (int i = 0; i < 8; i++) {
       float an = float(i) * 0.7854 + float(r) * 0.39;
       float wr = 1.0 / float(r);
-      s += wr * erLuma(uv + vec2(cos(an), sin(an)) * px * 2.5 * float(r)); w += wr;
+      s += wr * erLuma(uv + vec2(cos(an), sin(an)) * px * 5.0 * float(r)); w += wr;
     }
   }
   return s / w;
@@ -111,7 +111,7 @@ bool erIn(ivec2 n) { ivec2 ts = TSZ(); return n.x >= 0 && n.y >= 0 && n.x < ts.x
 // peso con cui l'acqua va da una cella a un vicino più basso: la pendenza
 // alla quarta, così i rivoli si stringono in canali senza diventare fili rigidi
 float erW(float s) { float q = max(s, 0.0); q *= q; return q * q; }
-float erTan(float h) { return mix(0.55, 4.0, h * h) * (0.6 + 0.4 * rilievo); }
+float erTan(float h) { return mix(0.55, 2.2, h * h) * (0.6 + 0.4 * rilievo); }
 vec4 sim(vec2 uv0) {
   int k = TK();
   if (k < 0) return vec4(0.0);
@@ -122,7 +122,7 @@ vec4 sim(vec2 uv0) {
   // la portata si misura in celle di una griglia alta 135: uguale a ogni risoluzione
   float ar = pow(135.0 * dx, 2.0);
   if (u_init > 0.5) {
-    float L = 0.8 * erLumaSoft(uv) + 0.2 * erLuma(uv);
+    float L = erLumaSoft(uv);
     float b = erB0(uv, L);
     float h0 = clamp(durezza * (1.0 + duri * (L - 0.5) * 2.0), 0.0, 1.0);
     // la superficie dell'acqua parte alta e scende fino ai bordi dei laghi
@@ -176,7 +176,7 @@ vec4 sim(vec2 uv0) {
     // frane: la parete troppo ripida per la sua roccia scivola (si conserva)
     float tn = erTan(erHard(TF(3, clamp(n, ivec2(0), ts - 1)).y, bR[j]));
     float tj = 0.5 * (tanR + tn) * dd;
-    tal += 0.12 * (max(bR[j] - b - tj, 0.0) - max(b - bR[j] - tj, 0.0)) / erD(j);
+    tal += 0.22 * (max(bR[j] - b - tj, 0.0) - max(b - bR[j] - tj, 0.0)) / erD(j);
   }
   float rate = velocita;
   float L = T3.z;
@@ -187,7 +187,7 @@ vec4 sim(vec2 uv0) {
     // scava solo l'acqua raccolta: i versanti tra un rivolo e l'altro restano
     // la foto intatta, come le creste tra i calanchi
     e = rate * 7e-5 * sqrt(A) * min(max(smax, 0.0), 1.2) * mix(1.0, 0.04, hd) * smoothstep(3.0, 25.0, A);
-    e = min(e, max(0.0, (b - nbMin) * 0.45));      // mai sotto il vicino più basso
+    e = min(e, max(0.0, (b - nbMin) * 0.25));      // mai sotto il vicino più basso
     d = rate * 0.2 * (0.3 + deposito) * Qin / ar / max(A, 1e-6);
   } else d = 0.5 * Qin / ar;                       // nel lago la terra si posa: delta
   d = min(d, Qin / ar);
@@ -229,7 +229,7 @@ vec3 fx(vec2 uv) {
   float hd = erHard(A3.y, hb.x);
   float ang = radians(luce);
   vec2 L2 = -vec2(cos(ang), sin(ang));
-  vec3 Ld = normalize(vec3(L2, 0.55));
+  vec3 Ld = normalize(vec3(L2, 0.7));
   float ex = 0.35 + 0.5 * rilievo;              // quanto si legge il rilievo
   // ---- ombre portate: la terra più alta verso la luce
   float shd = 0.0;
@@ -269,8 +269,8 @@ vec3 fx(vec2 uv) {
   float lm = dot(n, Ld) / Ld.z;
   float sh = 0.32 + 0.68 * clamp(lm, 0.0, 2.0);
   sh = sh > 1.0 ? 1.0 + (sh - 1.0) * 0.45 : sh;
-  sh *= 1.0 - 0.55 * shd;
-  sh *= 1.0 - 0.45 * smoothstep(0.0, 1.0, cav);
+  sh *= 1.0 - 0.4 * shd;
+  sh *= 1.0 - 0.3 * smoothstep(0.0, 1.0, cav);
   // ---- colore
   vec3 top = IN(uv);                              // la superficie intatta: la foto
   // gli strati nelle pareti scavate: bande alla stessa quota, come nei canyon

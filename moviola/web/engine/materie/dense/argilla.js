@@ -157,8 +157,7 @@ vec4 sim(vec2 uv0) {
     float n = fbm(p * 4.0 + S(43.0), 0.0, 0.0, 4);
     // la stesura a mano: larghe lisciature e qualche grumo
     float lis = fbm(vec2(dot(p, vec2(0.8, 0.6)) * 7.0, dot(p, vec2(-0.6, 0.8)) * 2.5) + S(48.0), 0.0, 0.0, 3);
-    float gr = smoothstep(0.62, 0.8, hash12(floor(p * 70.0) + S(49.0))) * smoothstep(0.1, 0.5, gnoise(vec3(p * 5.0, S(50.0)), 0.0));
-    float h = arT() * (0.75 + 0.5 * L + 0.3 * n + 0.18 * lis + 0.25 * gr);
+    float h = arT() * (0.75 + 0.5 * L + 0.3 * n + 0.18 * lis);
     float m = 0.82 + 0.15 * gnoise(vec3(p * 3.0, S(44.0)), 0.0);
     return vec4(h, m, uv);
   }
@@ -190,7 +189,7 @@ vec4 sim(vec2 uv0) {
   // sposta piano verso le zone più secche
   float conv = clamp((h - hsum * 0.25) / arT() * 4.0, -1.0, 1.0);
   float thinf = clamp(1.6 - h / arT(), 0.2, 2.0);
-  float rate = asciuga * asciuga * 0.25 * thinf * (1.0 + 0.6 * max(conv, 0.0)) * (0.8 + 0.4 * hash12(uv * 311.0 + S(45.0)));
+  float rate = asciuga * asciuga * 0.5 * thinf * (1.0 + 0.6 * max(conv, 0.0)) * (0.8 + 0.4 * hash12(uv * 311.0 + S(45.0)));
   float dm = min(m, rate * dt * (0.3 + m));
   m = m - dm + 0.05 * (msum * 0.25 - m);
   // asciugando si ritira (circa il 7% dello spessore)
@@ -255,11 +254,12 @@ vec3 fx(vec2 uv) {
   float k1 = 1.0 - smoothstep(w1 * 0.5, w1 * 0.5 + 0.6 / cs, c1.x);
   float k2 = 1.0 - smoothstep(w2 * 0.5, w2 * 0.5 + 0.6 / (cs * 0.45), c2.x);
   k1 *= step(1e-4, open1); k2 *= step(1e-4, open2);
-  float crack = max(k1, k2);
+  // il secondo ordine di crepe resta spento: a questa misura diventava puntinato
+  float crack = k1;
   // i bordi delle zolle si sollevano un poco (l'argilla secca si incurva)
   float curl = (1.0 - smoothstep(0.0, 0.18, c1.x - w1 * 0.5)) * open1 * (1.0 - k1);
   // ---- rilievo e luce
-  vec2 gr = (vec2(arV(P / 1.7), arV(P / 1.7 + 17.0)) - 0.5) * (0.12 + 0.35 * dry)
+  vec2 gr = (vec2(arV(P / 1.7), arV(P / 1.7 + 17.0)) - 0.5) * (0.1 + 0.08 * dry)
           + (vec2(arV(P / 5.0 + 3.0), arV(P / 5.0 + 23.0)) - 0.5) * 0.15;
   vec2 grad = g + gr;
   vec3 n = normalize(vec3(-grad, 1.0));

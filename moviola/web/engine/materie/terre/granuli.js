@@ -122,8 +122,8 @@ vec4 sim(vec2 uv0) {
     vec2 hh = hash22(vec2(float(i) * 3.1 + 1.0, 7.0) + S(14.0));
     vec2 hp = (hash22(vec2(float(i) * 5.3 + 2.0, 3.0) + S(15.0)) - 0.5) * vec2(ASPECT, 1.0) * 0.7;
     vec2 pp = (hh - 0.5) * vec2(ASPECT, 1.0) * 0.7;
-    float rr = 0.012;
-    float rate = portata * 0.025 / (24.0 * GR_STEPS);            // altezza al centro, per passo
+    float rr = 0.02;
+    float rate = portata * 0.05 / (24.0 * GR_STEPS);            // altezza al centro, per passo
     float wd = exp(-dot(X - hp, X - hp) / (rr * rr));
     float wp = exp(-dot(X - pp, X - pp) / (rr * rr));
     outv += min(rate * wd, max(h - outv - 0.0005, 0.0));
@@ -252,7 +252,7 @@ vec3 fx(vec2 uv) {
   float v1 = hash12(bh.xy * 71.3 + S(13.0));
   alb *= 1.0 + varieta * (bh.z - 0.5) * 0.3 * gvis;
   // dove la sabbia è finita si vede il fondo scuro della vasca
-  alb = mix(alb, vec3(0.07, 0.065, 0.06), 1.0 - smoothstep(0.0006, 0.004, hb.x));
+  alb = mix(alb, alb * 0.3, 1.0 - smoothstep(0.0006, 0.004, hb.x));
   // qualche grano scuro (ferro, mica) e qualche quarzo chiaro
   if (v1 < 0.05 * varieta * gvis) alb = mix(alb, vec3(luma(alb)) * vec3(0.45, 0.43, 0.42), 0.6);
   else if (v1 > 1.0 - 0.06 * varieta * gvis) alb = mix(alb, vec3(luma(alb)) * 1.3 + 0.02, 0.45);
