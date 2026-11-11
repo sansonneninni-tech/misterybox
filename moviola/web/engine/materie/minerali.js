@@ -1,6 +1,7 @@
 // Materie: minerali. Pietre, cristalli, geli, sabbie, ossidi, argille:
 // la foto diventa il corpo di una materia inerte che però cresce e si muove.
 import { P } from './comune.js';
+import { MATERIA as BRINA } from './crescite/brina.js';
 
 // Lettura di una cella dello stato senza filtro (le simulazioni a fronte
 // copiano valori esatti, come l'identità di un grano).
@@ -189,88 +190,8 @@ vec3 fx(vec2 uv) {
 }`,
   },
   // ------------------------------------------------------------------ brina
-  {
-    id: 'brina', code: 'Br', name: 'Brina', family: 'minerali', ref: 'Viola, la lentezza; il gelo sul vetro',
-    sim: '', steps: 4, simLong: 480, noloop: true,
-    about: 'Il gelo si forma sulla foto: rami di brina a felce crescono dai bordi scuri, sotto l’immagine si sbianca e si appanna, poi a tratti sgela e torna a ghiacciare.',
-    params: [
-      P('crescita', 'Crescita', 0.2, 2.5, 1, 0.2),
-      P('gelo', 'Gelo', 0, 1, 0.7, 0.3),
-      P('rami', 'Densità rami', 0, 1, 0.4, 0.1),
-      P('finezza', 'Spessore', 0.4, 3, 1.1, 0.2),
-      P('appannato', 'Appannato', 0, 1, 0.6, 0.3),
-      P('disgelo', 'Disgelo', 0, 1, 0.45, 0.2),
-      P('semi', 'Semina', 0, 1, 0.5, 0),
-    ],
-    glsl: `
-vec3 fx(vec2 uv) {
-  vec2 a = vec2(ASPECT, 1.0);
-  vec2 p = uv * a;
-  float tn = u_t;
-  vec4 s = ST(uv);
-  float px = 1.0 / u_res.y;
-  float cs = mix(0.15, 0.05, rami);
-  vec2 x = p / cs;
-  vec2 ci = floor(x);
-  float ice = 0.0;
-  float lw = finezza / 1080.0;
-  vec2 cb = floor(x - 0.5);
-  for (int j = -1; j <= 2; j++) for (int i = -1; i <= 2; i++) {
-    vec2 c = cb + vec2(float(i), float(j));
-    vec2 hn = hash22(c + S(6.0));
-    vec2 nuc = (c + 0.2 + 0.6 * hn) * cs;
-    float an0 = ST(nuc / a).x;
-    float age = tn - an0;
-    if (age <= 0.0) continue;
-    // ogni felce ha la sua direzione, con una deriva comune verso l'alto
-    float ga = hn.x * TAU * 0.8 + 1.2;
-    vec2 d = p - nuc;
-    float r = length(d);
-    float len0 = cs * 1.7 * (0.65 + 0.35 * hn.y) * (1.0 - exp(-age * crescita * 1.1));
-    if (r > len0) continue;
-    float ang = atan(d.y, d.x);
-    for (int k = 0; k < 2; k++) {
-      float fk = float(k);
-      float hk = hash12(c * 7.1 + fk * 3.3 + S(7.0));
-      float ak = ga + (hk - 0.5) * 0.9 + fk * (hk > 0.5 ? 1.0 : -1.0) * (0.7 + 0.5 * hn.x);
-      float lk = len0 * (1.0 - 0.45 * fk) * (0.75 + 0.25 * hk);
-      float da = ang - ak;
-      da = mod(da + PI, TAU) - PI;
-      // il fusto si incurva appena
-      float u = r * cos(da), w = r * sin(da) - u * u / cs * 0.35 * (hk - 0.5);
-      if (u > lk || u < 0.0) continue;
-      float tip = 1.0 - u / lk;
-      float stem = 1.0 - smoothstep(lw * (0.4 + 0.8 * tip), lw * (1.3 + 0.8 * tip), abs(w));
-      // barbe a felce: rami laterali inclinati in avanti, più corti verso la punta
-      float sp = cs * 0.04 * (0.8 + 0.4 * hk);
-      float u0 = u - abs(w) * (0.45 + 0.6 * hk);
-      float bd = abs(fract(u0 / sp + 0.5) - 0.5) * sp * 0.8;
-      float bl = (lk - u0) * 0.34 + 0.002;
-      float barb = (1.0 - smoothstep(lw * 0.35, lw * 1.1, bd)) * step(0.0, u0) * (1.0 - smoothstep(bl * 0.6, bl, abs(w)));
-      // barbe di secondo ordine, finissime
-      float sp2 = sp * 0.3;
-      float bd2 = abs(fract((u + abs(w) * 0.4) / sp2 + 0.5) - 0.5) * sp2;
-      float barb2 = (1.0 - smoothstep(lw * 0.2, lw * 0.7, bd2)) * (1.0 - smoothstep(bl * 0.3, bl * 0.8, abs(w))) * 0.45;
-      float fade = smoothstep(0.0, cs * 0.08, lk - u + cs * 0.015);
-      ice = max(ice, max(stem, max(barb * 0.75, barb2)) * fade * (1.0 - 0.3 * fk));
-    }
-  }
-  float th = s.y;
-  float reached = smoothstep(0.0, 0.5, tn - s.x) * th;
-  float iceV = ice * smoothstep(0.15, 0.6, th);
-  // vetro appannato: la foto diffusa, sbiancata, opaca
-  vec3 img = IN(uv);
-  vec2 jo = (hash22(uv * u_res + fract(u_t)) - 0.5) * 6.0 * K1080 * PX * reached;
-  vec3 fr = (IN(uv + jo) + IN(uv - jo.yx) + IN(uv + vec2(jo.y, -jo.x))) / 3.0;
-  float l = luma(fr);
-  vec3 milk = mix(vec3(l), fr, 0.35) * 0.62 + vec3(0.33, 0.35, 0.37);
-  vec3 c = mix(img, mix(fr, milk, 0.8), reached * (0.3 + 0.7 * appannato) * gelo);
-  float micro = 0.85 + 0.3 * hash12(floor(uv * u_res / max(1.0, 1.5 * K1080)));
-  vec3 iceC = mix(vec3(l) * 0.4 + 0.5, vec3(0.86, 0.89, 0.91), 0.6) * micro;
-  c = mix(c, iceC, iceV * gelo * 0.85);
-  return c;
-}`,
-  },
+  // (un file suo: crescite/brina.js)
+  BRINA,
   // ------------------------------------------------------------------ sabbia
   {
     id: 'sabbia', code: 'Sb', name: 'Sabbia', family: 'minerali', ref: 'Brakhage, “sabbie granulose e cangianti che a poco a poco prendono forma”',
@@ -545,43 +466,6 @@ vec4 sim(vec2 uv) {
     if (c < best) { best = c; bs = n.yz; }
   }
   return vec4(best, bs, 1.0);
-}`;
-
-MATERIE[2].sim = STX + `
-vec4 sim(vec2 uv) {
-  vec2 a = vec2(ASPECT, 1.0);
-  ivec2 ic = ivec2(gl_FragCoord.xy);
-  vec2 e = 1.5 / u_stRes;
-  float L = luma(IN(uv));
-  if (u_init > 0.5) {
-    float gx = luma(IN(uv + vec2(e.x, 0.0))) - luma(IN(uv - vec2(e.x, 0.0)));
-    float gy = luma(IN(uv + vec2(0.0, e.y))) - luma(IN(uv - vec2(0.0, e.y)));
-    // semi radi sui bordi scuri della foto
-    float sc = smoothstep(0.04, 0.2, length(vec2(gx, gy))) * smoothstep(0.75, 0.25, L);
-    float on = hash12(gl_FragCoord.xy + S(4.0)) < (0.003 + 0.04 * semi) * sc ? 1.0 : 0.0;
-    return vec4(on > 0.5 ? hash12(gl_FragCoord.xy + S(5.0)) * 1.5 : 1e4, 0.0, 0.0, 1.0);
-  }
-  float tn = u_t;
-  vec4 me = STX(ic);
-  float best = me.x;
-  vec2 p = uv * a;
-  float v = crescita * 0.12 * (0.2 + 1.4 * smoothstep(-0.3, 0.5, fbm(p * 7.0, 2.0, 0.0, 3))) * (0.7 + 0.6 * (1.0 - L));
-  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
-    if (i == 0 && j == 0) continue;
-    vec4 n = STX(ic + ivec2(i, j));
-    if (n.x > tn) continue;
-    float c = n.x + length(vec2(float(i), float(j))) / u_stRes.y / max(v, 1e-4);
-    best = min(best, c);
-  }
-  float th = me.y;
-  if (u_step < 0.5) {
-    float dt = 1.0 / u_fps;
-    if (best <= tn) th += dt * 0.7 * (1.0 - th);
-    // il disgelo passa a chiazze lente
-    float T = smoothstep(0.18, 0.42, fbm(p * 1.3, u_t * 0.11 + 4.0, 0.0, 3)) * disgelo;
-    th -= dt * 1.4 * T * th;
-  }
-  return vec4(best, clamp(th, 0.0, 1.0), 0.0, 1.0);
 }`;
 
 MATERIE[4].sim = STX + `
