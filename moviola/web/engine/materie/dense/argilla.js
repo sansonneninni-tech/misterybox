@@ -244,12 +244,12 @@ vec3 fx(vec2 uv) {
   float dry = 1.0 - smoothstep(0.15, 0.55, m);
   // ---- crepe: compaiono sotto una certa umidità, prima dove è sottile; due
   // ordini di poligoni (grandi, poi piccoli dentro)
-  float cs = (14.0 + 26.0 * clamp(H / T, 0.3, 2.0)) * (1.2 - 0.5 * crepe);   // misura della cella, px
+  float cs = (45.0 + 60.0 * clamp(H / T, 0.3, 2.0)) * (1.2 - 0.5 * crepe);   // misura della cella, px
   vec2 c1 = arCrack(P / cs, S(46.0));
   vec2 c2 = arCrack(P / (cs * 0.45), S(47.0));
   float open1 = crepe * smoothstep(0.42, 0.12, m);
   float open2 = crepe * smoothstep(0.25, 0.04, m) * step(0.35, c2.y);
-  float w1 = open1 * (2.4 + 1.6 * c1.y) / cs;            // larghezza in px, poi in celle
+  float w1 = open1 * (3.0 + 3.0 * c1.y) / cs;            // larghezza in px, poi in celle
   float w2 = open2 * 1.4 / (cs * 0.45);
   float k1 = 1.0 - smoothstep(w1 * 0.5, w1 * 0.5 + 0.6 / cs, c1.x);
   float k2 = 1.0 - smoothstep(w2 * 0.5, w2 * 0.5 + 0.6 / (cs * 0.45), c2.x);
