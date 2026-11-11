@@ -116,6 +116,9 @@ vec4 sim(vec2 uv) {
   float t2 = (0.5 * (e2c + EE.x * EE.x) * (e.r - s.r) - 0.5 * (e2c + EW.x * EW.x) * (s.r - w.r)
             + 0.5 * (e2c + EN.x * EN.x) * (n.r - s.r) - 0.5 * (e2c + ES.x * ES.x) * (s.r - so.r)) / (BR_H * BR_H);
   float m = BR_ALPHA / PI * atan(BR_GAMMA * (1.0 - s.g));
+  // il vento porta vapore: i rami che lo guardano in faccia crescono di più
+  vec2 fw = FORZA(uv);
+  if (dot(fw, fw) > 1e-8) m += 0.1 * clamp(dot(normalize(-g0 + 1e-6), -normalize(fw)) * length(fw) * 40.0, -1.0, 1.0);
   float rn = hash13(vec3(cf, u_frame * 31.0 + u_step) + S(36.0)) - 0.5;
   float ph = s.r;
   float dphi = BR_DT / BR_TAU * (t1 + t2 + ph * (1.0 - ph) * (ph - 0.5 + m + 0.035 * rn * (0.4 + felce)));
@@ -125,8 +128,8 @@ vec4 sim(vec2 uv) {
   float du = BR_DT * 0.9 * lapu + K * dphi;
   // il vetro continua a raffreddarsi (la brina avanza piano anche dopo), o si scalda nel disgelo
   float warm = smoothstep(brThaw(), brThaw() + 2.0, u_t);
-  float target = mix(u0, 1.22, warm) + 0.25 * max(RESPIRO, 0.0);
-  du += BR_DT * (0.05 + 0.25 * gelo + 12.0 * warm) * (target - s.g);
+  float target = mix(u0, 1.3, warm) + 0.25 * max(RESPIRO, 0.0);
+  du += BR_DT * (0.05 + 0.25 * gelo + 22.0 * warm) * (target - s.g);
   float phi = clamp(ph + dphi, 0.0, 1.0);
   float wat = s.a + max(0.0, ph - phi) * 1.5;
   wat *= 1.0 - BR_DT * 0.15;

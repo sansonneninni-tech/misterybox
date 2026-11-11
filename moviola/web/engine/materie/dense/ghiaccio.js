@@ -105,7 +105,8 @@ vec3 fx(vec2 uv) {
   // il margine sottile si scioglie per primo; l'acqua resta dove c'era il ghiaccio
   float water = (age > 0.0 && th0 <= 0.0) ? 1.0 : 0.0;
   float th = max(th0, 0.0);
-  float iceM = smoothstep(0.0, 0.04, th);
+  // sciogliendosi il bordo si arrotonda: il passaggio dal ghiaccio all'acqua si allarga
+  float iceM = smoothstep(0.0, 0.04 + 0.12 * smoothstep(ghThaw(), ghThaw() + 2.0, u_t), th);
   // pendenza della lastra: dallo spessore attorno (in uv)
   vec2 sp = 1.5 / u_stRes;
   float tE = max(ghThick(u_t - ghTX(uv + vec2(sp.x, 0.0)), lum), 0.0), tW = max(ghThick(u_t - ghTX(uv - vec2(sp.x, 0.0)), lum), 0.0);
@@ -129,7 +130,7 @@ vec3 fx(vec2 uv) {
   sg = (sl + 0.2 * sf * (1.0 - 0.8 * wet)) * onS;
   // lo scalino del margine pesa poco: il ghiaccio sottile al bordo devia appena
   // il menisco del bordo fa da lente: comprime la foto in una fascia; le gobbe la piegano piano
-  gS = clamp(gS * 0.25, -2.5, 2.5) + sg * 0.05 * (0.3 + spessore);
+  gS = clamp(gS * 0.25 * (1.0 - wet), -2.5, 2.5) + sg * 0.05 * (0.3 + spessore);
   // ---- la foto vista attraverso lo spessore: deviata dove la lastra pende, ingrandita dove è spessa
   vec2 ofs = -gS * 0.03 - (uv - 0.5) * 0.02 * H;
   // ---- crepe: piani interni, ognuno sposta la foto da un lato e brilla sul filo
@@ -225,7 +226,7 @@ vec3 fx(vec2 uv) {
   float rim = smoothstep(0.0, 0.03 + 0.05 * wet, th) * (1.0 - smoothstep(0.03 + 0.05 * wet, 0.1 + 0.1 * wet, th));
   c = mix(c, c * 0.8, rim * 0.35 * iceM * (1.0 - wet));
   // quando fonde, sul filo dell'acqua resta una riga di luce sottile
-  c += vec3(0.8, 0.88, 0.95) * rim * wet * 0.12 * iceM;
+  c += vec3(0.8, 0.88, 0.95) * rim * wet * 0.05 * iceM;
   // gli aghi davanti al fronte: cristalli sottili e dritti che corrono avanti
   float front = smoothstep(-0.8, 0.0, age) * (1.0 - iceM);
   if (front > 0.0) {

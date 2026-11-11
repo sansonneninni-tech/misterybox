@@ -56,7 +56,10 @@ float liVel(vec2 uv, float id, vec2 ctr, float host) {
   float lob = 0.5 + 0.5 * sin(an * nl + 3.0 * sin(an * 2.0 + hid * 9.0) + hid * 20.0);
   float fine = gnoise(vec3(uv * vec2(ASPECT, 1.0) * 60.0, hid * 7.0), 0.0);
   float sp = 0.016 * crescita * (0.6 + 0.8 * hid);
-  return sp * host * (1.0 - 0.75 * lobi * (1.0 - lob)) * (1.0 + 0.45 * fine);
+  // l'acqua scende con la gravità (e il vento porta le spore): la colonia si allunga a valle
+  vec2 fz = FORZA(uv) / vec2(ASPECT, 1.0);
+  float lean = dot(fz, fz) > 1e-8 ? 0.6 * dot(normalize(d + 1e-6), normalize(fz)) * min(1.0, length(fz) * 30.0) : 0.0;
+  return sp * host * (1.0 + lean) * (1.0 - 0.75 * lobi * (1.0 - lob)) * (1.0 + 0.45 * fine);
 }
 `;
 
@@ -179,7 +182,10 @@ vec3 fx(vec2 uv) {
   float crack = 1.0 - smoothstep(crackW * 0.6, crackW * 0.6 + 0.08, ce.x);
   float crack2 = (1.0 - smoothstep(0.03, 0.09, ce2.x)) * smoothstep(1.5, 5.0, age) * areole * 0.25;
   // il centro vecchio muore a tessere: prima si scuriscono, poi si staccano e resta la pietra
-  float die = vecchiaia > 0.001 ? smoothstep(0.0, 1.0, (age - mix(14.0, 3.0, vecchiaia)) / 3.0 + (ce.y - 0.5) * 1.2) : 0.0;
+  // il centro vecchio muore a tessere e poi un tallo nuovo lo ricolonizza: la morte
+  // torna a ondate e la colonia si fa ad anelli che si allargano
+  float dx = (age - mix(16.0, 4.0, vecchiaia)) / 9.0 + (ce.y - 0.5) * 0.12;
+  float die = (vecchiaia > 0.001 && dx > 0.0) ? smoothstep(0.0, 0.2, fract(dx)) * (1.0 - smoothstep(0.5, 0.8, fract(dx))) : 0.0;
   // coppette (apoteci): dischi con orlo, solo dove la crosta è matura
   vec2 ap = gp / (cs * 1.6);
   vec2 ai = floor(ap), af = fract(ap) - 0.5;
@@ -214,14 +220,14 @@ vec3 fx(vec2 uv) {
   // morto: grigio, screpolato, poi via
   vec3 deadC = mix(vec3(l) * 0.6 + 0.18, img, 0.3) * dif;
   lc = mix(lc, deadC, smoothstep(0.0, 0.5, die));
-  float cover = edge * (1.0 - smoothstep(0.55, 1.0, die) * (1.0 - crack * 0.5));
+  float cover = edge * (1.0 - 0.75 * smoothstep(0.55, 1.0, die) * (1.0 - crack * 0.5));
   vec3 c = mix(img, lc, cover);
   // l'ombra che il margine rialzato getta sulla pietra, appena fuori
   float sh = (1.0 - edge) * smoothstep(-0.6, -0.08, age) * lobi;
   c *= 1.0 - 0.35 * sh;
   // il protallo: una linea scura appena oltre il margine, e sul confine fra due colonie
   float pro = smoothstep(-0.35, -0.1, age) * (1.0 - smoothstep(-0.05, 0.08, age));
-  c = mix(c, vec3(0.05, 0.045, 0.04), 0.75 * max(pro * 0.7, other * edge));
+  c = mix(c, vec3(0.05, 0.045, 0.04), 0.75 * max(pro * 0.7, other * edge * (1.0 - 0.6 * die)));
   // il rilievo, per la messa a fuoco della Macro
   FX_H = 0.3 + 0.45 * clamp(h, 0.0, 1.0) * cover;
   return c;
