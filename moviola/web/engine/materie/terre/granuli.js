@@ -252,7 +252,7 @@ vec3 fx(vec2 uv) {
   float v1 = hash12(bh.xy * 71.3 + S(13.0));
   alb *= 1.0 + varieta * (bh.z - 0.5) * 0.3 * gvis;
   // dove la sabbia è finita si vede il fondo scuro della vasca
-  alb = mix(alb, alb * 0.3, 1.0 - smoothstep(0.0006, 0.004, hb.x));
+  alb = mix(alb, alb * 0.35, 1.0 - smoothstep(0.0003, 0.0015, hb.x));
   // qualche grano scuro (ferro, mica) e qualche quarzo chiaro
   if (v1 < 0.05 * varieta * gvis) alb = mix(alb, vec3(luma(alb)) * vec3(0.45, 0.43, 0.42), 0.6);
   else if (v1 > 1.0 - 0.06 * varieta * gvis) alb = mix(alb, vec3(luma(alb)) * 1.3 + 0.02, 0.45);
