@@ -21,7 +21,7 @@ import { P } from '../comune.js';
 const COMUNE = `
 float ghTX(vec2 uv) { return min(texture(u_st, uv).r, u_t + 1.0); }
 // tempo della materia in cui comincia a sciogliersi (mai, se Disgelo è zero)
-float ghThaw() { return disgelo > 0.001 ? u_T * (1.0 - 0.75 * disgelo) : 1e9; }
+float ghThaw() { return disgelo > 0.001 ? u_T * (1.0 - 0.75 * disgelo) : 1e6; }
 // spessore della lastra (0..1) per un punto gelato da «age» secondi, con la fusione
 float ghThick(float age, float lum) {
   float tg = min(age, ghThaw() - (u_t - age));          // il gelo si ferma quando comincia il disgelo

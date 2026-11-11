@@ -30,7 +30,7 @@ const COMUNE = `
 #define BR_ALPHA 0.9
 #define BR_GAMMA 10.0
 // tempo della materia in cui comincia il disgelo (mai se Disgelo è zero)
-float brThaw() { return disgelo > 0.001 ? u_T * (1.0 - 0.7 * disgelo) : 1e9; }
+float brThaw() { return disgelo > 0.001 ? u_T * (1.0 - 0.7 * disgelo) : 1e6; }
 `;
 
 export const MATERIA = {
@@ -50,6 +50,8 @@ export const MATERIA = {
 vec4 brF(ivec2 c) { return texelFetch(u_st, clamp(c, ivec2(0), ivec2(u_stRes) - 1), 0); }
 // ε e ε·ε' in un punto, dal gradiente di φ e dall'orientamento del cristallo
 vec2 brEps(vec2 g, float o) {
+  // dove φ è piatto l'angolo non esiste: atan(0, 0) su alcune schede video dà NaN
+  if (dot(g, g) < 1e-10) return vec2(BR_EPS, 0.0);
   float delta = 0.012 + 0.04 * felce;
   float th = atan(g.y, g.x) - o * 1.0471976;
   float e = BR_EPS * (1.0 + delta * cos(6.0 * th));

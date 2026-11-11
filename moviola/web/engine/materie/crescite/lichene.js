@@ -50,7 +50,7 @@ vec2 liBlock(float id) { return vec2(mod(id, 4096.0), floor(id / 4096.0)); }
 // lobi propri della colonia attorno al suo centro, margine frastagliato, foto
 float liVel(vec2 uv, float id, vec2 ctr, float host) {
   vec2 d = (uv - ctr) * vec2(ASPECT, 1.0);
-  float an = atan(d.y, d.x);
+  float an = atan(d.y, d.x + 1e-6);
   float hid = hash11(id * 0.137 + S(44.0));
   float nl = 5.0 + floor(9.0 * hid);
   float lob = 0.5 + 0.5 * sin(an * nl + 3.0 * sin(an * 2.0 + hid * 9.0) + hid * 20.0);
@@ -174,7 +174,7 @@ vec3 fx(vec2 uv) {
   vec2 ctr = liCenter(liBlock(max(id, 0.0)));
   vec2 dc = (uv - ctr) * vec2(ASPECT, 1.0) * 1080.0;
   float rp = length(dc);
-  vec3 lob = liCells(vec2(atan(dc.y, dc.x) * rp / (7.0 + 5.0 * hid), rp / 26.0) + hid * 50.0);
+  vec3 lob = liCells(vec2(atan(dc.y, dc.x + 1e-4) * rp / (7.0 + 5.0 * hid), rp / 26.0) + hid * 50.0);
   float lz = young * lobi * smoothstep(8.0, 30.0, rp);
   ce = mix(ce, lob, step(0.5, lz));
   vec3 ce2 = liCells(gp / (cs * 0.42) + 13.0);
