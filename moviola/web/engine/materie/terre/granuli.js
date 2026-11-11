@@ -36,13 +36,15 @@ export const MATERIA = {
   about: 'La foto è un letto di sabbia: ogni grano porta il colore del punto da cui parte. Prima l’immagine tiene, poi cede a zone e frana fino all’angolo di riposo; il vento solleva i grani dai fianchi esposti e li ridepone dietro le creste, in dune e increspature, così l’immagine si disfa e si ricompone a strati.',
   steps: 6, simLong: 768, simF32: true, noloop: true,
   params: [
-    P('grani', 'Taglia dei grani (px)', 1.5, 16, 7, 0),
+    P('grani', 'Taglia dei grani (px)', 1.5, 16, 3.5, 0),
     P('varieta', 'Varietà dei grani', 0, 1, 0.55, 0.1),
     P('riposo', 'Angolo di riposo (°)', 15, 45, 32, 0.1),
     P('coesione', 'Coesione (asciutta → umida)', 0, 1, 0.15, 0.2),
-    P('spinta', 'Forza della spinta', 0, 1, 0.45, 0.3),
+    P('spinta', 'Forza del vento', 0, 1, 0.3, 0.3),
     P('direzione', 'Direzione della spinta (°)', 0, 360, 200, 0.05, { step: 1 }),
-    P('tenuta', 'Quanto regge la foto (s)', 0, 20, 3, 0),
+    P('tenuta', 'Quanto regge la foto (s)', 0, 20, 1, 0),
+    P('clessidre', 'Clessidre (buco e getto)', 0, 3, 2, 0, { step: 1 }),
+    P('portata', 'Sabbia che scende', 0, 1, 0.5, 0.2),
     P('cedono', 'Cedono prima (scuri ← → chiari)', -1, 1, 0.4, 0),
     P('velocita', 'Velocità', 0.05, 1.5, 0.6, 0.2),
     P('rilievo', 'Profondità del rilievo', 0, 2, 1, 0.2),
@@ -83,7 +85,7 @@ vec4 sim(vec2 uv0) {
   float L = grLuma(uv);
   if (u_init > 0.5) {
     vec3 col = IN(uv);
-    float h = 0.03 + 0.045 * rilievo * L;
+    float h = 0.06 + 0.04 * rilievo * L;
     if (k == 0) return vec4(h, col);
     if (k == 1) return vec4(col, 0.02);
     return vec4(0.0);
@@ -101,10 +103,35 @@ vec4 sim(vec2 uv0) {
     ivec2 o = ivec2(j < 3 ? j - 1 : j == 3 ? -1 : j == 4 ? 1 : j - 6, j < 3 ? -1 : j < 5 ? 0 : 1);
     float dist = (o.x != 0 && o.y != 0 ? 1.41421 : 1.0) * dx;
     vec4 n = TF(0, c + o);
-    outv += kt * fr * max(h - n.x - tn * dist, 0.0);
-    float fn = TF(2, c + o).z;
-    float q = kt * fn * max(n.x - h - tn * dist, 0.0);
+    // la sabbia ferma regge qualche grado in più di quella che scorre: le
+    // frane partono all'improvviso e si fermano all'angolo di riposo
+    outv += kt * fr * max(h - n.x - (z.y > 0.3 ? tn : tn * 1.18) * dist, 0.0);
+    vec4 zn = TF(2, c + o);
+    float fn = zn.z;
+    float q = kt * fn * max(n.x - h - (zn.y > 0.3 ? tn : tn * 1.18) * dist, 0.0);
     inv += q; cin += q * n.yzw;
+  }
+  float slide = outv;
+  // clessidre: la sabbia scende da un buco nel fondo (si apre un cratere) e
+  // ricade in un getto altrove (cresce un cono); il getto porta il colore
+  // della sabbia che sta entrando nel buco
+  vec2 X = (uv - 0.5) * vec2(ASPECT, 1.0);
+  int nb = int(clessidre + 0.5);
+  for (int i = 0; i < 3; i++) {
+    if (i >= nb) break;
+    vec2 hh = hash22(vec2(float(i) * 3.1 + 1.0, 7.0) + S(14.0));
+    vec2 hp = (hash22(vec2(float(i) * 5.3 + 2.0, 3.0) + S(15.0)) - 0.5) * vec2(ASPECT, 1.0) * 0.7;
+    vec2 pp = (hh - 0.5) * vec2(ASPECT, 1.0) * 0.7;
+    float rr = 0.012;
+    float rate = portata * 0.025 / (24.0 * GR_STEPS);            // altezza al centro, per passo
+    float wd = exp(-dot(X - hp, X - hp) / (rr * rr));
+    float wp = exp(-dot(X - pp, X - pp) / (rr * rr));
+    outv += min(rate * wd, max(h - outv - 0.0005, 0.0));
+    if (wp > 1e-4) {
+      vec2 huv = hp / vec2(ASPECT, 1.0) + 0.5;
+      vec3 hc = TUV(0, huv).yzw;
+      inv += rate * wp; cin += rate * wp * hc;
+    }
   }
   // vento: se ne va la sabbia di qui, arriva quella di sopravvento
   vec3 c0, c1, c2;
@@ -132,7 +159,8 @@ vec4 sim(vec2 uv0) {
   if (k == 1) return vec4(clamp(cd, 0.0, 1.0), Dn);
   // attività del vento e sabbia appena mossa (memoria breve)
   float act = mix(z.x, e0 / max(spinta * spinta * 1.2e-4 * clamp(velocita, 0.05, 1.5), 1e-9), 0.02);
-  float mv = mix(z.y, clamp(abs(inv - outv) / dx * 40.0, 0.0, 1.0), 0.05);
+  // sabbia che sta franando (la memoria serve anche alla soglia delle frane)
+  float mv = slide > 2e-6 * dx * 135.0 ? 1.0 : z.y * 0.9;
   return vec4(act, mv, fr, 0.0);
 }`,
   glsl: COMUNE + `
@@ -206,8 +234,8 @@ vec3 fx(vec2 uv) {
     gG *= 0.6;
     // bordo del grano: un filo di ombra di contatto
     float e = length(bq) / br;
-    gapAo = 1.0 - 0.22 * smoothstep(0.7, 1.0, e);
-  } else gapAo = 0.7;
+    gapAo = 1.0 - 0.12 * smoothstep(0.7, 1.0, e);
+  } else gapAo = 0.86;
   // grani più piccoli di un paio di pixel: se ne vede la media, non il rumore
   float gvis = smoothstep(1.0, 2.8, gpx * K1080);
   gG *= gvis;
@@ -222,7 +250,9 @@ vec3 fx(vec2 uv) {
   float under = 1.0 - smoothstep(0.0, 0.004, b.w);
   vec3 alb = (bh.y < under * 0.85) ? b.xyz : a.yzw;
   float v1 = hash12(bh.xy * 71.3 + S(13.0));
-  alb *= 1.0 + varieta * (bh.z - 0.5) * 0.55 * gvis;
+  alb *= 1.0 + varieta * (bh.z - 0.5) * 0.3 * gvis;
+  // dove la sabbia è finita si vede il fondo scuro della vasca
+  alb = mix(alb, vec3(0.07, 0.065, 0.06), 1.0 - smoothstep(0.0006, 0.004, hb.x));
   // qualche grano scuro (ferro, mica) e qualche quarzo chiaro
   if (v1 < 0.05 * varieta * gvis) alb = mix(alb, vec3(luma(alb)) * vec3(0.45, 0.43, 0.42), 0.6);
   else if (v1 > 1.0 - 0.06 * varieta * gvis) alb = mix(alb, vec3(luma(alb)) * 1.3 + 0.02, 0.45);

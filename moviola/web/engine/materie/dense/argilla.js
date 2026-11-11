@@ -1,137 +1,203 @@
-// Materia densa: argilla. La foto è un bassorilievo modellato in argilla
-// bagnata, visto da vicino in luce radente, e delle dita invisibili continuano
-// a lavorarlo.
+// Materia densa: argilla. La foto è uno strato di argilla bagnata stesa su un
+// piano, vista da vicino in luce radente: dita invisibili la lavorano, poi
+// l'argilla asciuga e si screpola.
 //
-// Stato della simulazione (morbido, lato lungo 640):
-//   xy = scostamento (in uv) verso il punto della foto da cui l'argilla è stata
-//        spinta: dove passa un dito il rilievo scivola di lato e poi si rilassa;
-//   z  = bagnato (0 asciutto, 1 fradicio);
-//   w  = libero.
-// Le impronte vive (solchi delle dita, conche dei pollici) non stanno nello
-// stato: il disegno le ricostruisce in forma analitica dalla stessa traiettoria
-// delle mani, così il profilo resta netto a qualsiasi risoluzione.
-// Il disegno legge la foto a piena risoluzione e ci costruisce sopra il campo
-// d'altezza: rilievo dalla luminanza (tre anelli), impronte vive dallo stato,
-// e la struttura propria dell'argilla (ditate vecchie, pollici, grumi, stecca,
-// chamotte) in pixel × K1080.
+// L'argilla umida è plastica: non torna indietro. La simulazione conserva la
+// quantità di argilla e la sposta solo dove passa un dito:
+//   - il dito affonda fino a una certa profondità e scorre: l'argilla del
+//     solco viene spinta di lato e davanti, e si alza in due argini lungo il
+//     solco e in un cumulo dove il dito si ferma;
+//   - il pollice preme da fermo: una conca col bordo rialzato;
+//   - ogni punto d'argilla porta con sé il pezzo di foto su cui stava, così
+//     l'immagine si deforma con la materia;
+//   - dove le dita lavorano l'argilla si bagna di più (lucida e scura).
+// Poi asciuga: prima dove è sottile e sulle creste, più piano dove è spessa;
+// asciugando schiarisce, diventa opaca e polverosa, si ritira un poco e si
+// screpola in poligoni piccoli dove è sottile e grandi dove è spessa. L'argilla
+// secca non si lascia più spingere.
+//
+// Stato (una texture a 32 bit, lato lungo 640): x = spessore dell'argilla in
+// pixel di un quadro alto 1080, y = umidità (0 secca, 1 fradicia), zw = da dove
+// viene (uv della foto). L'ultima riga tiene le dita (due texel per dito).
 import { P } from '../comune.js';
 
-// Le mani: la stessa traiettoria nella simulazione e nel disegno.
-const MANI = `
-vec2 mir(vec2 q) { return 1.0 - abs(1.0 - mod(q, 2.0)); }
-#define AR_D 7.0
-#define AR_R 0.034
-#define AR_LS 0.62
-// mano k al tempo t: da dove parte, verso dove va, a che punto è (0..1 del ciclo)
-void arHand(float k, float t, out vec2 a0, out vec2 dir, out float f) {
-  float tt = t / AR_D + (k < 0.5 ? 0.3 : 0.8);
-  float n = floor(tt); f = tt - n;
-  vec2 h = hash22(vec2(n * 3.7 + 1.0, k * 7.3 + 2.0) + S(21.0));
-  vec2 h2 = hash22(vec2(n * 5.1 + 4.0, k * 3.3 + 8.0) + S(22.0));
-  a0 = (h - 0.5) * vec2(ASPECT, 1.0) * 0.9;
-  vec2 tg = (h2 - 0.5) * vec2(ASPECT, 1.0) * 0.45;
-  dir = normalize(tg - a0 + vec2(1e-3, 2e-3));
+const COMUNE = `
+#define AR_STEPS 6.0
+ivec2 arSz() { return ivec2(u_stRes); }
+vec4 arF(ivec2 c) { return texelFetch(u_st, clamp(c, ivec2(0), arSz() - ivec2(1, 2)), 0); }
+vec4 arL(vec2 lc) {
+  vec2 q = lc - 0.5; ivec2 i = ivec2(floor(q)); vec2 f = q - floor(q);
+  return mix(mix(arF(i), arF(i + ivec2(1, 0)), f.x), mix(arF(i + ivec2(0, 1)), arF(i + ivec2(1, 1)), f.x), f.y);
 }
-float arProf(float d) { float x = clamp(1.0 - d * d, 0.0, 1.0); return x * x; }
-float arRim(float d) { return smoothstep(0.7, 1.1, d) * (1.0 - smoothstep(1.1, 1.75, d)); }
-// pollice k: centro, angolo, punto del ciclo
-void arThumb(float k, float t, out vec2 c, out float an, out float f) {
-  float tt = t / 5.0 + k * 0.37 + 0.12;
-  float n = floor(tt); f = tt - n;
-  vec2 h = hash22(vec2(n * 2.3 + 5.0, k * 9.1 + 1.0) + S(24.0));
-  c = (h - 0.5) * vec2(ASPECT, 1.0) * 0.82;
-  an = hash11(n * 1.7 + k + S(25.0)) * TAU;
+// spessore: B-spline cubica, valore e pendenza (per texel)
+vec3 arBS(vec2 lc) {
+  vec2 q = lc - 0.5;
+  vec2 i = floor(q), f = q - i;
+  vec2 f2 = f * f, f3 = f2 * f;
+  vec2 w0 = (1.0 - 3.0 * f + 3.0 * f2 - f3) / 6.0, w1 = (4.0 - 6.0 * f2 + 3.0 * f3) / 6.0;
+  vec2 w2 = (1.0 + 3.0 * f + 3.0 * f2 - 3.0 * f3) / 6.0, w3 = f3 / 6.0;
+  vec2 d0 = (-3.0 + 6.0 * f - 3.0 * f2) / 6.0, d1 = (-12.0 * f + 9.0 * f2) / 6.0;
+  vec2 d2 = (3.0 + 6.0 * f - 9.0 * f2) / 6.0, d3 = 3.0 * f2 / 6.0;
+  float wx[4] = float[4](w0.x, w1.x, w2.x, w3.x), wy[4] = float[4](w0.y, w1.y, w2.y, w3.y);
+  float dx[4] = float[4](d0.x, d1.x, d2.x, d3.x), dy[4] = float[4](d0.y, d1.y, d2.y, d3.y);
+  ivec2 b = ivec2(i) - 1;
+  vec3 r = vec3(0.0);
+  for (int y = 0; y < 4; y++) for (int x = 0; x < 4; x++) {
+    float v = arF(b + ivec2(x, y)).x;
+    r += v * vec3(wx[x] * wy[y], dx[x] * wy[y], wx[x] * dy[y]);
+  }
+  return r;
 }
-// il polpastrello j della mano k lungo la passata (hh = 0..1 del tratto fatto)
-vec2 arTip(vec2 a0, vec2 dir, float k, float j, float s) {
-  vec2 perp = vec2(-dir.y, dir.x);
-  float hj = hash11(k * 3.0 + j + S(23.0));
-  return a0 + perp * (j - 1.0) * AR_R * (2.15 + 0.3 * hj) + dir * (1.0 - abs(j - 1.0)) * 0.035
-    + dir * AR_LS * s + perp * 0.014 * sin(s * 3.0 + k * 2.0);
+float arT() { return 9.0 * spessore; }        // spessore medio dello strato, px a 1080
+// Il dito k al tempo t: punta p, direzione d, raggio, quanto affonda (0..1 dello
+// strato), se è un pollice che preme da fermo, e quanto è appoggiato.
+float arDur() { return 2.6 / max(velocita, 0.02); }
+void arFingerAt(float k, float t, out vec2 p, out vec2 d, out float r, out float dep, out float thumb, out float con, out float f) {
+  float tt = t / arDur() + k * 0.53 + 0.11;
+  float n = floor(tt); f = tt - n;
+  vec3 h = hash33(vec3(n * 1.91 + 2.0, k * 5.3 + 7.0, 3.0) + S(41.0));
+  vec3 h2 = hash33(vec3(n * 3.17 + 5.0, k * 2.9 + 1.0, 8.0) + S(42.0));
+  vec2 a = vec2(ASPECT, 1.0);
+  vec2 a0 = (h.xy - 0.5) * a * 0.84;
+  thumb = step(1.0 - 0.35 * pollici, h2.z);
+  r = (thumb > 0.5 ? 0.045 : 0.022) * (0.8 + 0.4 * h2.x) * (0.6 + 0.8 * dita);
+  dep = (thumb > 0.5 ? 0.55 : 0.45) * (0.75 + 0.5 * h2.y);
+  float ang = h.z * TAU;
+  float L = thumb > 0.5 ? 0.0 : (0.18 + 0.28 * h2.y);
+  float s = smoothstep(0.12, 0.8, f);
+  float bend = (h2.x - 0.5) * 1.6;
+  float an = ang + bend * (s - 0.5);
+  d = vec2(cos(an), sin(an));
+  float an0 = ang - bend * 0.5;
+  vec2 d0 = vec2(cos(an0), sin(an0));
+  p = a0 + (abs(bend) > 1e-3 ? (vec2(sin(an) - sin(an0), cos(an0) - cos(an)) / bend * L) : d0 * L * s);
+  // appoggia, affonda, scorre, si stacca
+  con = smoothstep(0.02, 0.12, f) * (1.0 - smoothstep(0.82, 0.9, f));
 }
 `;
 
 export const MATERIA = {
-  id: 'argilla', code: 'Ar', name: 'Argilla', family: 'dense', ref: 'Il bassorilievo in creta ancora umida, prima della cottura',
-  about: 'La foto è un bassorilievo in argilla bagnata visto da vicino in luce radente: dita invisibili lo trascinano, lo premono e lo lisciano, il rilievo scivola di lato e si rilassa, le chiazze umide migrano e asciugano.',
-  steps: 1, simLong: 512, noloop: true,
+  id: 'argilla', code: 'Ar', name: 'Argilla', family: 'dense', ref: 'La creta ancora umida sotto le dita; la terra che si screpola al sole',
+  about: 'La foto è uno strato di argilla bagnata in luce radente. Dita invisibili la spingono: il solco resta, l’argilla si alza in argini ai lati e in un cumulo dove il dito si ferma, e l’immagine si deforma con lei. Nulla torna indietro. Poi asciuga: prima dove è sottile, schiarisce, diventa opaca e si screpola in poligoni.',
+  steps: 6, simLong: 640, simF32: true, noloop: true,
   params: [
-    P('materia', 'Argilla', 0, 1, 0.7, 0.2),
-    P('rilievo', 'Spessore del rilievo', 0, 2, 1, 0.3),
-    P('dita', 'Ditate', 0, 2, 1, 0.4),
-    P('pressioni', 'Pollici', 0, 2, 1, 0.4),
-    P('grumi', 'Grumi e chamotte', 0, 2, 1, 0.2),
-    P('bagnato', 'Bagnato', 0, 1, 0.6, 0.3),
+    P('materia', 'Argilla', 0, 1, 0.75, 0.2),
+    P('spessore', 'Spessore dello strato', 0.3, 2, 1, 0.3),
+    P('dita', 'Dita', 0, 2, 1, 0.3),
+    P('pollici', 'Pollici che premono', 0, 1, 0.4, 0.2),
+    P('velocita', 'Velocità delle mani', 0.05, 2, 0.6, 0.2),
+    P('asciuga', 'Quanto in fretta asciuga', 0, 1, 0.45, 0.2),
+    P('crepe', 'Crepe', 0, 1, 0.7, 0.2),
     P('terra', 'Terra (grigia → cotto)', 0, 1, 0.45, 0.1),
     P('luce', 'Direzione delle ombre', 0, 360, 315, 0, { step: 1 }),
   ],
-  sim: MANI + `
-vec4 sim(vec2 uv) {
-  vec2 a = vec2(ASPECT, 1.0);
-  vec2 p = (uv - 0.5) * a;
-  float dt = 1.0 / 24.0;
+  sim: COMUNE + `
+// quanto e dove si muove l'argilla di una cella: x = parte mobile (sopra la
+// punta del dito), yz = spostamento in celle in questo passo, w = bagnato portato dal dito
+vec4 arMove(ivec2 c, float h, float m, float dt) {
+  vec2 sz = vec2(arSz());
+  vec2 X = ((vec2(c) + 0.5) / sz - 0.5) * vec2(ASPECT, 1.0);
+  float cell = 1.0 / sz.y;
+  vec2 vel = vec2(0.0); float lev = 1e9, wet = 0.0;
+  for (int k = 0; k < 3; k++) {
+    vec4 ka = texelFetch(u_st, ivec2(2 * k, arSz().y - 1), 0);
+    vec4 kb = texelFetch(u_st, ivec2(2 * k + 1, arSz().y - 1), 0);
+    float con = ka.w;
+    if (con < 0.01) continue;
+    vec2 p = ka.xy, d = vec2(cos(ka.z), sin(ka.z)), V = kb.xy;
+    float r = kb.z, dep = abs(kb.w), thumb = kb.w < 0.0 ? 1.0 : 0.0;
+    vec2 q = X - p;
+    float dl = length(q);
+    if (dl > r + 2.0 * cell) continue;
+    float ins = (1.0 - smoothstep(r - 2.0 * cell, r + cell, dl)) * con;
+    vec2 rad = q / max(dl, 1e-6);
+    // il dito che scorre spinge avanti e di lato; il pollice spinge in fuori
+    float sp = length(V);
+    vec2 push = thumb > 0.5 ? rad * 0.35 : V + rad * max(dot(rad, vec2(-d.y, d.x)) * sign(dot(rad, vec2(-d.y, d.x))), 0.0) * sp * 0.9;
+    vel += push * ins;
+    // la punta è tonda: affonda di più al centro
+    float prof = sqrt(max(1.0 - (dl / r) * (dl / r), 0.0));
+    lev = min(lev, mix(1e9, arT() * (1.0 - dep * prof * con), step(0.02, ins)));
+    wet = max(wet, ins);
+  }
+  // l'argilla secca non si lascia spingere
+  float mob = max(h - lev, 0.0) * smoothstep(0.2, 0.5, m);
+  vec2 mv = vel * dt / cell;
+  float tot = abs(mv.x) + abs(mv.y);
+  if (tot > 0.95) mv *= 0.95 / tot;
+  return vec4(mob, mv, wet);
+}
+vec4 sim(vec2 uv0) {
+  ivec2 c = ivec2(gl_FragCoord.xy);
+  vec2 uv = (vec2(c) + 0.5) / vec2(arSz());
+  float dt = 1.0 / (24.0 * AR_STEPS);
   float t = u_t + u_step * dt;
-  bool ini = u_init > 0.5;
-  // chiazze d'umido che migrano
-  float wt = smoothstep(-0.3, 0.3, gnoise(vec3(p * 1.7 + vec2(t * 0.035, -t * 0.02), t * 0.11), 0.0) + 0.45 * gnoise(vec3(p * 4.1 + 5.0, t * 0.16), 0.0));
-  vec4 s;
-  if (ini) {
-    s = vec4(0.0, 0.0, wt, 0.0);
-  } else {
-    s = ST(uv);
-    vec2 se = SPX * 1.5;
-    vec4 nb = (ST(uv + vec2(se.x, 0.0)) + ST(uv - vec2(se.x, 0.0)) + ST(uv + vec2(0.0, se.y)) + ST(uv - vec2(0.0, se.y))) * 0.25;
-    s.xy = mix(s.xy, nb.xy, 0.18) * (1.0 - 0.009);   // l'argilla si rilassa piano
-    s.z = mix(s.z, nb.z, 0.15);
-    s.z += (wt - s.z) * 0.024;
+  if (c.y == arSz().y - 1) {
+    // la riga delle dita: dito c.x / 2
+    if (c.x >= 6) return vec4(0.0);
+    float k = float(c.x / 2);
+    vec2 p, d, p1, d1; float r, dep, th, con, f, r1, dep1, th1, con1, f1;
+    arFingerAt(k, t, p, d, r, dep, th, con, f);
+    arFingerAt(k, t + 0.02, p1, d1, r1, dep1, th1, con1, f1);
+    vec2 V = f1 < f ? vec2(0.0) : (p1 - p) / 0.02;
+    if (c.x % 2 == 0) return vec4(p, atan(d.y, d.x), con);
+    return vec4(V, r, th > 0.5 ? -dep : dep);
   }
-  // due mani, tre dita: dove passano il rilievo scivola con loro
-  for (int k = 0; k < 2; k++) {
-    float fk = float(k);
-    vec2 a0, dir; float f;
-    arHand(fk, t, a0, dir, f);
-    float pr = clamp(f / 0.6, 0.0, 1.0);
-    float act = smoothstep(0.0, 0.035, f) * (1.0 - smoothstep(0.57, 0.62, f));
-    for (int j = 0; j < 3; j++) {
-      float fj = float(j);
-      if (ini) {
-        vec2 b0 = arTip(a0, dir, fk, fj, 0.0), b1 = arTip(a0, dir, fk, fj, pr);
-        vec2 pa = p - b0, ba = b1 - b0;
-        float hh = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
-        float pf = arProf(length(p - arTip(a0, dir, fk, fj, pr * hh)) / AR_R);
-        s.xy -= dir * 0.028 * pf * min(dita, 1.5) * (0.4 + 0.6 * hh) / a;
-        s.z = max(s.z, min(s.z + 0.3 * pf, 0.6));
-      } else {
-        float pf = arProf(length(p - arTip(a0, dir, fk, fj, pr)) / AR_R) * act;
-        s.xy -= dir * (AR_LS / (0.6 * AR_D)) * dt * 0.85 * pf * min(dita, 1.5) / a;
-        s.z = max(s.z, min(s.z + pf * 0.1, 0.65));
-      }
+  vec2 a = vec2(ASPECT, 1.0);
+  if (u_init > 0.5) {
+    // lo strato: un poco più alto dove la foto è chiara (un bassorilievo), con
+    // le irregolarità della stesura; bagnato quasi ovunque
+    vec2 p = (uv - 0.5) * a;
+    float L = 0.0;
+    for (int i = 0; i < 5; i++) {
+      float an = float(i) * 1.2566;
+      L += luma(IN(uv + vec2(cos(an), sin(an)) * 1.5 / vec2(arSz())));
     }
+    L /= 5.0;
+    float n = fbm(p * 4.0 + S(43.0), 0.0, 0.0, 4);
+    // la stesura a mano: larghe lisciature e qualche grumo
+    float lis = fbm(vec2(dot(p, vec2(0.8, 0.6)) * 7.0, dot(p, vec2(-0.6, 0.8)) * 2.5) + S(48.0), 0.0, 0.0, 3);
+    float gr = smoothstep(0.62, 0.8, hash12(floor(p * 70.0) + S(49.0))) * smoothstep(0.1, 0.5, gnoise(vec3(p * 5.0, S(50.0)), 0.0));
+    float h = arT() * (0.75 + 0.5 * L + 0.3 * n + 0.18 * lis + 0.25 * gr);
+    float m = 0.82 + 0.15 * gnoise(vec3(p * 3.0, S(44.0)), 0.0);
+    return vec4(h, m, uv);
   }
-  // tre pollici: premono (l'argilla si sposta in fuori), poi vengono lisciati
-  if (!ini) {
-    for (int k = 0; k < 3; k++) {
-      float fk = float(k);
-      vec2 c; float an, f;
-      arThumb(fk, t, c, an, f);
-      vec2 q = rot(an) * (p - c);
-      q.y *= 1.4;
-      float d = length(q) / 0.062;
-      float giu = smoothstep(0.0, 0.15, f);
-      float su = 1.0 - step(0.36, f);
-      float pin = su * step(f, 0.15);
-      vec2 qn = (p - c) / max(length(p - c), 1e-5);
-      s.xy -= qn * 0.02 / 18.0 * pin * d * arProf(d * 0.8) * 2.0 * min(pressioni, 1.5) / a;
-      s.z = max(s.z, min(s.z + arProf(d) * su * giu * 0.06, 0.65));
-      float lis = smoothstep(0.6, 0.66, f) * (1.0 - smoothstep(0.9, 0.96, f));
-      s.xy *= 1.0 - 0.024 * lis * (1.0 - smoothstep(1.0, 1.9, d));
-    }
+  vec4 s = arF(c);
+  float h = s.x;
+  vec4 me = arMove(c, h, s.y, dt);
+  float out0 = me.x * (abs(me.y) + abs(me.z));
+  float inT = 0.0; vec3 cin = vec3(0.0);
+  float hsum = 0.0, msum = 0.0;
+  for (int j = 0; j < 4; j++) {
+    ivec2 o = j == 0 ? ivec2(-1, 0) : j == 1 ? ivec2(1, 0) : j == 2 ? ivec2(0, -1) : ivec2(0, 1);
+    ivec2 n = c + o;
+    vec4 sn = arF(n);
+    hsum += sn.x; msum += sn.y;
+    if (n.x < 0 || n.y < 0 || n.x >= arSz().x || n.y >= arSz().y - 1) continue;
+    vec4 mn = arMove(n, sn.x, sn.y, dt);
+    float comp = j == 0 ? mn.y : j == 1 ? -mn.y : j == 2 ? mn.z : -mn.z;
+    float q = mn.x * max(comp, 0.0);
+    inT += q; cin += q * vec3(sn.zw, sn.y);
   }
-  float dl = length(s.xy * a);
-  s.xy *= 1.0 - 0.1 * smoothstep(0.05, 0.09, dl);
-  return vec4(s.xy, clamp(s.z, 0.0, 1.0), 0.0);
+  float hk = h - out0;
+  float hn1 = max(hk + inT, 0.0);
+  vec3 mixd = (vec3(s.zw, s.y) * max(hk, 0.0) + cin) / max(hk + inT, 1e-6);
+  if (hk + inT < 1e-6) mixd = vec3(s.zw, s.y);
+  float m = mixd.z;
+  // il dito bagna dove passa
+  m = min(1.0, m + me.w * 0.04);
+  // asciuga: più dove è sottile e dove sporge, meno dove è spessa; l'umido si
+  // sposta piano verso le zone più secche
+  float conv = clamp((h - hsum * 0.25) / arT() * 4.0, -1.0, 1.0);
+  float thinf = clamp(1.6 - h / arT(), 0.2, 2.0);
+  float rate = asciuga * asciuga * 0.25 * thinf * (1.0 + 0.6 * max(conv, 0.0)) * (0.8 + 0.4 * hash12(uv * 311.0 + S(45.0)));
+  float dm = min(m, rate * dt * (0.3 + m));
+  m = m - dm + 0.05 * (msum * 0.25 - m);
+  // asciugando si ritira (circa il 7% dello spessore)
+  hn1 *= 1.0 - 0.08 * dm;
+  return vec4(hn1, clamp(m, 0.0, 1.0), mixd.xy);
 }`,
-  glsl: MANI + `
+  glsl: COMUNE + `
 float arV(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
@@ -147,233 +213,86 @@ vec3 arBody(float x) {
   c = mix(c, c2, smoothstep(1.0, 2.0, x));
   return mix(c, c3, smoothstep(2.0, 3.0, x));
 }
-// sezione di un solco: fondo tondo a U e bordo d'argilla spostata
-float arTr(float d) { return -arProf(d) + 0.24 * arRim(d); }
-// sezione di un grumo schiacciato, appena affondato nel letto
-float arLp(float d) { return (1.0 - smoothstep(0.3, 1.0, d)) - 0.2 * arRim(d * 0.92); }
-// un grumo per cella, ellittico; altezza e pendenza analitiche (x = h, yz = gradiente)
-vec3 arLump(vec2 p, float cs, float rmin, float rmax, float prob, float sd) {
-  vec2 i = floor(p / cs);
-  float pres = hash12(i * 1.7 + S(sd + 1.0));
-  if (!(pres < prob)) return vec3(0.0);
-  vec2 h = hash22(i + S(sd));
-  float r = mix(rmin, rmax, h.x * h.x);
-  vec2 c = (i + 0.5 + (h.yx - 0.5) * (1.0 - 2.3 * rmax / cs)) * cs;
-  mat2 M = rot(h.y * 6.28);
-  vec2 q = M * (p - c);
-  vec2 sc = vec2(1.0, 1.0 + 0.7 * h.x * h.y + 0.3 * fract(pres * 91.7));
-  vec2 qs = q * sc;
-  float ql = max(length(qs), 1e-4);
-  float d = ql / r;
-  if (d > 1.7) return vec3(0.0);
-  float am = (0.55 + 0.45 * h.y) * r;
-  float dh = (arLp(d + 0.03) - arLp(d - 0.03)) / 0.06;
-  vec2 gd = transpose(M) * (qs * sc) / (ql * r);
-  return vec3(arLp(d) * am, dh * am * gd);
-}
-// una passata di mano: tre solchi netti, ricostruiti dalla traiettoria
-void arStroke(vec2 pa, float k, float t, float prev, float gs, inout float h, inout vec2 g, inout float tr) {
-  vec2 a0, dir; float f;
-  arHand(k, t - prev * AR_D, a0, dir, f);
-  float pr = prev > 0.5 ? 1.0 : clamp(f / 0.6, 0.0, 1.0);
-  // la passata vecchia viene lisciata via mentre la nuova avanza
-  float env = prev > 0.5 ? 1.0 - smoothstep(0.0, 0.5, f) : smoothstep(0.0, 0.035, f);
-  if (env < 0.003) return;
-  {
-    vec2 e0 = a0 + dir * 0.02, e1 = a0 + dir * (AR_LS * pr + 0.02);
-    vec2 v0 = pa - e0, b0 = e1 - e0;
-    float h0 = clamp(dot(v0, b0) / max(dot(b0, b0), 1e-6), 0.0, 1.0);
-    if (length(v0 - b0 * h0) > 0.2) return;
+// crepe: distanza dal bordo della cella di Voronoi (in unità della cella),
+// con il campo un poco piegato perché i lati non siano dritti
+vec2 arCrack(vec2 p, float sd) {
+  vec2 w = vec2(arV(p * 0.8 + sd), arV(p * 0.8 + sd + 13.0)) - 0.5;
+  p += w * 0.7;
+  vec2 i = floor(p), f = fract(p);
+  float d1 = 9.0, d2 = 9.0; vec2 id = vec2(0.0);
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec2 g = vec2(float(x), float(y));
+    vec2 o = hash22(i + g + sd) * 0.85 + 0.075;
+    vec2 r = g + o - f;
+    float d = dot(r, r);
+    if (d < d1) { d2 = d1; d1 = d; id = i + g; } else if (d < d2) d2 = d;
   }
-  vec2 perp = vec2(-dir.y, dir.x);
-  for (int j = 0; j < 3; j++) {
-    float fj = float(j);
-    vec2 b0 = arTip(a0, dir, k, fj, 0.0), b1 = arTip(a0, dir, k, fj, pr);
-    vec2 v = pa - b0, ba = b1 - b0;
-    float hh = clamp(dot(v, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
-    vec2 q = pa - arTip(a0, dir, k, fj, pr * hh);
-    float ql = max(length(q), 1e-5);
-    float d = ql / AR_R;
-    if (d > 1.8) continue;
-    float dep = 11.0 * dita * (0.7 + 0.55 * hash11(k * 3.0 + fj + S(23.0))) * env;
-    h += dep * arTr(d);
-    g += dep * (arTr(d + 0.02) - arTr(d - 0.02)) / 0.04 * (q / ql) / (AR_R * 1080.0);
-    // la pelle del dito e la chamotte rigano il fondo per il lungo
-    float pf = arProf(d);
-    float lat = dot(q, perp) * 1080.0, lng = hh * pr * AR_LS * 1080.0;
-    float sv = arV(vec2(lat / (1.4 * gs) + k * 31.0 + fj * 17.0, lng / 140.0)) - 0.5;
-    g += perp * sv * 0.55 * pf * env * min(dita, 1.5);
-    tr = max(tr, pf * env);
-  }
+  return vec2(sqrt(d2) - sqrt(d1), hash12(id + sd));
 }
 vec3 fx(vec2 uv) {
-  vec2 a = vec2(ASPECT, 1.0);
-  vec4 s = ST(uv);
-  vec2 q = mir(uv + s.xy);
-  vec2 kp = K1080 * PX;                        // un pixel a 1080, in uv
+  vec2 sz = vec2(arSz());
+  vec2 lc = uv * sz;
+  float cellpx = 1080.0 / sz.y;
+  vec3 hb = arBS(lc);
+  vec2 g = hb.yz / cellpx;
+  vec4 st = arL(lc);
+  float H = hb.x, m = st.y;
+  float T = arT();
+  vec2 P = uv * u_res / K1080;
   float ang = radians(luce);
-  vec2 L2 = -vec2(cos(ang), sin(ang));         // da dove viene la luce
-  vec3 Ld = normalize(vec3(L2 * 0.9, 0.44));
-  float tanE = 0.44 / 0.9;
-  // ---- la foto come rilievo: due anelli da sei
-  const float R1 = 4.0, R2 = 14.0;
-  vec3 c0 = IN(q);
-  float lc = luma(c0);
-  float l1[6]; float l2[6];
-  vec3 cs = c0;
-  vec2 g1 = vec2(0.0), g2 = vec2(0.0);
-  float m1 = 0.0, m2 = 0.0;
-  for (int i = 0; i < 6; i++) {
-    float an = float(i) * 1.0472;
-    vec2 dr = vec2(cos(an), sin(an));
-    vec3 t1 = IN(mir(q + dr * R1 * kp));
-    cs += t1;
-    l1[i] = luma(t1); g1 += dr * l1[i]; m1 += l1[i];
-    vec2 dr2 = vec2(cos(an + 0.5236), sin(an + 0.5236));
-    l2[i] = luma(IN(mir(q + dr2 * R2 * kp))); g2 += dr2 * l2[i]; m2 += l2[i];
-  }
-  float mean = (lc + m1 + m2) / 13.0;
-  cs /= 7.0; m1 /= 6.0; m2 /= 6.0;
-  // contrasto locale: ogni foto, anche la più nebbiosa, ha un rilievo profondo
-  float dev = abs(lc - mean);
-  for (int i = 0; i < 6; i++) dev += abs(l1[i] - mean) + abs(l2[i] - mean);
-  dev /= 13.0;
-  float gain = mix(1.0, min(0.115 / (dev + 0.028), 2.4), smoothstep(0.008, 0.03, dev));
-  float A = 46.0 * rilievo * gain;             // altezza del bassorilievo, in pixel a 1080
-  float ls = lc * 0.35 + m1 * 0.65;
-  vec2 gb = g2 / (3.0 * R2);
-  vec2 gP = A * (0.36 * g1 / (3.0 * R1) + 0.64 * gb);
-  gP /= 1.0 + 0.55 * length(gP);
-  // ombre portate corte e cavità, con gli stessi campioni
-  float As = 46.0 * rilievo * min(gain, 1.3);
-  float shP = 0.0, wS = 0.0;
-  for (int i = 0; i < 6; i++) {
-    float an = float(i) * 1.0472;
-    float w1 = pow(max(dot(vec2(cos(an), sin(an)), L2), 0.0), 2.0);
-    float w2 = pow(max(dot(vec2(cos(an + 0.5236), sin(an + 0.5236)), L2), 0.0), 2.0);
-    shP += w1 * 0.6 * smoothstep(0.0, 2.5, (l1[i] - ls) * As * 0.55 - R1 * tanE * 0.6);
-    shP += w2 * smoothstep(0.0, 5.0, (l2[i] - ls) * As * 0.55 - R2 * tanE * 0.6);
-    wS += w1 * 0.6 + w2;
-  }
-  float shadow = clamp(1.15 * shP / max(wS, 1e-3), 0.0, 1.0);
-  float cavP = clamp(((m2 - ls) * 2.8 + (m1 - lc) * 0.6) * min(gain, 1.3), -1.0, 1.0) * min(rilievo, 1.5);
-  // ---- la struttura dell'argilla, in pixel a 1080: altezza e pendenza insieme
-  vec2 p = q * u_res / K1080;
-  float gs = max(2.6, 1.7 / K1080);
-  float h = 0.0; vec2 g = vec2(0.0);
-  {
-    // ditate vecchie: solchi larghi e bassi, paralleli, appena piegati dalla forma
-    float m = arV(p / 290.0 + 3.1);
-    float a1 = hash11(S(31.0)) * PI, a2 = a1 + 1.15;
-    vec2 d1 = vec2(cos(a1), sin(a1)), d2 = vec2(cos(a2), sin(a2));
-    vec2 n1 = vec2(-d1.y, d1.x), n2 = vec2(-d2.y, d2.x);
-    float wp = (arV(p / 260.0 + 9.0) - 0.5) * 0.6;
-    float mA = smoothstep(0.48, 0.70, m), mB = smoothstep(0.46, 0.26, m) * 0.85;
-    float pA = dita * mA * (0.3 + arV(vec2(dot(p, d1) / 150.0, dot(p, n1) / 420.0) + 5.0));
-    float pB = dita * mB * (0.3 + arV(vec2(dot(p, d2) / 150.0, dot(p, n2) / 380.0) + 15.0));
-    float xA = fract(dot(p, d1) / 88.0 + wp + m2 * 0.5);
-    float xB = fract(dot(p, d2) / 72.0 - wp * 0.8 + m2 * 0.45);
-    float uA = abs(2.0 * xA - 1.0), uB = abs(2.0 * xB - 1.0);
-    float kA = 1.0 - uA * uA, kB = 1.0 - uB * uB;
-    h += pA * 8.5 * (0.5 - kA * kA) + pB * 7.5 * (0.5 - kB * kB);
-    g += pA * 8.5 * 8.0 * uA * kA * sign(xA - 0.5) * (d1 / 88.0 + gb * 0.5);
-    g += pB * 7.5 * 8.0 * uB * kB * sign(xB - 0.5) * (d2 / 72.0 + gb * 0.45);
-    // la chamotte trascinata riga il fondo dei solchi
-    g += d1 * pA * kA * 0.45 * (arV(vec2(dot(p, d1) / (1.5 * gs), dot(p, n1) / 90.0)) - 0.5);
-    g += d2 * pB * kB * 0.45 * (arV(vec2(dot(p, d2) / (1.5 * gs), dot(p, n2) / 80.0)) - 0.5);
-  }
-  {
-    // pollici vecchi: conche morbide col bordo alzato
-    float cz = 330.0;
-    vec2 i = floor(p / cz);
-    vec2 hh = hash22(i + S(33.0));
-    if (hash12(i * 2.3 + S(34.0)) < 0.45) {
-      float r = 52.0 + 30.0 * hh.x;
-      vec2 c = (i + 0.5 + (hh - 0.5) * 0.3) * cz;
-      mat2 M = rot(hh.y * 6.0);
-      vec2 qs = M * (p - c);
-      vec2 sc = vec2(1.0, 1.35);
-      qs *= sc;
-      float ql = max(length(qs), 1e-4);
-      float d = ql / r;
-      if (d < 1.8) {
-        float am = 9.0 * pressioni;
-        h += am * arTr(d);
-        g += am * (arTr(d + 0.02) - arTr(d - 0.02)) / 0.04 * (transpose(M) * (qs * sc)) / (ql * r);
-      }
-    }
-  }
-  // grumi e palline: a gruppi, di misure diverse
-  float mg = smoothstep(0.52, 0.82, arV(p / 230.0 + 40.0));
-  vec3 lp = grumi * (1.1 * arLump(p, 150.0, 9.0, 34.0, 0.05 + 0.4 * mg, 41.0)
-    + 0.9 * arLump(p + 37.0, 52.0, 3.5, 12.0, 0.02 + 0.45 * mg, 43.0));
-  if (19.0 / gs > 4.0) lp += grumi * 0.9 * arLump(p + 91.0, 19.0, 1.8, 5.0, 0.5 * mg * mg, 45.0);
-  h += lp.x; g += lp.yz;
-  // chamotte e grana fine: una pendenza casuale alla scala del pixel
-  vec2 gr = (vec2(arV(p / gs), arV(p / gs + 17.3)) - 0.5) * 0.30 + (vec2(arV(p / (gs * 2.7) + 7.0), arV(p / (gs * 2.7) + 29.0)) - 0.5) * 0.15;
-  g += gr * (0.35 + 0.65 * min(grumi, 1.5));
-  float cavH = clamp(-h / 9.0, -0.4, 1.0);
-  // ---- le impronte vive: solchi e conche netti, dalla traiettoria delle mani
-  vec2 pa = (uv - 0.5) * a;
-  float hL = 0.0, tr = 0.0; vec2 gL = vec2(0.0);
-  for (int k = 0; k < 2; k++) {
-    arStroke(pa, float(k), u_t, 0.0, gs, hL, gL, tr);
-    arStroke(pa, float(k), u_t, 1.0, gs, hL, gL, tr);
-  }
-  for (int k = 0; k < 3; k++) {
-    float fk = float(k);
-    vec2 c; float an, f;
-    arThumb(fk, u_t, c, an, f);
-    float env = smoothstep(0.0, 0.15, f) * (1.0 - smoothstep(0.62, 0.95, f));
-    mat2 M = rot(an);
-    vec2 qs = M * (pa - c);
-    vec2 sc = vec2(1.0, 1.4);
-    qs *= sc;
-    float ql = max(length(qs), 1e-5);
-    float d = ql / 0.062;
-    if (d < 1.8 && env > 0.003) {
-      float am = 15.0 * pressioni * env;
-      vec2 gd = transpose(M) * (qs * sc) / (ql * 0.062 * 1080.0);
-      hL += am * arTr(d);
-      gL += am * (arTr(d + 0.02) - arTr(d - 0.02)) / 0.04 * gd;
-      float pf = arProf(d);
-      // le creste del polpastrello
-      float cr = arV(vec2(d * 9.0 + fk * 7.0, atan(qs.y, qs.x) * 1.6) * vec2(0.062 * 1080.0 / (9.0 * 1.5 * gs), 1.0)) - 0.5;
-      gL += gd / max(length(gd), 1e-6) * cr * 0.4 * pf * env;
-      tr = max(tr, pf * env);
-    }
-  }
-  // ---- luce radente
-  vec2 grad = gP + g + gL;
+  vec2 L2 = -vec2(cos(ang), sin(ang));
+  vec3 Ld = normalize(vec3(L2, 0.45));
+  float dry = 1.0 - smoothstep(0.15, 0.55, m);
+  // ---- crepe: compaiono sotto una certa umidità, prima dove è sottile; due
+  // ordini di poligoni (grandi, poi piccoli dentro)
+  float cs = (14.0 + 26.0 * clamp(H / T, 0.3, 2.0)) * (1.2 - 0.5 * crepe);   // misura della cella, px
+  vec2 c1 = arCrack(P / cs, S(46.0));
+  vec2 c2 = arCrack(P / (cs * 0.45), S(47.0));
+  float open1 = crepe * smoothstep(0.42, 0.12, m);
+  float open2 = crepe * smoothstep(0.25, 0.04, m) * step(0.35, c2.y);
+  float w1 = open1 * (2.4 + 1.6 * c1.y) / cs;            // larghezza in px, poi in celle
+  float w2 = open2 * 1.4 / (cs * 0.45);
+  float k1 = 1.0 - smoothstep(w1 * 0.5, w1 * 0.5 + 0.6 / cs, c1.x);
+  float k2 = 1.0 - smoothstep(w2 * 0.5, w2 * 0.5 + 0.6 / (cs * 0.45), c2.x);
+  k1 *= step(1e-4, open1); k2 *= step(1e-4, open2);
+  float crack = max(k1, k2);
+  // i bordi delle zolle si sollevano un poco (l'argilla secca si incurva)
+  float curl = (1.0 - smoothstep(0.0, 0.18, c1.x - w1 * 0.5)) * open1 * (1.0 - k1);
+  // ---- rilievo e luce
+  vec2 gr = (vec2(arV(P / 1.7), arV(P / 1.7 + 17.0)) - 0.5) * (0.12 + 0.35 * dry)
+          + (vec2(arV(P / 5.0 + 3.0), arV(P / 5.0 + 23.0)) - 0.5) * 0.15;
+  vec2 grad = g + gr;
   vec3 n = normalize(vec3(-grad, 1.0));
-  float lam = dot(n, Ld);
-  float sh = 1.0 + (lam - Ld.z) * 1.25;
-  sh = sh > 1.0 ? 1.0 + (sh - 1.0) * 0.7 : sh;
-  sh = max(sh, 0.0);
-  // nel solco conta la sua forma: le ombre della foto lì sono state spianate
-  float cav = clamp((cavP * 0.9 + cavH * 0.4) * (1.0 - 0.6 * tr) + clamp(-hL / 40.0, -0.15, 0.3), -0.5, 1.0);
-  float ao = 1.0 - 0.62 * smoothstep(0.0, 0.9, cav) + 0.10 * smoothstep(0.0, -0.5, cav);
-  float lit = (0.26 + 0.74 * sh * (1.0 - 0.5 * shadow * (1.0 - 0.7 * tr))) * ao;
-  // ---- colore: la foto è un ingobbio assorbito dall'impasto
-  float wet = clamp(bagnato * (s.z * 1.15 + 0.35 * smoothstep(0.1, 0.8, cav)) + (bagnato - 0.5) * 0.3, 0.0, 1.0);
+  float lam = dot(n, Ld) / Ld.z;
+  float sh = 0.4 + 0.6 * clamp(lam, 0.0, 2.0);
+  sh = sh > 1.0 ? 1.0 + (sh - 1.0) * 0.4 : sh;
+  float shd = 0.0;
+  for (int k = 1; k <= 10; k++) {
+    float d = float(k) * 0.8;
+    float hs = arL(lc + L2 * d).x;
+    shd = max(shd, smoothstep(0.0, 6.0, (hs - H) - d * cellpx * Ld.z / length(Ld.xy)));
+  }
+  float ring = 0.0;
+  for (int i = 0; i < 6; i++) { float a = float(i) * 1.0472; ring += arL(lc + vec2(cos(a), sin(a)) * 2.0).x; }
+  float cav = clamp((ring / 6.0 - H) / T, 0.0, 1.0);
+  sh *= (1.0 - 0.35 * shd) * (1.0 - 0.25 * cav);
+  sh *= 1.0 + 0.12 * curl;
+  // ---- colore: la foto è un ingobbio assorbito dall'impasto, e si muove con lui
+  vec3 ph = IN(st.zw);
   vec3 body = arBody(terra);
-  float L0 = luma(cs);
-  vec3 clayT = body * (0.30 + 1.25 * L0);
-  float pull = 0.05 + 0.5 * materia;
-  vec3 alb = mix(cs, clayT, pull);
-  alb = mix(alb, body * 0.8, 0.12 * materia);
+  vec3 alb = mix(ph, body * (0.35 + 1.2 * luma(ph)), 0.3 + 0.4 * materia);
   float la = luma(alb);
-  // bagnato: più saturo e più scuro (ma non dentro i solchi, già in ombra); asciutto: chiaro, polveroso
-  vec3 wetC = mix(vec3(la), alb, 1.35) * mix(0.70, 0.95, tr);
-  vec3 dryC = mix(mix(vec3(la), alb, 0.75), body * 1.3, 0.25) * 1.12;
-  alb = mix(dryC, wetC, smoothstep(0.15, 0.85, wet));
-  vec3 col = alb * lit;
-  // lucido largo e opaco, solo dove è bagnata: mai oltre il 10% del colore
+  // bagnata: più scura e più satura; secca: chiara, opaca, polverosa
+  vec3 wetC = mix(vec3(la), alb, 1.3) * 0.72;
+  vec3 dryC = mix(mix(vec3(la), alb, 0.7), body * 1.2, 0.3) * 1.18 + 0.03;
+  alb = mix(wetC, dryC, dry);
+  // il velo bagnato: lucido largo e debole, solo dove è ancora fradicia
   vec3 Hv = normalize(Ld + vec3(0.0, 0.0, 1.0));
-  float spec = pow(max(dot(n, Hv), 0.0), 7.0) * (1.0 - 0.7 * shadow) * ao;
-  col += alb * 0.10 * spec * wet;
-  col = max(col, 0.0);
-  vec3 img = IN(uv);
-  return clamp(mix(img, col, smoothstep(0.0, 0.35, materia)), 0.0, 1.0);
+  float spec = pow(max(dot(n, Hv), 0.0), 9.0) * smoothstep(0.55, 0.9, m) * (1.0 - shd);
+  vec3 col = alb * sh + alb * 0.08 * spec;
+  // dentro la crepa: il fondo in ombra
+  col = mix(col, alb * 0.18, crack);
+  FX_H = clamp(H / (2.5 * T), 0.0, 1.0) * (1.0 - crack);
+  return clamp(mix(IN(uv), col, smoothstep(0.0, 0.35, materia)), 0.0, 1.0);
 }`,
 };
