@@ -150,7 +150,7 @@ export function render(root, { app }) {
   function pickProcess() {
     let d;
     const body = h('div', null, FAMILIES.map((fam) => {
-      const ps = PROCESSES.filter((p) => p.family === fam.id);
+      const ps = PROCESSES.filter((p) => p.family === fam.id && !p.ritirata);
       return [h('div.fam.label', null, fam.label), h('div.picker', null, ps.map((p) => h('button.pick', {
         onclick: () => {
           const pass = { id: uid('p'), proc: p.id, on: true, mix: 1, blend: p.blend || 'normale', params: defaultParams(p.id) };

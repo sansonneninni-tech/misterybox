@@ -114,7 +114,7 @@ export async function run() {
   for (let i = 0; i < 10; i++) valid(M.toClip(M.cross(mother, other, M.rng(i)).genome, mother), 'incrocio ' + i);
   // una materia nuova nel registro entra da sola
   const names = new Set(M.materieDelRegistro().map((m) => m.id));
-  for (const p of PROCESSES.filter((x) => x.materia)) if (!names.has(p.id)) fail('deriva: materia del registro ignorata ' + p.id);
+  for (const p of PROCESSES.filter((x) => x.materia && !x.ritirata)) if (!names.has(p.id)) fail('deriva: materia del registro ignorata ' + p.id);
   return bad;
 }
 
