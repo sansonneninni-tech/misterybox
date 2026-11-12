@@ -35,7 +35,7 @@ bool sfAria() { return mosso < 0.5; }
 float sfRaccolta() { return sfAria() ? 1.0 - 0.42 * clamp(pieghe, 0.0, 1.0) : 1.0; }
 // misura della stoffa (in altezze di quadro): un po' più grande del quadro
 vec2 sfSize() {
-  if (sfAria()) return vec2((ASPECT + 0.7) / sfRaccolta(), 1.25);
+  if (sfAria()) return vec2((ASPECT + 0.7) / sfRaccolta(), 1.4);
   return vec2(ASPECT + 0.4, 1.3);
 }
 // passo della griglia a riposo, in x e in y
@@ -157,7 +157,8 @@ vec4 sim(vec2 uv0) {
     float g1 = gnoise(vec3(q * 1.2 - lat * t * 0.9, t * 0.33 + S(64.0)), 0.0);
     float g2 = gnoise(vec3(q * 2.9 - lat * t * 1.7, t * 0.9 + S(65.0)), 0.0);
     float puff = 0.5 + 0.5 * sin(t * 0.45 + 1.3 + 0.8 * sin(t * 0.19));
-    float w = mv * 2.4 * max(0.25 + 0.55 * puff + 0.7 * g1 + 0.3 * g2, 0.0);
+    // l'aria si alza nei primi due secondi: niente colpo secco all'inizio
+    float w = mv * 2.4 * max(0.25 + 0.55 * puff + 0.7 * g1 + 0.3 * g2, 0.0) * smoothstep(0.0, 2.0, t);
     // le stoffe pesanti hanno bisogno di più aria per muoversi (a parità di
     // «forza del movimento» si muovono tutte, ma ognuna col suo peso)
     w *= ty == 0 ? 2.6 : ty == 1 ? 3.2 : ty == 2 ? 0.8 : 6.0;
