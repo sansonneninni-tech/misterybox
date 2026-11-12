@@ -354,7 +354,7 @@ export const trasforma = {
         materiaThumb(img.dataset.proc, work()).then((u) => { img.src = u; }).catch(() => {});
       }), { root: null, rootMargin: '0px 400px' });
       const row = h('div.mats__row', { role: 'group', 'aria-label': 'Materie' }, ricetteGroup(c, ricetteOn), MATERIA_FAMILIES.map((f) => {
-        const list = MATERIE.filter((m) => m.family === f.id);
+        const list = MATERIE.filter((m) => m.family === f.id && !m.ritirata);
         if (!list.length) return null;
         return h('div.mats__fam', null, h('span.mats__famname', null, f.label), h('div.mats__tiles', null, list.map((m) => {
           const k = sel.indexOf(m.id);

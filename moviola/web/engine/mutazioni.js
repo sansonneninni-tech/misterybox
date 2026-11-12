@@ -36,7 +36,7 @@ export function seedOf(...xs) {
 
 // ------------------------------------------------------------ registro
 /** Le materie del registro, come sono adesso (anche quelle arrivate dopo). */
-export const materieDelRegistro = () => PROCESSES.filter((p) => p.materia);
+export const materieDelRegistro = () => PROCESSES.filter((p) => p.materia && !p.ritirata);
 
 const COLOR_RE = /^(tinta|cromia|satura|bicromia|ombre|luci|temperatura|colore|hue|pigment|tono|calore|ambra|ruggine|ossido)/;
 /** Un parametro di colore: tinte, saturazione, bicromia; nel Tono anche luce e contrasto. */
