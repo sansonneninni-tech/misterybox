@@ -35,7 +35,7 @@ bool sfAria() { return mosso < 0.5; }
 float sfRaccolta() { return sfAria() ? 1.0 - 0.42 * clamp(pieghe, 0.0, 1.0) : 1.0; }
 // misura della stoffa (in altezze di quadro): un po' più grande del quadro
 vec2 sfSize() {
-  if (sfAria()) return vec2((ASPECT + 0.3) / sfRaccolta(), 1.2);
+  if (sfAria()) return vec2((ASPECT + 0.7) / sfRaccolta(), 1.25);
   return vec2(ASPECT + 0.4, 1.3);
 }
 // passo della griglia a riposo, in x e in y
@@ -43,7 +43,7 @@ vec2 sfH() { return sfSize() / vec2(TSZ()); }
 // pieghe a cannone dell'asta: ogni stoffa ha la sua larghezza di piega (in nodi)
 float sfPasso() {
   int ty = sfTipo();
-  return ty == 0 ? 15.0 : ty == 1 ? 19.0 : ty == 2 ? 8.0 : 30.0;
+  return ty == 0 ? 15.0 : ty == 1 ? 19.0 : ty == 2 ? 11.0 : 30.0;
 }
 // ampiezza delle pieghe sull'asta: la sinusoide che ha la lunghezza della stoffa
 float sfAmp() {
@@ -102,7 +102,7 @@ const SIM = COMUNE + `
 // quanto cede se compressa, taglio, attrito sul tavolo
 float sfK(int ty, int q) {
   if (q == 0) return ty == 0 ? 2.0 : ty == 1 ? 1.2 : ty == 2 ? 5.0 : 0.5;
-  if (q == 1) return ty == 0 ? 0.9 : ty == 1 ? 1.5 : ty == 2 ? 0.3 : 2.4;
+  if (q == 1) return ty == 0 ? 0.9 : ty == 1 ? 1.3 : ty == 2 ? 0.3 : 1.6;
   if (q == 2) return ty == 0 ? 0.10 : ty == 1 ? 0.55 : ty == 2 ? 0.02 : 0.7;
   if (q == 3) return ty == 0 ? 0.025 : ty == 1 ? 0.28 : ty == 2 ? 0.0 : 0.45;
   if (q == 4) return ty == 0 ? 0.3 : ty == 1 ? 0.55 : ty == 2 ? 0.2 : 0.6;
@@ -160,8 +160,8 @@ vec4 sim(vec2 uv0) {
     float w = mv * 1.5 * max(0.25 + 0.55 * puff + 0.7 * g1 + 0.3 * g2, 0.0);
     // le stoffe pesanti hanno bisogno di più aria per muoversi (a parità di
     // «forza del movimento» si muovono tutte, ma ognuna col suo peso)
-    w *= ty == 0 ? 2.6 : ty == 1 ? 2.2 : ty == 2 ? 0.8 : 3.0;
-    vec3 W = w * normalize(vec3(lat * 0.6, 1.0));
+    w *= ty == 0 ? 2.6 : ty == 1 ? 3.2 : ty == 2 ? 0.8 : 6.0;
+    vec3 W = w * normalize(vec3(lat * 0.22, 1.0));
     float vn = dot(W - B.xyz, n);
     acc += clamp(sfK(ty, 0) * vn, -60.0, 60.0) * n;
   }
@@ -285,7 +285,7 @@ vec3 fx(vec2 uv) {
   }
   vec3 X = sfPos(m);
   // nessuno strato torna: siamo nel fondo stretto di una piega che si richiude
-  float crevice = smoothstep(1.0, 3.0, bestE);
+  float crevice = smoothstep(2.5, 6.0, bestE);
   // ---- fuori dalla stoffa: il buio dello studio
   vec3 dark = img * 0.035;
   if (m.x < 0.0 || m.y < 0.0 || m.x > 1.0 || m.y > 1.0) return dark;
@@ -341,11 +341,11 @@ vec3 fx(vec2 uv) {
     float diff = sfLit(NL, Ld.z, 0.42, shadow);
     vec3 base = pow(max(alb, 0.0), vec3(1.18)) * (1.0 + 0.12 * crush);
     // di fronte il pelo assorbe; di sbieco si mostra di fianco e si accende
-    float rim = 1.0 - NV;
+    float rim = pow(1.0 - NV, 1.8);
     float sheen = rim * clamp(0.3 + 0.7 * (NL * 0.5 + 0.5), 0.0, 1.0) * (0.75 + 0.7 * crush) * (1.0 + 0.25 * fib * fa);
     vec3 sc = mix(alb, vec3(luma(alb)), 0.2) * 1.15 + 0.06;
     float front = mix(1.0, 0.74, smoothstep(0.55, 1.0, NV));
-    col = base * diff * front * ao + sc * sheen * 1.1 * (0.4 + 0.6 * shadow);
+    col = base * diff * front * ao + sc * sheen * 0.85 * (0.4 + 0.6 * shadow);
     col *= 1.0 + 0.04 * fib * fa;
   } else if (ty == 1) {
     // ---------------- PELLE: grana a ciottolo e pori, rughe dove si comprime,
@@ -361,7 +361,7 @@ vec3 fx(vec2 uv) {
     vec3 H = normalize(Ld + V);
     float NH = max(dot(N, H), 0.0);
     float gloss = 0.7 + 0.3 * smoothstep(-0.2, 0.5, h0);
-    float spec = (pow(NH, 26.0) * 0.32 + pow(NH, 6.0) * 0.06) * gloss;
+    float spec = (pow(NH, 30.0) * 0.5 + pow(NH, 7.0) * 0.08) * gloss;
     float fres = 0.6 + 0.4 * pow(1.0 - max(dot(N, V), 0.0), 3.0);
     vec3 base = alb * (0.93 + 0.07 * fa * h0);
     float cavg = fa * smoothstep(0.0, -0.4, h0);
@@ -374,17 +374,18 @@ vec3 fx(vec2 uv) {
     float weave = sin(mp.x * 2.4) * sin(mp.y * 2.4);
     vec3 N = normalize(n + B * 0.03 * slub * fa);
     float NL = dot(N, Ld);
-    float diff = sfLit(NL, Ld.z, 0.4, shadow);
+    // la seta è sottile: un po' di luce passa, le pieghe non chiudono mai nel nero
+    float diff = sfLit(NL, Ld.z, 0.55, mix(1.0, shadow, 0.6));
     vec3 H = normalize(Ld + V);
     float TH = dot(T, H), BH = dot(B, H);
     float sT = sqrt(max(1.0 - TH * TH, 0.0)), sB = sqrt(max(1.0 - BH * BH, 0.0));
     float vis = smoothstep(-0.1, 0.25, NL);
-    float s1 = pow(sT, 90.0) * 0.5;                // il riflesso bianco, stretto
-    float s2 = pow(sT, 22.0) * 0.28;               // l'alone colorato, largo
+    float s1 = pow(sT, 90.0) * 0.32;               // il riflesso bianco, stretto
+    float s2 = pow(sT, 22.0) * 0.16;               // l'alone colorato, largo
     float s3 = pow(sB, 160.0) * 0.12;              // la trama, appena
     vec3 base = mix(vec3(luma(alb)), alb, 1.08) * (1.0 + 0.035 * slub * fa + 0.02 * weave * fa);
     vec3 tint = mix(alb, vec3(1.0), 0.35);
-    col = base * diff * ao * 0.94 + (vec3(s1 + s3) + tint * s2) * vis * shadow;
+    col = base * diff * sqrt(ao) * 0.86 + (vec3(s1 + s3) + tint * s2) * vis * mix(1.0, shadow, 0.7);
   } else {
     // ---------------- TAPPETO: pelo spesso a ciuffi, ombre tra un ciuffo e
     // l'altro, quasi opaco. Ogni ciuffo è di un colore: la foto è annodata.
@@ -413,7 +414,7 @@ vec3 fx(vec2 uv) {
     vec3 N = normalize(n + (B * f.x + T * f.y) * 0.8 * ht * fa + (B * fn - T * fn * 0.5) * 0.25 * fa);
     float NL = dot(N, Ld);
     float diff = sfLit(NL, Ld.z, 0.34, shadow);
-    float pile = mix(1.0, (0.5 + 0.5 * ht) * (0.9 + 0.2 * fn), fa);
+    float pile = mix(1.0, (0.72 + 0.28 * ht) * (0.88 + 0.24 * fn), fa);
     vec3 base = mix(alb * 0.92, tuft, 0.5 * fa + 0.2);
     float NV = clamp(dot(N, V), 0.0, 1.0);
     float tip = pow(1.0 - NV, 3.0) * 0.08 + 0.04 * fa * smoothstep(0.3, 0.9, fn) * ht;
@@ -424,7 +425,7 @@ vec3 fx(vec2 uv) {
   float edge = min(eb.x, eb.y);
   col *= 1.0 - 0.22 * (1.0 - smoothstep(2.0, 9.0, edge)) + 0.08 * smoothstep(7.0, 9.0, edge) * (1.0 - smoothstep(9.0, 12.0, edge));
   col = mix(dark, col, smoothstep(0.0, 1.2, edge * K1080));
-  col *= 1.0 - 0.75 * crevice;
+  col *= 1.0 - 0.45 * crevice;
   FX_H = clamp(0.35 + X.z * 4.0, 0.0, 1.0);
   // spalla morbida: le luci si avvicinano al bianco senza bruciare
   vec3 hi = max(col - 0.78, 0.0);
