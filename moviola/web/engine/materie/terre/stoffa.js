@@ -372,35 +372,35 @@ vec3 fx(vec2 uv) {
   } else {
     // ---------------- TAPPETO: pelo spesso a ciuffi, ombre tra un ciuffo e
     // l'altro, quasi opaco. Ogni ciuffo è di un colore: la foto è annodata.
-    float pitch = 6.0;
-    vec2 q = mp / pitch;
-    q.x += 0.5 * mod(floor(q.y), 2.0);
-    vec2 ci = floor(q);
-    vec2 jt = (hash22(ci + S(95.0)) - 0.5) * 0.22;
-    vec2 f = fract(q) - 0.5 - jt;
+    // ciuffi irregolari (celle di Voronoi su coordinate appena torte): nessuna fila
+    float pitch = 5.0;
+    vec2 q = mp / pitch + 0.4 * vec2(gnoise(vec3(mp * 0.045, S(93.0)), 0.0), gnoise(vec3(mp * 0.045 + 7.0, S(94.0)), 0.0));
+    vec2 id;
+    vec3 vc = sfCell(q, S(95.0), id);
     float fa = 1.0 - smoothstep(1.4, 3.0, fw);
     // sulle creste la stoffa si apre e il pelo si separa; nelle valli si stringe
-    float open = clamp(-cav, 0.0, 1.0) * 0.35 + clamp(max(cu, cv) - 1.0, 0.0, 0.3);
-    float rr = length(f * vec2(1.0, 1.15)) / (0.56 - 0.18 * open);
-    float ht = clamp(1.0 - rr * rr, 0.0, 1.0);
-    // il colore del ciuffo: la foto nel suo centro
-    vec2 cq = ci + 0.5 + jt;
-    cq.x -= 0.5 * mod(ci.y, 2.0);
-    vec2 cm = cq * pitch / (sz * 1080.0);
+    float open = clamp(-cav, 0.0, 1.0) * 0.5 + clamp(max(cu, cv) - 1.0, 0.0, 0.3);
+    float border = vc.y - vc.x;
+    float ht = smoothstep(0.0 + 0.25 * open, 0.75, border) * (0.8 + 0.3 * hash12(id + S(96.0)));
+    // il colore del ciuffo: la foto nel suo seme
+    vec2 cs = id + hash22(id + S(95.0));
+    vec2 cm = cs * pitch / (sz * 1080.0);
     vec2 cpu = (orig + cm * span) / asp + 0.5;
     cpu = 1.0 - abs(1.0 - mod(cpu, 2.0));
-    vec3 tuft = IN(cpu) * (0.9 + 0.2 * hash12(ci + S(96.0)));
-    // fibre: righe fini, dal centro del ciuffo verso fuori
-    vec2 fd = f / max(length(f), 1e-4);
-    float fibre = hash12(floor((fd * 0.5 + 0.5) * 9.0) + ci * 3.1 + S(97.0));
-    float fn = gnoise(vec3(mp * 1.7, S(98.0)), 0.0);
-    vec3 N = normalize(n + (B * f.x + T * f.y) * 1.3 * ht * fa);
+    vec3 tuft = IN(cpu) * (0.92 + 0.16 * hash12(id + S(97.0)));
+    // fibre: fili sottili e un po' arruffati, punte che prendono luce
+    vec2 f = q - cs;
+    // ogni ciuffo apre i suoi fili a raggiera dal seme
+    float lf = length(f);
+    float rad = gnoise(vec3(f / max(lf, 1e-4) * 3.5 + id * 1.7, S(99.0)), 0.0);
+    float fn = mix(gnoise(vec3(mp * 1.6, S(98.0)), 0.0), rad, smoothstep(0.05, 0.4, lf)) * 0.8 + gnoise(vec3(mp * 3.3, S(100.0)), 0.0) * 0.3;
+    vec3 N = normalize(n + (B * f.x + T * f.y) * 0.8 * ht * fa + (B * fn - T * fn * 0.5) * 0.25 * fa);
     float NL = dot(N, Ld);
     float diff = sfLit(NL, Ld.z, 0.34, shadow);
-    float pile = mix(1.0, (0.38 + 0.62 * smoothstep(0.0, 0.55, ht)) * (0.9 + 0.12 * fibre + 0.08 * fn), fa);
-    vec3 base = mix(alb * 0.92, tuft, 0.7 * fa + 0.3);
+    float pile = mix(1.0, (0.5 + 0.5 * ht) * (0.9 + 0.2 * fn), fa);
+    vec3 base = mix(alb * 0.92, tuft, 0.5 * fa + 0.2);
     float NV = clamp(dot(N, V), 0.0, 1.0);
-    float tip = pow(1.0 - NV, 3.0) * 0.08;
+    float tip = pow(1.0 - NV, 3.0) * 0.08 + 0.04 * fa * smoothstep(0.3, 0.9, fn) * ht;
     col = base * diff * pile * ao + base * tip;
   }
   // ---- orlo: un bordo cucito, più spesso e un po' più scuro
