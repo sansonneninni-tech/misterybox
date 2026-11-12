@@ -35,8 +35,8 @@ bool sfAria() { return mosso < 0.5; }
 float sfRaccolta() { return sfAria() ? 1.0 - 0.42 * clamp(pieghe, 0.0, 1.0) : 1.0; }
 // misura della stoffa (in altezze di quadro): un po' più grande del quadro
 vec2 sfSize() {
-  if (sfAria()) return vec2(ASPECT * 1.10 / sfRaccolta(), 1.2);
-  return vec2(ASPECT, 1.0) * 1.3;
+  if (sfAria()) return vec2((ASPECT + 0.3) / sfRaccolta(), 1.2);
+  return vec2(ASPECT + 0.4, 1.3);
 }
 // passo della griglia a riposo, in x e in y
 vec2 sfH() { return sfSize() / vec2(TSZ()); }
