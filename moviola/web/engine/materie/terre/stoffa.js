@@ -36,7 +36,7 @@ float sfRaccolta() { return sfAria() ? 1.0 - 0.42 * clamp(pieghe, 0.0, 1.0) : 1.
 // misura della stoffa (in altezze di quadro): un po' più grande del quadro
 vec2 sfSize() {
   if (sfAria()) return vec2(ASPECT * 1.10 / sfRaccolta(), 1.2);
-  return vec2(ASPECT, 1.0) * 1.15;
+  return vec2(ASPECT, 1.0) * 1.3;
 }
 // passo della griglia a riposo, in x e in y
 vec2 sfH() { return sfSize() / vec2(TSZ()); }
@@ -77,20 +77,20 @@ float sfHand(vec2 m, float t, vec4 H, out vec3 target) {
   vec2 gp = sfGrip(gi);
   vec2 dm = (m - gp) * sfSize();
   float r = length(dm);
-  float R = 0.035 + 0.085 * clamp(pieghe, 0.0, 1.0);
+  float R = 0.07 + 0.1 * clamp(pieghe, 0.0, 1.0);
   float wr = 1.0 - smoothstep(0.0, R, r);
   wr = wr * wr * (3.0 - 2.0 * wr);
   if (wr <= 0.0) return 0.0;
   float mv = clamp(movimento, 0.0, 1.0);
   float env = smoothstep(0.0, 0.14, ph) * (1.0 - smoothstep(0.8, 0.92, ph));
-  float lift = (0.05 + 0.3 * mv) * smoothstep(0.08, 0.42, ph) * (1.0 - smoothstep(0.6, 0.86, ph));
+  float lift = (0.04 + 0.2 * mv) * smoothstep(0.08, 0.42, ph) * (1.0 - smoothstep(0.6, 0.86, ph));
   vec2 rnd = hash22(vec2(gi * 2.11 + 1.0, 9.3) + S(62.0)) - 0.5;
   // trascina un po' a caso, ma riporta il punto preso verso casa sua
-  vec2 D = (rnd * (0.05 + 0.24 * mv) + (sfRestM(gp).xy - H.xy) * 0.7) * smoothstep(0.18, 0.72, ph);
+  vec2 D = (rnd * (0.03 + 0.12 * mv) + (sfRestM(gp).xy - H.xy) * 0.85) * smoothstep(0.18, 0.72, ph);
   // la mano trema appena
   D += 0.004 * mv * vec2(sin(t * 7.1 + gi), cos(t * 6.3 + gi * 2.0)) * env;
   // le dita raccolgono la stoffa attorno alla presa
-  float pinch = 1.0 - (0.15 + 0.35 * clamp(pieghe, 0.0, 1.0)) * smoothstep(0.03, 0.3, ph) * (1.0 - smoothstep(0.82, 0.95, ph));
+  float pinch = 1.0 - (0.08 + 0.2 * clamp(pieghe, 0.0, 1.0)) * smoothstep(0.03, 0.3, ph) * (1.0 - smoothstep(0.82, 0.95, ph));
   target = vec3(H.xy + D + dm * pinch, max(H.z, 0.0) + lift - r * 0.35 * smoothstep(0.08, 0.42, ph));
   return env * wr;
 }
@@ -102,7 +102,7 @@ const SIM = COMUNE + `
 // quanto cede se compressa, taglio, attrito sul tavolo
 float sfK(int ty, int q) {
   if (q == 0) return ty == 0 ? 2.0 : ty == 1 ? 1.2 : ty == 2 ? 5.0 : 0.5;
-  if (q == 1) return ty == 0 ? 1.3 : ty == 1 ? 1.7 : ty == 2 ? 0.3 : 2.6;
+  if (q == 1) return ty == 0 ? 0.9 : ty == 1 ? 1.5 : ty == 2 ? 0.3 : 2.4;
   if (q == 2) return ty == 0 ? 0.10 : ty == 1 ? 0.55 : ty == 2 ? 0.02 : 0.7;
   if (q == 3) return ty == 0 ? 0.025 : ty == 1 ? 0.28 : ty == 2 ? 0.0 : 0.45;
   if (q == 4) return ty == 0 ? 0.3 : ty == 1 ? 0.55 : ty == 2 ? 0.2 : 0.6;
@@ -160,7 +160,7 @@ vec4 sim(vec2 uv0) {
     float w = mv * 1.5 * max(0.25 + 0.55 * puff + 0.7 * g1 + 0.3 * g2, 0.0);
     // le stoffe pesanti hanno bisogno di più aria per muoversi (a parità di
     // «forza del movimento» si muovono tutte, ma ognuna col suo peso)
-    w *= ty == 0 ? 1.6 : ty == 1 ? 2.0 : ty == 2 ? 0.8 : 3.0;
+    w *= ty == 0 ? 2.6 : ty == 1 ? 2.2 : ty == 2 ? 0.8 : 3.0;
     vec3 W = w * normalize(vec3(lat * 0.6, 1.0));
     float vn = dot(W - B.xyz, n);
     acc += clamp(sfK(ty, 0) * vn, -60.0, 60.0) * n;
@@ -177,6 +177,8 @@ vec4 sim(vec2 uv0) {
   // vincoli
   vec3 sum = vec3(0.0);
   float yl = sfK(ty, 4), sh = sfK(ty, 5), b2 = sfK(ty, 2), b4 = sfK(ty, 3);
+  // sul tavolo la stoffa sollevata fa pieghe morbide, non fili: piega minima
+  if (!aria) { b2 = max(b2, 0.32); b4 = max(b4, 0.16); yl = max(yl, 0.45); }
   // vincoli risolti tutti insieme (Jacobi): la somma dei pesi non deve superare
   // quella che il passo regge, se no la stoffa rigida vibra e si rompe
   float kj = 0.25 * min(1.0, 7.0 / (4.0 + 4.0 * (sh + b2 + b4)));
@@ -251,7 +253,7 @@ float sfPelleH(vec2 q, vec2 cmp) {
   return h;
 }
 // luce ricevuta: ambiente + luce radente (in ombra solo l'ambiente); 1 di fronte
-float sfLit(float NL, float lz, float ka, float sh) { return 0.86 * (ka + (1.0 - ka) / lz * max(NL, 0.0) * sh); }
+float sfLit(float NL, float lz, float ka, float sh) { return 0.8 * (ka + (1.0 - ka) / lz * max(NL, 0.0) * sh); }
 vec3 fx(vec2 uv) {
   ivec2 ts = TSZ();
   vec2 asp = vec2(ASPECT, 1.0);
@@ -264,12 +266,26 @@ vec3 fx(vec2 uv) {
   vec2 span = aria ? vec2(sz.x * g, sz.y) : sz;
   vec2 orig = aria ? vec2(-0.5 * span.x, 0.56 - span.y) : -0.5 * span;
   // ---- da pixel a stoffa: punto fisso m = m + (p - proiezione(pos(m)))
-  vec2 m = (p - orig) / span;
-  for (int i = 0; i < 14; i++) {
-    vec2 e = p - sfProj(sfPos(m));
-    m += e / span * (i < 8 ? 0.85 : 0.6);
+  // dove le pieghe si sovrappongono (una piega che copre l'altra) il punto
+  // fisso ha più soluzioni: si parte da tre punti e vince lo strato davanti
+  vec2 m0 = (p - orig) / span;
+  vec2 m = m0;
+  float bestZ = -1e9, bestE = 1e9;
+  for (int k = 0; k < 3; k++) {
+    vec2 mk = m0 + vec2(float(k - 1) * 0.6 * sfPasso() / float(ts.x), 0.0);
+    for (int i = 0; i < 14; i++) {
+      vec2 e = p - sfProj(sfPos(mk));
+      mk += e / span * (i < 8 ? 0.85 : 0.6);
+    }
+    vec3 Xk = sfPos(mk);
+    float ek = length(p - sfProj(Xk)) * u_res.y;
+    bool ok = ek < 1.0;
+    // una soluzione che torna vale più di una che non torna; tra due che tornano, quella davanti
+    if ((ok && (bestE >= 1.0 || Xk.z > bestZ)) || (!ok && bestE >= 1.0 && ek < bestE)) { m = mk; bestZ = Xk.z; bestE = ek; }
   }
   vec3 X = sfPos(m);
+  // nessuno strato torna: siamo nel fondo stretto di una piega che si richiude
+  float crevice = smoothstep(1.0, 3.0, bestE);
   // ---- fuori dalla stoffa: il buio dello studio
   vec3 dark = img * 0.035;
   if (m.x < 0.0 || m.y < 0.0 || m.x > 1.0 || m.y > 1.0) return dark;
@@ -408,6 +424,7 @@ vec3 fx(vec2 uv) {
   float edge = min(eb.x, eb.y);
   col *= 1.0 - 0.22 * (1.0 - smoothstep(2.0, 9.0, edge)) + 0.08 * smoothstep(7.0, 9.0, edge) * (1.0 - smoothstep(9.0, 12.0, edge));
   col = mix(dark, col, smoothstep(0.0, 1.2, edge * K1080));
+  col *= 1.0 - 0.75 * crevice;
   FX_H = clamp(0.35 + X.z * 4.0, 0.0, 1.0);
   // spalla morbida: le luci si avvicinano al bianco senza bruciare
   vec3 hi = max(col - 0.78, 0.0);

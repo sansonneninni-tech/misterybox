@@ -65,6 +65,16 @@ const affianca = (foto, dopo, file) => execFileSync('ffmpeg', ['-y', '-loglevel'
   '-filter_complex', '[0:v]scale=960:540:force_original_aspect_ratio=increase,crop=960:540,setsar=1[a];[1:v]setsar=1[b];[a][b]hstack=shortest=1',
   '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '17', file]);
 
+// la scheda è divisa in pagine senza scroll: si va alla pagina che contiene il comando
+async function vaiAPagina(p, loc) {
+  const dots = p.locator('.pager__dot');
+  const n = await dots.count();
+  for (let i = 0; i < n; i++) {
+    const inert = await loc.evaluate((e) => !!e.closest('[inert]')).catch(() => true);
+    if (!inert) return;
+    await dots.nth(i).click().catch(() => {}); await p.waitForTimeout(500);
+  }
+}
 const foto = readdirSync(fotoDir).filter((f) => /\.(jpe?g|png|webp)$/i.test(f) && statSync(join(fotoDir, f)).isFile()).slice(0, 4);
 const report = { foto, prove: [] };
 const tmp = join(out, '_fotogrammi');
@@ -131,10 +141,12 @@ if (app && (!solo || solo === 'ui')) {
       if (await chip.count() && await chip.isVisible().catch(() => false)) { await chip.click().catch(() => {}); await p.waitForTimeout(1200); }
       for (const tipo of TIPI) {
         const t = p.locator('button.tag', { hasText: new RegExp('^' + tipo + '$') }).first();
+        await vaiAPagina(p, t);
         if (await t.count()) { await t.click(); await p.waitForTimeout(5000); await p.screenshot({ path: join(out, `ui-${name}-${tipo}.png`) }); }
         else errs.push('manca la scelta ' + tipo);
       }
       const mano = p.locator('button.tag', { hasText: /^una mano$/ }).first();
+      await vaiAPagina(p, mano);
       if (await mano.count()) { await mano.click(); await p.waitForTimeout(7000); await p.screenshot({ path: join(out, `ui-${name}-mano.png`) }); }
       // nessuno scroll nel pannello: la scheda deve stare tutta nello schermo
       const scroll = await p.evaluate(() => [...document.querySelectorAll('*')].filter((e) => { const s = getComputedStyle(e); return /(auto|scroll)/.test(s.overflowY) && e.scrollHeight > e.clientHeight + 2 && e.clientHeight > 0; }).map((e) => e.className || e.tagName));

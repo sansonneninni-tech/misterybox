@@ -58,8 +58,9 @@ for (let f = 0; f < n; f++) {
 gl.finish();
 // il tempo vero di un fotogramma, senza le copie in JPEG: un secondo ridisegnato
 const t1 = performance.now();
-for (let f = n; f < n + 24; f++) r.render(c, f / 24, f, null, { display: true });
-gl.finish();
+// (gl.finish non aspetta la scheda video su Metal: si legge un pixel a ogni fotogramma)
+const px = new Uint8Array(4);
+for (let f = n; f < n + 24; f++) { r.render(c, f / 24, f, null, { display: true }); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); }
 const ms = (performance.now() - t1) / 24;
 window.__out = { id, W, H, ms: +ms.toFixed(1), total: Math.round(performance.now() - t0), glErr, errors: [...r.errors.entries()].map(([k, v]) => k + ': ' + v.slice(0, 300)), frames };
 </script>
