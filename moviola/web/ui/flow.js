@@ -11,7 +11,7 @@ import {
 import { h, fill, toast, seg, isPhone, ago, dialog } from './kit.js';
 import { RECIPES, recipeById, buildClip, MAX_MATERIE } from '../engine/recipes.js';
 import { MATERIE, MATERIA_FAMILIES } from '../engine/materie/index.js';
-import { ASPECTS, dims, clone, normalizeClip, newSeed } from '../engine/clip.js';
+import { ASPECTS, dims, clone, normalizeClip, newSeed, DEFAULT_INTENSITY } from '../engine/clip.js';
 import { byId } from '../engine/processes.js';
 import { renderToServer, renderToPreview } from '../engine/export.js';
 import { openProvino } from './provino.js';
@@ -27,6 +27,7 @@ import { pref } from '../prefs.js';
 import { buildAny, syncRicetta, styleName } from '../engine/ricette.js';
 import { ricetteGroup, openSalva, openGestione, ricettaBlock, openIntera, clipFromRicetta, warnings } from './ricette.js';
 import { openDeriva } from './deriva.js';
+import { applyIntensity } from '../engine/mutazioni.js';
 
 const MAX = 4;
 // Intestazione di un gruppo del pannello: nome in maiuscoletto e una riga sotto.
@@ -167,17 +168,6 @@ export const scegli = {
 };
 
 // ========================================================= 2 · Trasforma
-/** Intensità: quanto lo stile pesa sulle foto (0 = quasi la foto, 1 = tutto lo stile). */
-function applyIntensity(clip) {
-  const k = clip.intensity ?? 0.8;
-  const head = clip.sources.length >= 2 ? 1 : 0;
-  clip.chain.forEach((p, i) => {
-    if (p.baseMix == null) p.baseMix = p.mix;
-    p.mix = i < head ? p.baseMix : p.baseMix * (0.25 + 0.75 * k);
-  });
-  return clip;
-}
-
 function sameSources(clip, ids) {
   const a = (clip?.sources || []).map((s) => s.id);
   return a.length === ids.length && a.every((x, i) => x === ids[i]);
@@ -201,8 +191,9 @@ const thumbCache = new Map();
 async function styleThumb(style, clip) {
   const key = style + '|' + clip.sources.map((s) => s.id).join(',') + '|' + clip.format.aspect;
   if (thumbCache.has(key)) return thumbCache.get(key);
-  const c = applyIntensity(buildClip({ style, sources: clip.sources.map((s) => sourceById(s.id)).filter(Boolean), format: { ...clip.format, duration: 4 }, seed: 7 }));
-  c.intensity = 0.8;
+  const c = buildClip({ style, sources: clip.sources.map((s) => sourceById(s.id)).filter(Boolean), format: { ...clip.format, duration: 4 }, seed: 7 });
+  c.intensity = DEFAULT_INTENSITY;
+  applyIntensity(c);
   const url = await thumbnail(c, 280);
   thumbCache.set(key, url);
   return url;
@@ -245,7 +236,7 @@ const saveUI = () => pref.set('moviola.schede', JSON.stringify({ tab: UI.tab, ge
  * basta scrivere 'emulsione'.
  */
 export const RESET_STYLE = 'nudo';
-const RESET_INTENSITY = 0.8;
+const RESET_INTENSITY = DEFAULT_INTENSITY;
 
 export const trasforma = {
   render(root, { app }) {
@@ -445,7 +436,7 @@ export const trasforma = {
         seed: patch.seed || c.seed, materie: patch.materie ?? c.materie,
         ricetta: patch.ricetta !== undefined ? patch.ricetta : c.style === 'ricetta' ? syncRicetta(c) : null,
       });
-      next.intensity = patch.intensity ?? c.intensity ?? 0.8;
+      next.intensity = patch.intensity ?? c.intensity ?? DEFAULT_INTENSITY;
       // i gesti scolpiti e la Macro non dipendono dallo stile: restano
       if (c.scolpire) next.scolpire = c.scolpire;
       if (c.macro) next.macro = c.macro;
@@ -560,8 +551,8 @@ export const trasforma = {
     function tabStile(c) {
       const r = recipeById(c.style) || { name: nameOf(c), line: '' };
       const bpm = h('input.field.field--num', { type: 'number', min: 30, max: 240, value: c.motion.bpm, 'aria-label': 'Battiti al minuto', onchange: (e) => rebuild({ motion: { bpm: Math.min(240, Math.max(30, Number(e.target.value) || 96)) } }) });
-      const intVal = h('span.prm__val', null, (c.intensity ?? 0.8).toFixed(2));
-      const slider = h('input.range', { type: 'range', min: 0, max: 1, step: 0.01, value: c.intensity ?? 0.8, 'aria-label': 'Intensità', oninput: (e) => { S.work.intensity = Number(e.target.value); intVal.textContent = S.work.intensity.toFixed(2); applyIntensity(S.work); touch('clip'); syncPlayer(); scheduleRead(); } });
+      const intVal = h('span.prm__val', null, (c.intensity ?? DEFAULT_INTENSITY).toFixed(2));
+      const slider = h('input.range', { type: 'range', min: 0, max: 1, step: 0.01, value: c.intensity ?? DEFAULT_INTENSITY, 'aria-label': 'Intensità', oninput: (e) => { S.work.intensity = Number(e.target.value); intVal.textContent = S.work.intensity.toFixed(2); applyIntensity(S.work); touch('clip'); syncPlayer(); scheduleRead(); } });
       const ric = c.style === 'ricetta';
       return {
         key: 'stile',

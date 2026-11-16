@@ -63,6 +63,11 @@ export function normalizeClip(c) {
   out.motion = Object.assign(defaultClip().motion, out.motion || {});
   out.sources = (out.sources || []).map((s) => (typeof s === 'string' ? { id: s, speed: 1, start: 0 } : Object.assign({ speed: 1, start: 0 }, s)));
   out.chain = (out.chain || []).map((p) => Object.assign({ on: true, mix: 1, blend: 'normale', params: {} }, p));
+  // le materie usano la loro Quantità così com'è (anche nei lavori salvati quando l'Intensità la riduceva)
+  for (const p of out.chain) if (p.layer != null && p.baseMix != null) p.mix = p.baseMix;
   out.keys = out.keys || {};
   return out;
 }
+
+/** Intensità di partenza: lo stile copre tutta la foto, niente foto in trasparenza sotto. */
+export const DEFAULT_INTENSITY = 1;

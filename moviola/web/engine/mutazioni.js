@@ -7,7 +7,7 @@
 
 import { byId, PROCESSES, defaultParams } from './processes.js';
 import { MAX_MATERIE } from './recipes.js';
-import { clone, dims } from './clip.js';
+import { clone, dims, DEFAULT_INTENSITY } from './clip.js';
 import { baseOf, layersOf, buildAny, styleName, suggestVisibili } from './ricette.js';
 import { frameStats } from './analysis.js';
 import { seekVideo, videoTime } from '../media.js';
@@ -76,7 +76,7 @@ export function mutValue(d, v0, A, r) {
 export function toGenome(clip) {
   return {
     base: baseOf(clip.chain), layers: layersOf(clip), motion: clone(clip.motion), seed: clip.seed,
-    intensity: clip.intensity ?? 0.8, keys: clone(clip.keys || {}),
+    intensity: clip.intensity ?? DEFAULT_INTENSITY, keys: clone(clip.keys || {}),
   };
 }
 
@@ -273,13 +273,17 @@ export function cross(a, b, r) {
   };
 }
 
-/** Intensità dello stile sulle foto (la stessa regola di Trasforma). */
+/**
+ * Intensità dello stile sulle foto (la regola unica, usata anche da Trasforma).
+ * Pesa solo sui passaggi dello stile: le materie hanno la loro Quantità e la
+ * usano così com'è, altrimenti con Quantità 1 la foto resterebbe in trasparenza.
+ */
 export function applyIntensity(clip) {
-  const k = clip.intensity ?? 0.8;
+  const k = clip.intensity ?? DEFAULT_INTENSITY;
   const head = clip.sources.length >= 2 ? 1 : 0;
   clip.chain.forEach((p, i) => {
     if (p.baseMix == null) p.baseMix = p.mix;
-    p.mix = i < head ? p.baseMix : p.baseMix * (0.25 + 0.75 * k);
+    p.mix = i < head || p.layer != null ? p.baseMix : p.baseMix * (0.25 + 0.75 * k);
   });
   return clip;
 }
