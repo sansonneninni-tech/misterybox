@@ -6,7 +6,7 @@
 import { S, thumbnail, expById, versionById } from '../state.js';
 import { h, fill, dialog, confirmDialog, toast, isPhone, ago, fmtNum } from './kit.js';
 import { byId } from '../engine/processes.js';
-import { clone } from '../engine/clip.js';
+import { clone, DEFAULT_INTENSITY } from '../engine/clip.js';
 import {
   buildAny, asClipRicetta, ricettaFromClip, updateFromClip, checkRicetta, exportPack, importPack,
   suggestVisibili, suggestName, freezeChain, MAX_VISIBILI,
@@ -58,7 +58,7 @@ export function clipFromRicetta(rec, work) {
   const fmt = { ...work.format, duration: rec.format?.duration || rec.ricetta?.dur || work.format.duration, fps: rec.format?.fps || work.format.fps, loop: rec.format?.loop ?? work.format.loop };
   const clip = buildAny({ style: 'ricetta', ricetta: asClipRicetta(rec), sources: work.sources, format: fmt, motion: rec.motion, seed: rec.seed, materie: [] });
   clip.sources = clone(work.sources);
-  clip.intensity = rec.intensity ?? 0.8;
+  clip.intensity = rec.intensity ?? DEFAULT_INTENSITY;
   return applyIntensity(clip);
 }
 

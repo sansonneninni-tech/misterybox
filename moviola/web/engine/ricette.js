@@ -10,7 +10,7 @@
 
 import { byId, defaultParams } from './processes.js';
 import { buildClip, cleanMaterie, MAX_MATERIE } from './recipes.js';
-import { defaultClip, normalizeClip, newSeed, clone, uid } from './clip.js';
+import { defaultClip, normalizeClip, newSeed, clone, uid, DEFAULT_INTENSITY } from './clip.js';
 
 export const RICETTA_VER = 1;
 export const MAX_VISIBILI = 6;
@@ -205,7 +205,7 @@ export function ricettaFromClip(clip, { name, visibili, origine, thumb } = {}) {
       dur: clip.format.duration, nsrc: clip.sources.length,
       visibili: (visibili || suggestVisibili(chain)).filter((v) => ids.has(v.pass)).slice(0, MAX_VISIBILI),
     },
-    motion: clone(clip.motion), seed: clip.seed, intensity: clip.intensity ?? 0.8,
+    motion: clone(clip.motion), seed: clip.seed, intensity: clip.intensity ?? DEFAULT_INTENSITY,
     format: { duration: clip.format.duration, fps: clip.format.fps, loop: clip.format.loop },
     origine: origine || null,
   };
